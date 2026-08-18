@@ -1,0 +1,33 @@
+{
+  "name": "CellsInVitro",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "start": "node scripts/start.mjs",
+    "db:migrate": "npm run db:migrate --workspace=server",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-types": "turbo run check-types",
+    "postinstall": "node scripts/link-web-postcss-deps.mjs"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "turbo": "^2.10.10",
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "11.16.0",
+      "onFail": "ignore"
+    }
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
