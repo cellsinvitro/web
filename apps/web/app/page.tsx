@@ -7,10 +7,12 @@ import Testimonials from "@/components/Testimonials";
 import Team from "@/components/Team";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
+import PageLoader from "@/components/PageLoader";
 
 export default function Home() {
   return (
     <main>
+      <PageLoader />
       <Navbar />
       <Hero />
       <ResearchKits />
