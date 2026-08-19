@@ -35,55 +35,65 @@ export default function Features() {
   return (
     <section
       id="features"
-      className="relative overflow-hidden bg-[#f8fafc] py-20 sm:py-24 lg:py-28"
+      className="relative overflow-hidden bg-[#f8fafc] py-14 sm:py-16 lg:py-20"
     >
       {/* Background glow */}
-      <div className="pointer-events-none absolute -left-40 top-20 h-[450px] w-[450px] rounded-full bg-blue-100/30 blur-[120px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-40 top-20 h-[400px] w-[400px] rounded-full bg-blue-100/30 blur-[120px]"
+      />
 
-      <div className="pointer-events-none absolute -right-40 bottom-0 h-[450px] w-[450px] rounded-full bg-slate-200/40 blur-[120px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-40 bottom-0 h-[400px] w-[400px] rounded-full bg-slate-200/40 blur-[120px]"
+      />
 
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
 
         {/* ================= HEADER ================= */}
-        <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
+        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
 
           <div className="max-w-3xl">
-            <div className="mb-5 flex items-center gap-3">
-              <span className="h-px w-10 bg-slate-400" />
 
-              <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="h-px w-8 bg-slate-400" />
+
+              <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                 Why CellsInVitro
               </span>
             </div>
 
-            <h2 className="text-4xl font-bold leading-[1.05] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+            <h2 className="text-4xl font-bold leading-[1.05] tracking-tight text-slate-950 sm:text-5xl">
               More than research.
               <br />
               <span className="text-slate-400">
                 A space to grow.
               </span>
             </h2>
+
           </div>
 
-          <p className="max-w-md text-sm leading-7 text-slate-600 sm:text-base">
+          <p className="max-w-md text-sm leading-6 text-slate-600">
             Bringing research, learning, collaboration, and professional
             development together for the Life Sciences community.
           </p>
+
         </div>
 
         {/* ================= 3 × 2 GRID ================= */}
-        <div className="mt-12 grid grid-cols-1 gap-4 sm:mt-14 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 md:grid-cols-2 lg:grid-cols-3">
 
-          {/* ================= R&D ================= */}
-          <article className="group relative min-h-[360px] overflow-hidden rounded-[2rem] border border-slate-900 bg-slate-950 p-8 text-white shadow-sm lg:p-9">
+          {/* ================= 01 · R&D ================= */}
+          <article className="group relative min-h-[250px] overflow-hidden rounded-[1.75rem] border border-slate-900 bg-slate-950 p-6 text-white shadow-sm">
 
             {/* Background Number */}
-            <span className="pointer-events-none absolute -right-4 -top-12 text-[160px] font-bold leading-none text-white/[0.035]">
+            <span className="pointer-events-none absolute -right-3 -top-8 text-[125px] font-bold leading-none text-white/[0.035]">
               01
             </span>
 
             {/* Scientific Visual */}
-            <div className="absolute -right-28 -top-16 h-[400px] w-[400px] opacity-90 transition-transform duration-700 group-hover:scale-105">
+            <div className="pointer-events-none absolute -right-24 -top-12 h-[300px] w-[300px] opacity-80 transition-transform duration-700 group-hover:scale-105">
+
               <svg
                 viewBox="0 0 500 500"
                 className="h-full w-full"
@@ -91,17 +101,20 @@ export default function Features() {
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <defs>
+
                   <radialGradient id="cellGlow">
                     <stop
                       offset="0%"
                       stopColor="#ffffff"
                       stopOpacity="0.22"
                     />
+
                     <stop
                       offset="60%"
                       stopColor="#bfdbfe"
                       stopOpacity="0.08"
                     />
+
                     <stop
                       offset="100%"
                       stopColor="#bfdbfe"
@@ -112,6 +125,7 @@ export default function Features() {
                   <filter id="blur">
                     <feGaussianBlur stdDeviation="12" />
                   </filter>
+
                 </defs>
 
                 <circle
@@ -203,38 +217,48 @@ export default function Features() {
                   fillOpacity="0.3"
                 />
               </svg>
+
             </div>
 
             {/* R&D Content */}
             <div className="relative z-10 flex h-full flex-col justify-between">
 
               <div>
+
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
                     01 · Research
                   </span>
 
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm text-slate-300 transition-all duration-300 group-hover:border-white/30 group-hover:bg-white/10">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm text-slate-300 transition-all duration-300 group-hover:border-white/30 group-hover:bg-white/10">
                     ↗
                   </span>
+
                 </div>
 
-                <h3 className="mt-20 text-4xl font-semibold tracking-tight">
+                <h3 className="mt-12 text-3xl font-semibold tracking-tight">
                   R & D
                 </h3>
 
-                <p className="mt-5 max-w-sm text-sm leading-7 text-slate-300">
+                <p className="mt-3 max-w-sm text-sm leading-6 text-slate-300">
                   We are working on the development of kits designed for
                   research purposes, supporting the next generation of
                   scientific exploration.
                 </p>
+
               </div>
 
-              <div className="mt-8 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-                <span className="h-px w-8 bg-slate-700" />
+              <div className="mt-5 flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+
+                <span className="h-px w-7 bg-slate-700" />
+
                 Research & Development
+
               </div>
+
             </div>
+
           </article>
 
           {/* ================= 02 ================= */}
@@ -273,6 +297,7 @@ export default function Features() {
           />
 
         </div>
+
       </div>
     </section>
   );
@@ -293,38 +318,42 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <article className="group relative min-h-[360px] overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/[0.06] lg:p-9">
+    <article className="group relative min-h-[250px] overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/[0.06]">
 
       {/* Large Background Number */}
-      <span className="pointer-events-none absolute -right-3 -top-6 text-[150px] font-bold leading-none text-slate-100 transition-colors duration-500 group-hover:text-slate-200">
+      <span className="pointer-events-none absolute -right-3 -top-5 text-[120px] font-bold leading-none text-slate-100 transition-colors duration-500 group-hover:text-slate-200">
         {number}
       </span>
 
       {/* Top */}
       <div className="relative flex items-center justify-between">
 
-        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
           {number}
         </span>
 
-        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-sm text-slate-500 transition-all duration-300 group-hover:border-slate-950 group-hover:bg-slate-950 group-hover:text-white">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-sm text-slate-500 transition-all duration-300 group-hover:border-slate-950 group-hover:bg-slate-950 group-hover:text-white">
           ↗
         </span>
+
       </div>
 
       {/* Content */}
-      <div className="relative mt-20">
-        <h3 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
+      <div className="relative mt-12">
+
+        <h3 className="text-xl font-semibold tracking-tight text-slate-950">
           {title}
         </h3>
 
-        <p className="mt-4 max-w-sm text-sm leading-7 text-slate-600">
+        <p className="mt-3 max-w-sm text-sm leading-6 text-slate-600">
           {description}
         </p>
+
       </div>
 
       {/* Hover Line */}
       <div className="absolute bottom-0 left-0 h-1 w-0 bg-slate-950 transition-all duration-500 group-hover:w-full" />
+
     </article>
   );
 }
