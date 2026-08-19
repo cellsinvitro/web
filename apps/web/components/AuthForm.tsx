@@ -31,7 +31,9 @@ export default function AuthForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
-    oauthError ? googleErrors[oauthError] || googleErrors.google : null
+    oauthError
+      ? (googleErrors[oauthError] ?? googleErrors.google ?? null)
+      : null
   );
   const [submitting, setSubmitting] = useState(false);
 
