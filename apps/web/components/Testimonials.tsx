@@ -29,7 +29,11 @@ const testimonials = [
 export default function Testimonials() {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const activeTestimonial = testimonials[activeIndex];
+  const activeTestimonial = testimonials[activeIndex] ?? testimonials[0];
+
+  if (!activeTestimonial) {
+    return null;
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {

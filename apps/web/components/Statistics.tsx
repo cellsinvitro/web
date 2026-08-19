@@ -44,7 +44,7 @@ export default function Statistics() {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry?.isIntersecting) {
           setStarted(true);
           observer.disconnect();
         }
