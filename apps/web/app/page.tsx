@@ -10,12 +10,7 @@ export default function Home() {
       <Hero />
       <ResearchKits />
       <Features />
-
-      {/* Sections will be added here */}
-      <section id="kits" className="min-h-screen bg-white" />
-      <section id="features" className="min-h-screen bg-slate-50" />
-      <section id="team" className="min-h-screen bg-white" />
-      <section id="contact" className="min-h-screen bg-slate-50" />
+      {/* More sections will be added here */}
     </main>
   );
 }
