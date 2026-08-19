@@ -6,12 +6,12 @@ const teamMembers = [
   {
     name: "Dr. Satyam Kumar Agrawal",
     role: "Founder Director & CEO",
-    image: "/images/team/satyam.jpg",
+    image: "/images/team/pic1.jpg",
   },
   {
     name: "Dr. Madhunika Agrawal",
     role: "Founder Director & CKO",
-    image: "/images/team/madhunika.jpg",
+    image: "/images/team/pic2.jpg",
   },
 ];
 
