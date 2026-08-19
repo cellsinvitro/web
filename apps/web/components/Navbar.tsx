@@ -5,10 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 
 const navItems = [
-  { label: "Home", href: "#home" },
-  { label: "Research Kits", href: "#kits" },
-  { label: "Features", href: "#features" },
-  { label: "About", href: "#team" },
+  { label: "Home", href: "/#home" },
+  { label: "Research Kits", href: "/#kits" },
+  { label: "Features", href: "/#features" },
+  { label: "About", href: "/#team" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export default function Navbar() {
@@ -22,7 +23,7 @@ export default function Navbar() {
 
             {/* Logo */}
             <Link
-              href="#home"
+              href="/"
               className="flex items-center gap-3"
               onClick={() => setMenuOpen(false)}
             >
@@ -62,10 +63,10 @@ export default function Navbar() {
             {/* CTA */}
             <div className="hidden md:block">
               <Link
-                href="#contact"
+                href="/contact"
                 className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800"
               >
-                Get Started
+                Contact Us
               </Link>
             </div>
 
@@ -112,11 +113,11 @@ export default function Navbar() {
                 ))}
 
                 <Link
-                  href="#contact"
+                  href="/contact"
                   onClick={() => setMenuOpen(false)}
                   className="mt-2 rounded-xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white"
                 >
-                  Get Started
+                  Contact Us
                 </Link>
               </div>
             </div>

@@ -32,7 +32,7 @@ export default function CTA() {
             {/* Text */}
             <div className="max-w-2xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-                Explore What&apos;s Next
+                Get In Touch
               </p>
 
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
@@ -41,17 +41,17 @@ export default function CTA() {
               </h2>
 
               <p className="mt-4 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
-                Explore research-focused solutions, upcoming assay kits,
-                and learning opportunities from CellsInVitro.
+                Have a question about our research kits or want to collaborate?
+                Reach out — we&apos;d love to hear from you.
               </p>
             </div>
 
             {/* Button */}
             <Link
-              href="#kits"
+              href="/contact"
               className="group inline-flex shrink-0 items-center gap-3 rounded-xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/10"
             >
-              Explore Research Kits
+              Contact Us
 
               <span className="transition-transform duration-300 group-hover:translate-x-1">
                 →

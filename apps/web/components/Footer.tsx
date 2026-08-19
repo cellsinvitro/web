@@ -7,18 +7,19 @@ const footerLinks = [
   {
     title: "Explore",
     links: [
-      { label: "Home", href: "#home" },
-      { label: "Research Kits", href: "#kits" },
-      { label: "Features", href: "#features" },
-      { label: "Our Team", href: "#team" },
+      { label: "Home", href: "/#home" },
+      { label: "Research Kits", href: "/#kits" },
+      { label: "Features", href: "/#features" },
+      { label: "Our Team", href: "/#team" },
+      { label: "Contact Us", href: "/contact" },
     ],
   },
   {
     title: "Research",
     links: [
-      { label: "Anti-Cancer", href: "#kits" },
-      { label: "Anti-Oxidant", href: "#kits" },
-      { label: "Anti-Diabetic", href: "#kits" },
+      { label: "Anti-Cancer", href: "/#kits" },
+      { label: "Anti-Oxidant", href: "/#kits" },
+      { label: "Anti-Diabetic", href: "/#kits" },
     ],
   },
 ];
@@ -34,7 +35,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="max-w-sm">
             <Link
-              href="#home"
+              href="/"
               className="inline-flex items-center gap-3"
             >
               <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-white">
