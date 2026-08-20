@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_ORIGIN = process.env.API_ORIGIN || "http://localhost:3000";
+const PRODUCTION_API_ORIGIN = "https://cellsinvitro.onrender.com";
+
+function getApiOrigin() {
+  if (process.env.API_ORIGIN) {
+    return process.env.API_ORIGIN.replace(/\/$/, "");
+  }
+  if (process.env.VERCEL) {
+    return PRODUCTION_API_ORIGIN;
+  }
+  return "http://localhost:3000";
+}
+
+export const dynamic = "force-dynamic";
 
 async function proxy(request: NextRequest, path: string[]) {
-  const url = new URL(path.join("/"), `${API_ORIGIN}/`);
+  const apiOrigin = getApiOrigin();
+  const url = new URL(path.join("/"), `${apiOrigin}/`);
   url.search = request.nextUrl.search;
 
   const headers = new Headers();
@@ -15,18 +28,34 @@ async function proxy(request: NextRequest, path: string[]) {
   if (contentType) {
     headers.set("content-type", contentType);
   }
+  const accept = request.headers.get("accept");
+  if (accept) {
+    headers.set("accept", accept);
+  }
 
   const method = request.method;
   const body =
     method === "GET" || method === "HEAD" ? undefined : await request.text();
 
-  const upstream = await fetch(url, {
-    method,
-    headers,
-    body,
-    cache: "no-store",
-    redirect: "manual",
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(url, {
+      method,
+      headers,
+      body,
+      cache: "no-store",
+      redirect: "manual",
+    });
+  } catch (error) {
+    console.error("API proxy failed:", error);
+    return NextResponse.json(
+      {
+        error:
+          "Unable to reach the API server. Please try again in a moment.",
+      },
+      { status: 502 }
+    );
+  }
 
   const responseHeaders = new Headers();
   const upstreamContentType = upstream.headers.get("content-type");
