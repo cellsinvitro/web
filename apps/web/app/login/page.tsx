@@ -1,0 +1,70 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import Image from "next/image";
+import AuthForm from "@/components/AuthForm";
+
+export const metadata: Metadata = {
+  title: "Login | CellsInVitro",
+  description: "Sign in or create your CellsInVitro account.",
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; tab?: string }>;
+}) {
+  const params = await searchParams;
+  const oauthError = params.error;
+  const initialTab = params.tab === "register" ? "register" : "login";
+
+  return (
+    <main className="relative flex h-dvh max-h-dvh items-center justify-center overflow-hidden bg-white px-4 py-6 sm:px-6">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[12%] top-[18%] h-56 w-72 rounded-full bg-slate-100/80 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-[12%] right-[8%] h-48 w-64 rounded-full border border-slate-200/80"
+      />
+
+      <div className="relative z-10 w-full max-w-3xl">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-sm">
+          <div className="grid md:grid-cols-[0.9fr_1.1fr]">
+            <div className="flex flex-col justify-between border-b border-slate-200 bg-slate-50/80 px-6 py-6 md:border-b-0 md:border-r md:px-7 md:py-7">
+              <div>
+                <Link href="/" className="inline-flex items-center gap-2.5">
+                  <Image
+                    src="/images/logo.png"
+                    alt="CellsInVitro"
+                    width={36}
+                    height={36}
+                    className="h-9 w-9 object-contain"
+                    priority
+                  />
+                  <span className="text-base font-bold tracking-tight text-slate-950">
+                    CellsInVitro
+                  </span>
+                </Link>
+                <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">
+                  Welcome back
+                </h1>
+                <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
+                  Log in or create an account to continue your research
+                  workspace.
+                </p>
+              </div>
+              <p className="mt-6 hidden text-xs text-slate-400 md:block">
+                Research kits · Collaboration · Secure access
+              </p>
+            </div>
+
+            <div className="px-6 py-6 md:px-7 md:py-7">
+              <AuthForm initialTab={initialTab} oauthError={oauthError} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
