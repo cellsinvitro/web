@@ -158,7 +158,13 @@ authRoutes.get("/me", requireAuth, async (c) => {
   const authUser = c.get("user");
   const user = await prisma.user.findUnique({
     where: { id: authUser.sub },
-    select: { id: true, email: true, name: true, createdAt: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      avatarUrl: true,
+      createdAt: true,
+    },
   });
 
   if (!user) {

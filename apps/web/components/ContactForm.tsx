@@ -77,7 +77,7 @@ export default function ContactForm() {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-12 text-center sm:px-10">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-10 text-center sm:px-10">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
           Message sent
         </p>
@@ -98,7 +98,7 @@ export default function ContactForm() {
         <button
           type="button"
           onClick={() => setSubmitted(false)}
-          className="mt-8 inline-flex rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          className="mt-6 inline-flex rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
         >
           Send another message
         </button>
@@ -107,8 +107,8 @@ export default function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid gap-5 sm:grid-cols-2">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
             Name
@@ -121,7 +121,7 @@ export default function ContactForm() {
             value={form.name}
             onChange={(e) => updateField("name", e.target.value)}
             placeholder="Your full name"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
           />
         </label>
 
@@ -137,7 +137,7 @@ export default function ContactForm() {
             value={form.email}
             onChange={(e) => updateField("email", e.target.value)}
             placeholder="you@institution.edu"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
           />
         </label>
       </div>
@@ -153,7 +153,7 @@ export default function ContactForm() {
           value={form.subject}
           onChange={(e) => updateField("subject", e.target.value)}
           placeholder="How can we help?"
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
         />
       </label>
 
@@ -164,11 +164,11 @@ export default function ContactForm() {
         <textarea
           name="message"
           required
-          rows={6}
+          rows={5}
           value={form.message}
           onChange={(e) => updateField("message", e.target.value)}
           placeholder="Tell us about your research needs, kit questions, or collaboration ideas."
-          className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+          className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
         />
       </label>
 
@@ -181,7 +181,7 @@ export default function ContactForm() {
       <button
         type="submit"
         disabled={sending}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {sending ? "Sending…" : "Send message"}
         {!sending && <span>→</span>}

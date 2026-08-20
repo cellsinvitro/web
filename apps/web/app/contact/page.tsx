@@ -28,7 +28,7 @@ export default function ContactPage() {
     <main>
       <Navbar />
 
-      <section className="relative overflow-hidden bg-white pt-32 pb-16 sm:pb-20 lg:pb-24">
+      <section className="relative overflow-hidden bg-white pt-24 pb-16 sm:pb-20 lg:pb-24">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute left-1/2 top-20 h-72 w-72 -translate-x-1/2 rounded-full bg-slate-100/70 blur-3xl"
@@ -39,22 +39,22 @@ export default function ContactPage() {
         />
 
         <div className="relative mx-auto max-w-6xl px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
-              Contact Us
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              Let&apos;s advance research
-              <span className="text-slate-500"> together.</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-500">
-              Questions about research kits, collaborations, or scientific
-              support? Send us a message and our team will get back to you.
-            </p>
-          </div>
-
-          <div className="mt-14 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16 lg:items-start">
             <aside className="space-y-8">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                  Contact Us
+                </p>
+                <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+                  Let&apos;s advance research
+                  <span className="text-slate-500"> together.</span>
+                </h1>
+                <p className="mt-5 max-w-xl text-base leading-7 text-slate-500">
+                  Questions about research kits, collaborations, or scientific
+                  support? Send us a message and our team will get back to you.
+                </p>
+              </div>
+
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">
                   Direct channels
@@ -102,14 +102,14 @@ export default function ContactPage() {
               </div>
             </aside>
 
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-8">
               <h2 className="text-xl font-semibold tracking-tight text-slate-950">
                 Send a message
               </h2>
               <p className="mt-2 text-sm text-slate-500">
                 Share a few details and we&apos;ll follow up shortly.
               </p>
-              <div className="mt-8">
+              <div className="mt-6">
                 <ContactForm />
               </div>
             </div>

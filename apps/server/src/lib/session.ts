@@ -10,6 +10,7 @@ export async function issueTokenPair(user: {
   id: string;
   email: string;
   name: string | null;
+  avatarUrl?: string | null;
 }) {
   const accessToken = await signAccessToken({
     sub: user.id,
@@ -30,6 +31,7 @@ export async function issueTokenPair(user: {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl ?? null,
     },
     accessToken,
     refreshToken,

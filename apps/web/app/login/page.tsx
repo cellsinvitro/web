@@ -18,17 +18,8 @@ export default async function LoginPage({
   const initialTab = params.tab === "register" ? "register" : "login";
 
   return (
-    <main className="relative flex h-dvh max-h-dvh items-center justify-center overflow-hidden bg-white px-4 py-6 sm:px-6">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-[12%] top-[18%] h-56 w-72 rounded-full bg-slate-100/80 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-[12%] right-[8%] h-48 w-64 rounded-full border border-slate-200/80"
-      />
-
-      <div className="relative z-10 w-full max-w-3xl">
+    <main className="flex h-dvh max-h-dvh items-center justify-center overflow-hidden bg-white px-4 py-6 sm:px-6">
+      <div className="w-full max-w-3xl">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-sm">
           <div className="grid md:grid-cols-[0.9fr_1.1fr]">
             <div className="flex flex-col justify-between border-b border-slate-200 bg-slate-50/80 px-6 py-6 md:border-b-0 md:border-r md:px-7 md:py-7">

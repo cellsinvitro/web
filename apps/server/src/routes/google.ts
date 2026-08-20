@@ -20,6 +20,7 @@ type GoogleUserInfo = {
   email?: string;
   email_verified?: boolean;
   name?: string;
+  picture?: string;
 };
 
 function frontendOrigin() {
@@ -151,12 +152,21 @@ googleAuthRoutes.get("/callback", async (c) => {
 
     const email = profile.email.trim().toLowerCase();
     const name = profile.name?.trim() || null;
+    const avatarUrl = profile.picture?.trim() || null;
 
     let user = await prisma.user.findUnique({
       where: { googleId: profile.sub },
     });
 
-    if (!user) {
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: name || user.name,
+          avatarUrl: avatarUrl || user.avatarUrl,
+        },
+      });
+    } else {
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
         user = await prisma.user.update({
@@ -164,6 +174,7 @@ googleAuthRoutes.get("/callback", async (c) => {
           data: {
             googleId: profile.sub,
             name: existing.name || name,
+            avatarUrl: avatarUrl || existing.avatarUrl,
           },
         });
       } else {
@@ -172,6 +183,7 @@ googleAuthRoutes.get("/callback", async (c) => {
             email,
             name,
             googleId: profile.sub,
+            avatarUrl,
           },
         });
       }

@@ -7,27 +7,21 @@ import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   { label: "Home", href: "/#home" },
-  { label: "Research Kits", href: "/#kits" },
-  { label: "Features", href: "/#features" },
-  { label: "About", href: "/#team" },
+  { label: "CyroSearch", href: "/cyrosearch" },
+  // { label: "Research Kits", href: "/#kits" },
   { label: "Contact", href: "/contact" },
 ];
 
 const menuLinks = [
   {
-    label: "Research Kits",
-    description: "Browse assay kits",
-    href: "/#kits",
+    label: "CyroSearch",
+    description: "Search for your desired cyrosearch",
+    href: "/cyrosearch",
   },
   {
     label: "Contact",
     description: "Reach our team",
     href: "/contact",
-  },
-  {
-    label: "About",
-    description: "Meet the researchers",
-    href: "/#team",
   },
 ];
 
@@ -40,6 +34,47 @@ function getInitials(name: string | null, email: string) {
       .join("");
   }
   return email.slice(0, 2).toUpperCase();
+}
+
+function UserAvatar({
+  name,
+  email,
+  avatarUrl,
+  size = "sm",
+}: {
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+  size?: "sm" | "md" | "mobile";
+}) {
+  const initials = getInitials(name, email);
+  const sizeClass =
+    size === "md"
+      ? "h-10 w-10 text-xs"
+      : size === "mobile"
+        ? "h-9 w-9 text-[11px]"
+        : "h-8 w-8 text-[11px]";
+  const imageSize = size === "md" ? 40 : size === "mobile" ? 36 : 32;
+
+  if (avatarUrl) {
+    return (
+      <Image
+        src={avatarUrl}
+        alt={name || email}
+        width={imageSize}
+        height={imageSize}
+        className={`${sizeClass} shrink-0 rounded-full object-cover`}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-full bg-slate-950 font-semibold tracking-wide text-white`}
+    >
+      {initials}
+    </span>
+  );
 }
 
 export default function Navbar() {
@@ -58,7 +93,6 @@ export default function Navbar() {
   };
 
   const displayName = user?.name || user?.email || "";
-  const initials = user ? getInitials(user.name, user.email) : "";
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full">
@@ -114,9 +148,11 @@ export default function Navbar() {
                     aria-haspopup="menu"
                     aria-expanded={userMenuOpen}
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-[11px] font-semibold tracking-wide text-white">
-                      {initials}
-                    </span>
+                    <UserAvatar
+                      name={user.name}
+                      email={user.email}
+                      avatarUrl={user.avatarUrl}
+                    />
                     <span className="max-w-36 truncate text-sm font-medium text-slate-800">
                       {displayName}
                     </span>
@@ -149,9 +185,12 @@ export default function Navbar() {
                     <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_18px_40px_-24px_rgba(15,23,42,0.45)]">
                       <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3.5">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold tracking-wide text-white">
-                            {initials}
-                          </span>
+                          <UserAvatar
+                            name={user.name}
+                            email={user.email}
+                            avatarUrl={user.avatarUrl}
+                            size="md"
+                          />
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-slate-950">
                               {user.name || "Account"}
@@ -333,9 +372,12 @@ export default function Navbar() {
                   <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70">
                     <div className="border-b border-slate-100 px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-[11px] font-semibold text-white">
-                          {initials}
-                        </span>
+                        <UserAvatar
+                          name={user.name}
+                          email={user.email}
+                          avatarUrl={user.avatarUrl}
+                          size="mobile"
+                        />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-slate-950">
                             {user.name || "Account"}
