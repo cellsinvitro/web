@@ -28,17 +28,8 @@ export default function ContactPage() {
     <main>
       <Navbar />
 
-      <section className="relative overflow-hidden bg-white pt-24 pb-16 sm:pb-20 lg:pb-24">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-20 h-72 w-72 -translate-x-1/2 rounded-full bg-slate-100/70 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-24 top-40 h-64 w-64 rounded-full border border-slate-200/70"
-        />
-
-        <div className="relative mx-auto max-w-6xl px-6 lg:px-8">
+      <section className="bg-white pt-24 pb-16 sm:pb-20 lg:pb-24">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8">
           <div className="grid gap-10 mt-7 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16 lg:items-start">
             <aside className="space-y-8">
               <div className="max-w-2xl"> 

@@ -17,11 +17,52 @@ const menuLinks = [
     label: "CyroSearch",
     description: "Search for your desired cyrosearch",
     href: "/cyrosearch",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+      </svg>
+    ),
   },
   {
     label: "Contact",
     description: "Reach our team",
     href: "/contact",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path d="M4 6h16v12H4z" strokeLinejoin="round" />
+        <path d="m4 7 8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Tools",
+    description: "Free lab calculators",
+    href: "/tools",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <rect x="4" y="2" width="16" height="20" rx="2" />
+        <path d="M8 6h8M8 10h2M12 10h2M16 10h0M8 14h2M12 14h2M16 14h0M8 18h2M12 18h4" strokeLinecap="round" />
+      </svg>
+    ),
   },
 ];
 
@@ -212,59 +253,7 @@ export default function Navbar() {
                             className="flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50"
                           >
                             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                              {item.label === "Research Kits" && (
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.8"
-                                >
-                                  <path
-                                    d="M9 3v6l-4 8a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 17l-4-8V3"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                  <path
-                                    d="M8 3h8"
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                              )}
-                              {item.label === "Contact" && (
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.8"
-                                >
-                                  <path
-                                    d="M4 6h16v12H4z"
-                                    strokeLinejoin="round"
-                                  />
-                                  <path
-                                    d="m4 7 8 6 8-6"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              )}
-                              {item.label === "About" && (
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.8"
-                                >
-                                  <circle cx="12" cy="8" r="3.2" />
-                                  <path
-                                    d="M5.5 19a6.5 6.5 0 0 1 13 0"
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                              )}
+                              {item.icon}
                             </span>
                             <span className="min-w-0">
                               <span className="block text-sm font-medium text-slate-900">
@@ -393,8 +382,11 @@ export default function Navbar() {
                         key={item.label}
                         href={item.href}
                         onClick={closeMenus}
-                        className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white/60"
+                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white/60"
                       >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                          {item.icon}
+                        </span>
                         {item.label}
                       </Link>
                     ))}
