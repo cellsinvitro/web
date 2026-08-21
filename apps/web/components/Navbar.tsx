@@ -346,19 +346,8 @@ export default function Navbar() {
           {menuOpen && (
             <div className="mt-3 border-t border-white/40 pt-3 md:hidden">
               <div className="flex flex-col gap-1">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={closeMenus}
-                    className="rounded-xl px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white/30 hover:text-slate-950"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-
                 {!loading && user ? (
-                  <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70">
+                  <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70">
                     <div className="border-b border-slate-100 px-4 py-3">
                       <div className="flex items-center gap-3">
                         <UserAvatar
@@ -399,13 +388,25 @@ export default function Navbar() {
                     </button>
                   </div>
                 ) : (
-                  <Link
-                    href="/login"
-                    onClick={closeMenus}
-                    className="mt-2 rounded-xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white"
-                  >
-                    Login
-                  </Link>
+                  <>
+                    {navItems.map((item) => (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        onClick={closeMenus}
+                        className="rounded-xl px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white/30 hover:text-slate-950"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                    <Link
+                      href="/login"
+                      onClick={closeMenus}
+                      className="mt-2 rounded-xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white"
+                    >
+                      Login
+                    </Link>
+                  </>
                 )}
               </div>
             </div>
