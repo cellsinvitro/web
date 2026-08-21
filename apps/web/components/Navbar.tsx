@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
-  { label: "Home", href: "/#home" },
+  { label: "Tools", href: "/tools" },
   { label: "CyroSearch", href: "/cyrosearch" },
   // { label: "Research Kits", href: "/#kits" },
   { label: "Contact", href: "/contact" },
