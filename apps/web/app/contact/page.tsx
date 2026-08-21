@@ -39,9 +39,9 @@ export default function ContactPage() {
         />
 
         <div className="relative mx-auto max-w-6xl px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16 lg:items-start">
+          <div className="grid gap-10 mt-7 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16 lg:items-start">
             <aside className="space-y-8">
-              <div className="max-w-2xl">
+              <div className="max-w-2xl"> 
                 <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                   Contact Us
                 </p>
@@ -83,23 +83,6 @@ export default function ContactPage() {
                   </li>
                 ))}
               </ul>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Looking for kits?
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Explore our research-focused assay kits and find the right
-                  solution for your lab.
-                </p>
-                <Link
-                  href="/#kits"
-                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-950 transition-colors hover:text-slate-700"
-                >
-                  View research kits
-                  <span>→</span>
-                </Link>
-              </div>
             </aside>
 
             <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-8">
