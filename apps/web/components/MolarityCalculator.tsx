@@ -47,6 +47,7 @@ function Field({
   unit,
   onUnitChange,
   unitOptions,
+  disabled,
 }: {
   label: string;
   value: string;
@@ -55,6 +56,7 @@ function Field({
   unit?: string;
   onUnitChange?: (unit: string) => void;
   unitOptions?: { value: string; label: string }[];
+  disabled?: boolean;
 }) {
   return (
     <label className="block">
@@ -70,13 +72,15 @@ function Field({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={inputClassName}
+          disabled={disabled}
+          className={`${inputClassName} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400`}
         />
         {unitOptions && onUnitChange ? (
           <select
             value={unit}
             onChange={(e) => onUnitChange(e.target.value)}
-            className={selectClassName}
+            disabled={disabled}
+            className={`${selectClassName} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400`}
             aria-label={`${label} unit`}
           >
             {unitOptions.map((option) => (
@@ -109,7 +113,7 @@ const modes: { id: Mode; label: string; description: string }[] = [
   {
     id: "dilution",
     label: "Dilution",
-    description: "Solve C₁V₁ = C₂V₂ for any missing value.",
+    description: "",
   },
 ];
 
@@ -243,6 +247,17 @@ export default function MolarityCalculator() {
 
   const activeMode = modes.find((item) => item.id === mode)!;
 
+  const dilutionFilledCount = [c1, v1, c2, v2].filter((v) => v.trim() !== "").length;
+  const dilutionLocked =
+    dilutionFilledCount === 3
+      ? {
+          c1: !c1.trim(),
+          v1: !v1.trim(),
+          c2: !c2.trim(),
+          v2: !v2.trim(),
+        }
+      : { c1: false, v1: false, c2: false, v2: false };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
@@ -335,9 +350,9 @@ export default function MolarityCalculator() {
 
       {mode === "dilution" && (
         <div className="space-y-5">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+          {/* <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
             Leave one field blank to solve for it
-          </p>
+          </p> */}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
               label="Stock concentration (C₁)"
@@ -345,6 +360,7 @@ export default function MolarityCalculator() {
               onChange={setC1}
               placeholder="e.g. 1"
               unit="M"
+              disabled={dilutionLocked.c1}
             />
             <Field
               label="Stock volume (V₁)"
@@ -358,6 +374,7 @@ export default function MolarityCalculator() {
                 { value: "mL", label: "mL" },
                 { value: "L", label: "L" },
               ]}
+              disabled={dilutionLocked.v1}
             />
             <Field
               label="Final concentration (C₂)"
@@ -365,6 +382,7 @@ export default function MolarityCalculator() {
               onChange={setC2}
               placeholder="e.g. 0.1"
               unit="M"
+              disabled={dilutionLocked.c2}
             />
             <Field
               label="Final volume (V₂)"
@@ -378,6 +396,7 @@ export default function MolarityCalculator() {
                 { value: "mL", label: "mL" },
                 { value: "L", label: "L" },
               ]}
+              disabled={dilutionLocked.v2}
             />
           </div>
         </div>
