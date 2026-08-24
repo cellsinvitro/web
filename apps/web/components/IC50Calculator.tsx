@@ -11,13 +11,6 @@ import {
   parseDataInput,
 } from "@/lib/ic50";
 
-const SAMPLE_DATA = `0.001\t98.2\t97.8
-0.01\t95.1\t94.6
-0.1\t82.3\t81.9
-1\t45.2\t44.8
-10\t12.5\t13.1
-100\t3.2\t3.5`;
-
 const inputClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
 
@@ -257,7 +250,7 @@ function ChartLightbox({
 }
 
 export default function IC50Calculator() {
-  const [rawInput, setRawInput] = useState(SAMPLE_DATA);
+  const [rawInput, setRawInput] = useState("");
   const [processedPoints, setProcessedPoints] = useState<DataPoint[] | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [fitResult, setFitResult] = useState<FitResult | null>(null);
@@ -289,238 +282,253 @@ export default function IC50Calculator() {
     : null;
 
   return (
-    <div className="space-y-6">
-      {/* Step 1: Data entry */}
-      <section>
-        <div className="flex items-center gap-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-            1
-          </span>
-          <h3 className="text-sm font-semibold text-slate-950">Data entry</h3>
-        </div>
-        <p className="mt-3 text-sm leading-6 text-slate-500">
-          Paste or type concentration and response values. Use tabs, commas, or
-          spaces between columns. Multiple response columns are averaged with
-          error bars.
-        </p>
-        <textarea
-          value={rawInput}
-          onChange={(e) => {
-            setRawInput(e.target.value);
-            setProcessedPoints(null);
-            setFitResult(null);
-            setChartExpanded(false);
-            setParseErrors([]);
-          }}
-          rows={5}
-          spellCheck={false}
-          className={`${inputClassName} mt-4 font-mono text-xs leading-5`}
-          placeholder={"Concentration\tResponse 1\tResponse 2\n0.01\t95\t94\n..."}
-        />
-        <button
-          type="button"
-          onClick={handleProcessData}
-          className="mt-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-        >
-          Process data
-        </button>
-        {parseErrors.length > 0 && (
-          <ul className="mt-3 space-y-1 text-sm text-red-600">
-            {parseErrors.map((err) => (
-              <li key={err}>• {err}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Step 2: Processed table */}
-      {processedPoints && (
+    <div
+      className={
+        processedPoints
+          ? "grid gap-8 lg:grid-cols-2 lg:items-start"
+          : "space-y-6"
+      }
+    >
+      <div className="min-w-0 space-y-6">
         <section>
           <div className="flex items-center gap-3">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-              2
+              1
             </span>
-            <h3 className="text-sm font-semibold text-slate-950">Processed data</h3>
+            <h3 className="text-sm font-semibold text-slate-950">Data entry</h3>
           </div>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[320px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 py-2 font-medium text-slate-600">
-                    Concentration
-                  </th>
-                  <th className="px-3 py-2 font-medium text-slate-600">
-                    Mean response
-                  </th>
-                  <th className="px-3 py-2 font-medium text-slate-600">
-                    Replicates
-                  </th>
-                  <th className="px-3 py-2 font-medium text-slate-600">
-                    SEM
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {processedPoints.map((row, i) => (
-                  <tr key={i} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2 font-mono text-slate-800">
-                      {formatSci(row.concentration)}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-slate-800">
-                      {formatSci(row.response)}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {row.responses?.length ?? 1}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-slate-500">
-                      {row.sem !== undefined ? formatSci(row.sem) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
+            Paste or type concentration and response values. Use tabs, commas, or
+            spaces between columns. Multiple response columns are averaged with
+            error bars.
+          </p>
+          <textarea
+            value={rawInput}
+            onChange={(e) => {
+              setRawInput(e.target.value);
+              setProcessedPoints(null);
+              setFitResult(null);
+              setChartExpanded(false);
+              setParseErrors([]);
+            }}
+            rows={6}
+            spellCheck={false}
+            className={`${inputClassName} mt-4 font-mono text-xs leading-5`}
+            placeholder={"Concentration\tResponse 1\tResponse 2\n0.01\t95\t94\n..."}
+          />
           <button
             type="button"
-            onClick={handleCalculate}
+            onClick={handleProcessData}
             className="mt-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
           >
-            Calculate IC₅₀
+            Process data
           </button>
+          {parseErrors.length > 0 && (
+            <ul className="mt-3 space-y-1 text-sm text-red-600">
+              {parseErrors.map((err) => (
+                <li key={err}>• {err}</li>
+              ))}
+            </ul>
+          )}
+          {!processedPoints && preview.points.length > 0 && parseErrors.length === 0 && (
+            <p className="mt-3 text-xs text-slate-400">
+              {preview.points.length} row{preview.points.length !== 1 ? "s" : ""} detected — press
+              &ldquo;Process data&rdquo; to continue.
+            </p>
+          )}
         </section>
-      )}
 
-      {/* Step 3: Results */}
-      {fitResult && processedPoints && (
-        <section>
-          <div className="flex items-center gap-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-              3
-            </span>
-            <h3 className="text-sm font-semibold text-slate-950">Results</h3>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                IC₅₀
-              </p>
-              <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                {formatSci(fitResult.params.ic50)}
-              </p>
+        {processedPoints && (
+          <section>
+            <div className="flex items-center gap-3">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
+                2
+              </span>
+              <h3 className="text-sm font-semibold text-slate-950">Processed data</h3>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Hill
-              </p>
-              <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                {formatSci(fitResult.params.hill)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Bottom
-              </p>
-              <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                {formatSci(fitResult.params.bottom)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Top
-              </p>
-              <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                {formatSci(fitResult.params.top)}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                  Dose–response curve
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Response vs concentration (log scale)
-                </p>
-              </div>
-              <span className="shrink-0 text-xs text-slate-400">Click to enlarge</span>
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full table-fixed text-left text-sm">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[28%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[22%]" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="px-3 py-2.5 font-medium text-slate-600">Concentration</th>
+                    <th className="px-3 py-2.5 font-medium text-slate-600">Mean response</th>
+                    <th className="px-3 py-2.5 font-medium text-slate-600">Replicates</th>
+                    <th className="px-3 py-2.5 font-medium text-slate-600">SEM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processedPoints.map((row, i) => (
+                    <tr key={i} className="border-b border-slate-100 last:border-0">
+                      <td className="truncate px-3 py-2.5 font-mono text-slate-800">
+                        {formatSci(row.concentration)}
+                      </td>
+                      <td className="truncate px-3 py-2.5 font-mono text-slate-800">
+                        {formatSci(row.response)}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600">
+                        {row.responses?.length ?? 1}
+                      </td>
+                      <td className="truncate px-3 py-2.5 font-mono text-slate-500">
+                        {row.sem !== undefined ? formatSci(row.sem) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <button
               type="button"
-              onClick={() => setChartExpanded(true)}
-              className="mt-3 block w-full cursor-zoom-in rounded-xl transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-              aria-label="Enlarge dose-response curve"
+              onClick={handleCalculate}
+              className="mt-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
             >
-              <DoseResponseChart points={processedPoints} fit={fitResult} />
+              Calculate IC₅₀
             </button>
-          </div>
+          </section>
+        )}
+      </div>
 
-          {chartExpanded && (
-            <ChartLightbox
-              points={processedPoints}
-              fit={fitResult}
-              onClose={() => setChartExpanded(false)}
-            />
-          )}
-
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                  4PL fit
-                </p>
-                <p className="text-sm font-semibold text-slate-800">
-                  R² = {formatSci(fitResult.rSquared)}
-                </p>
+      {processedPoints && (
+        <div className="min-w-0">
+          {fitResult ? (
+            <section>
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
+                  3
+                </span>
+                <h3 className="text-sm font-semibold text-slate-950">Results</h3>
               </div>
-              <p className="mt-2 font-mono text-xs leading-5 text-slate-600">
-                Y = Bottom + (Top − Bottom) / (1 + (X / IC₅₀)<sup>n</sup>)
-              </p>
-              {equation && (
-                <p className="mt-2 break-all font-mono text-[11px] leading-5 text-slate-500">
-                  {equation}
-                </p>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    IC₅₀
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                    {formatSci(fitResult.params.ic50)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Hill
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                    {formatSci(fitResult.params.hill)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Bottom
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                    {formatSci(fitResult.params.bottom)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Top
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                    {formatSci(fitResult.params.top)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                      Dose–response curve
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Response vs concentration (log scale)
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-400">Click to enlarge</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setChartExpanded(true)}
+                  className="mt-3 block w-full cursor-zoom-in rounded-xl transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                  aria-label="Enlarge dose-response curve"
+                >
+                  <DoseResponseChart points={processedPoints} fit={fitResult} />
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                      4PL fit
+                    </p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      R² = {formatSci(fitResult.rSquared)}
+                    </p>
+                  </div>
+                  <p className="mt-2 font-mono text-xs leading-5 text-slate-600">
+                    Y = Bottom + (Top − Bottom) / (1 + (X / IC₅₀)<sup>n</sup>)
+                  </p>
+                  {equation && (
+                    <p className="mt-2 break-all font-mono text-[11px] leading-5 text-slate-500">
+                      {equation}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    Predicted vs observed
+                  </p>
+                  <div className="mt-2">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="text-slate-500">
+                          <th className="pb-1.5 pr-3 font-medium">[X]</th>
+                          <th className="pb-1.5 pr-3 font-medium">Observed</th>
+                          <th className="pb-1.5 font-medium">Predicted</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {processedPoints.map((point, i) => (
+                          <tr key={i} className="border-t border-slate-100 font-mono text-slate-700">
+                            <td className="py-1 pr-3">{formatSci(point.concentration)}</td>
+                            <td className="py-1 pr-3">{formatSci(point.response)}</td>
+                            <td className="py-1">
+                              {formatSci(fourPL(point.concentration, fitResult.params))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {chartExpanded && (
+                <ChartLightbox
+                  points={processedPoints}
+                  fit={fitResult}
+                  onClose={() => setChartExpanded(false)}
+                />
               )}
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Predicted vs observed
-              </p>
-              <div className="mt-2 overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="text-slate-500">
-                      <th className="pb-1.5 pr-3 font-medium">[X]</th>
-                      <th className="pb-1.5 pr-3 font-medium">Observed</th>
-                      <th className="pb-1.5 font-medium">Predicted</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {processedPoints.map((point, i) => (
-                      <tr key={i} className="border-t border-slate-100 font-mono text-slate-700">
-                        <td className="py-1 pr-3">{formatSci(point.concentration)}</td>
-                        <td className="py-1 pr-3">{formatSci(point.response)}</td>
-                        <td className="py-1">
-                          {formatSci(fourPL(point.concentration, fitResult.params))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            </section>
+          ) : (
+            <section className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Ready to calculate</p>
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Press &ldquo;Calculate IC₅₀&rdquo; on the left to fit the curve and view results here.
+                </p>
               </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {!processedPoints && preview.points.length > 0 && parseErrors.length === 0 && (
-        <p className="text-xs text-slate-400">
-          {preview.points.length} row{preview.points.length !== 1 ? "s" : ""} detected — press
-          &ldquo;Process data&rdquo; to continue.
-        </p>
+            </section>
+          )}
+        </div>
       )}
     </div>
   );
