@@ -9,10 +9,10 @@ import { isAdmin } from "@/lib/admin";
 
 const navItems = [
   { label: "", href: "/" },
-  // { label: "Tools", href: "/tools" },
-  // { label: "CyroSearch", href: "/cyrosearch" },
-  // // { label: "Research Kits", href: "/#kits" },
-  // { label: "Contact", href: "/contact" },
+  { label: "Tools", href: "/tools" },
+  { label: "CyroSearch", href: "/cyrosearch" },
+  { label: "Research Kits", href: "/#kits" },
+  { label: "Contact", href: "/contact" },
 ];
 
 const menuLinks = [
