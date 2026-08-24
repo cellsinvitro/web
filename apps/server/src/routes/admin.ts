@@ -33,23 +33,58 @@ adminRoutes.get("/stats", async (c) => {
   });
 });
 
+const adminUserSelect = {
+  ...publicUserSelect,
+  googleId: true,
+  passwordHash: true,
+  updatedAt: true,
+} as const;
+
+type AdminUserRecord = {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+  role: "USER" | "ADMIN";
+  createdAt: Date;
+  updatedAt: Date;
+  googleId: string | null;
+  passwordHash: string | null;
+};
+
+function toAdminUser(user: AdminUserRecord) {
+  return {
+    ...toPublicUser(user),
+    authProvider: user.googleId ? ("google" as const) : ("email" as const),
+    hasPassword: Boolean(user.passwordHash),
+    updatedAt: user.updatedAt.toISOString(),
+  };
+}
+
 adminRoutes.get("/users", async (c) => {
   const users = await prisma.user.findMany({
-    select: {
-      ...publicUserSelect,
-      googleId: true,
-      passwordHash: true,
-    },
+    select: adminUserSelect,
     orderBy: { createdAt: "desc" },
   });
 
   return c.json({
-    users: users.map((user) => ({
-      ...toPublicUser(user),
-      authProvider: user.googleId ? "google" : "email",
-      hasPassword: Boolean(user.passwordHash),
-    })),
+    users: users.map(toAdminUser),
   });
+});
+
+adminRoutes.get("/users/:id", async (c) => {
+  const userId = c.req.param("id");
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: adminUserSelect,
+  });
+
+  if (!user) {
+    throw new HTTPException(404, { message: "User not found" });
+  }
+
+  return c.json({ user: toAdminUser(user) });
 });
 
 adminRoutes.patch("/users/:id", async (c) => {

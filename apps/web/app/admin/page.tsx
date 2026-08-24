@@ -56,35 +56,15 @@ export default function AdminDashboardPage() {
           {error}
         </div>
       ) : !stats ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white"
-            />
-          ))}
+        <div className="max-w-xs">
+          <div className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white" />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="max-w-xs">
           <StatCard
             label="Total users"
             value={stats.totalUsers}
             hint="All registered accounts"
-          />
-          <StatCard
-            label="Email signups"
-            value={stats.emailUsers}
-            hint="Password-based accounts"
-          />
-          <StatCard
-            label="Google signups"
-            value={stats.googleUsers}
-            hint="OAuth accounts"
-          />
-          <StatCard
-            label="This week"
-            value={stats.recentSignups}
-            hint="New users in the last 7 days"
           />
         </div>
       )}

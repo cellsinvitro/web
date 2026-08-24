@@ -113,6 +113,7 @@ export type AdminStats = {
 export type AdminUser = AuthUser & {
   authProvider: "email" | "google";
   hasPassword: boolean;
+  updatedAt?: string;
 };
 
 export async function fetchAdminStats() {
@@ -123,6 +124,11 @@ export async function fetchAdminStats() {
 export async function fetchAdminUsers() {
   const data = await apiFetch<{ users: AdminUser[] }>("/admin/users");
   return data.users;
+}
+
+export async function fetchAdminUser(userId: string) {
+  const data = await apiFetch<{ user: AdminUser }>(`/admin/users/${userId}`);
+  return data.user;
 }
 
 export async function updateAdminUserRole(userId: string, role: "USER" | "ADMIN") {
