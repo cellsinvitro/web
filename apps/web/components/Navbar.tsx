@@ -11,11 +11,32 @@ const navItems = [
   { label: "", href: "/" },
   { label: "Tools", href: "/tools" },
   { label: "CyroSearch", href: "/cyrosearch" },
+  { label: "Resource Library", href: "/resources" },
   { label: "Research Kits", href: "/#kits" },
   { label: "Contact", href: "/contact" },
 ];
 
 const menuLinks = [
+  {
+    label: "Resource Library",
+    description: "Study materials and protocols",
+    href: "/resources",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path
+          d="M6 4h9l3 3v13H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+          strokeLinejoin="round"
+        />
+        <path d="M15 4v3h3M8 12h8M8 16h5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
   {
     label: "CyroSearch",
     description: "Search for your desired cyrosearch",
