@@ -2,6 +2,14 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile, unlink, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  deleteCloudinaryImage,
+  isCloudinaryConfigured,
+  isCloudinaryStorageKey,
+  getCloudinaryPublicId,
+  toCloudinaryStorageKey,
+  uploadImageToCloudinary,
+} from "./cloudinary.js";
 
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -24,6 +32,10 @@ export const UPLOAD_DIR =
 
 export function isAllowedMimeType(mimeType: string) {
   return ALLOWED_MIME_TYPES.has(mimeType);
+}
+
+export function isImageMimeType(mimeType: string) {
+  return mimeType.startsWith("image/");
 }
 
 export function getMaxFileSize() {
@@ -79,11 +91,38 @@ export async function deleteStudyMaterialFile(storageKey: string) {
   }
 }
 
-export function toPublicStudyMaterial(material: {
+export async function storeStudyMaterialFile(
+  fileName: string,
+  mimeType: string,
+  data: Buffer
+) {
+  if (isImageMimeType(mimeType)) {
+    if (!isCloudinaryConfigured()) {
+      throw new Error(
+        "Image uploads require Cloudinary. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET."
+      );
+    }
+
+    const uploadResult = await uploadImageToCloudinary(data);
+    return toCloudinaryStorageKey(uploadResult.public_id);
+  }
+
+  const extension = getFileExtension(fileName, mimeType);
+  const storageKey = `${randomUUID()}${extension}`;
+  await saveStudyMaterialFile(storageKey, data);
+  return storageKey;
+}
+
+export async function deleteStoredStudyMaterial(storageKey: string) {
+  if (isCloudinaryStorageKey(storageKey)) {
+    await deleteCloudinaryImage(getCloudinaryPublicId(storageKey));
+  } else {
+    await deleteStudyMaterialFile(storageKey);
+  }
+}
+
+export function toPublicStudyMaterialFile(file: {
   id: string;
-  title: string;
-  description: string | null;
-  category: string | null;
   fileName: string;
   mimeType: string;
   fileSize: number;
@@ -91,14 +130,76 @@ export function toPublicStudyMaterial(material: {
   updatedAt: Date;
 }) {
   return {
+    id: file.id,
+    fileName: file.fileName,
+    mimeType: file.mimeType,
+    fileSize: file.fileSize,
+    createdAt: file.createdAt.toISOString(),
+    updatedAt: file.updatedAt.toISOString(),
+  };
+}
+
+export function toPublicStudyMaterial(material: {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  files: Array<{
+    id: string;
+    fileName: string;
+    mimeType: string;
+    fileSize: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
+}) {
+  return {
     id: material.id,
     title: material.title,
     description: material.description,
     category: material.category,
-    fileName: material.fileName,
-    mimeType: material.mimeType,
-    fileSize: material.fileSize,
+    files: material.files.map(toPublicStudyMaterialFile),
     createdAt: material.createdAt.toISOString(),
     updatedAt: material.updatedAt.toISOString(),
   };
+}
+
+export const studyMaterialInclude = {
+  files: {
+    orderBy: { createdAt: "asc" as const },
+  },
+};
+
+export function collectUploadedFiles(
+  body: Record<string, unknown>
+) {
+  const files: File[] = [];
+
+  for (const value of Object.values(body)) {
+    if (value instanceof File && value.size > 0) {
+      files.push(value);
+    } else if (Array.isArray(value)) {
+      for (const entry of value) {
+        if (entry instanceof File && entry.size > 0) {
+          files.push(entry);
+        }
+      }
+    }
+  }
+
+  return files;
+}
+
+export function validateUploadedFile(file: File) {
+  if (!isAllowedMimeType(file.type)) {
+    return "Only PDF and image files are allowed";
+  }
+
+  if (file.size <= 0 || file.size > getMaxFileSize()) {
+    return "Each file must be between 1 byte and 15 MB";
+  }
+
+  return null;
 }

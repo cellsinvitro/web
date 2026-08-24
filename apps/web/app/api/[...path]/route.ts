@@ -24,9 +24,9 @@ async function proxy(request: NextRequest, path: string[]) {
   if (cookie) {
     headers.set("cookie", cookie);
   }
-  const contentType = request.headers.get("content-type");
-  if (contentType) {
-    headers.set("content-type", contentType);
+  const requestContentType = request.headers.get("content-type");
+  if (requestContentType) {
+    headers.set("content-type", requestContentType);
   }
   const accept = request.headers.get("accept");
   if (accept) {
@@ -37,7 +37,7 @@ async function proxy(request: NextRequest, path: string[]) {
   const body =
     method === "GET" || method === "HEAD"
       ? undefined
-      : contentType?.includes("multipart/form-data")
+      : requestContentType?.includes("multipart/form-data")
         ? await request.arrayBuffer()
         : await request.text();
 
@@ -61,17 +61,34 @@ async function proxy(request: NextRequest, path: string[]) {
     );
   }
 
+  const upstreamContentType = upstream.headers.get("content-type") || "";
+  const isJson = upstreamContentType.includes("application/json");
+
+  const responseBody = isJson
+    ? await upstream.text()
+    : await upstream.arrayBuffer();
+
   const responseHeaders = new Headers();
-  const upstreamContentType = upstream.headers.get("content-type");
-  if (upstreamContentType) {
-    responseHeaders.set("content-type", upstreamContentType);
+  const passthroughHeaders = [
+    "content-type",
+    "content-disposition",
+    "cache-control",
+    "x-content-type-options",
+  ];
+
+  for (const headerName of passthroughHeaders) {
+    const value = upstream.headers.get(headerName);
+    if (value) {
+      responseHeaders.set(headerName, value);
+    }
   }
+
   const location = upstream.headers.get("location");
   if (location) {
     responseHeaders.set("location", location);
   }
 
-  const response = new NextResponse(upstream.body, {
+  const response = new NextResponse(responseBody, {
     status: upstream.status,
     headers: responseHeaders,
   });

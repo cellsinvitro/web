@@ -145,14 +145,21 @@ export async function deleteAdminUser(userId: string) {
   });
 }
 
+export type StudyMaterialFile = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type StudyMaterial = {
   id: string;
   title: string;
   description: string | null;
   category: string | null;
-  fileName: string;
-  mimeType: string;
-  fileSize: number;
+  files: StudyMaterialFile[];
   createdAt: string;
   updatedAt: string;
 };
@@ -176,7 +183,7 @@ export async function uploadAdminStudyMaterial(input: {
   title: string;
   description?: string;
   category?: string;
-  file: File;
+  files: File[];
 }) {
   const formData = new FormData();
   formData.append("title", input.title);
@@ -186,7 +193,9 @@ export async function uploadAdminStudyMaterial(input: {
   if (input.category) {
     formData.append("category", input.category);
   }
-  formData.append("file", input.file);
+  for (const file of input.files) {
+    formData.append("files", file);
+  }
 
   const response = await fetch(`${API_URL}/admin/materials`, {
     method: "POST",
@@ -209,12 +218,92 @@ export async function uploadAdminStudyMaterial(input: {
   return data.material;
 }
 
+async function uploadAdminMaterialFiles(
+  materialId: string,
+  files: File[],
+  retry = true
+) {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const response = await fetch(`${API_URL}/admin/materials/${materialId}/files`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (response.status === 401 && retry) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return uploadAdminMaterialFiles(materialId, files, false);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data = (await response.json()) as { material: StudyMaterial };
+  return data.material;
+}
+
+export async function addAdminStudyMaterialFiles(materialId: string, files: File[]) {
+  return uploadAdminMaterialFiles(materialId, files);
+}
+
+export async function updateAdminStudyMaterial(
+  id: string,
+  input: {
+    title: string;
+    description?: string;
+    category?: string;
+  }
+) {
+  const formData = new FormData();
+  formData.append("title", input.title);
+  formData.append("description", input.description ?? "");
+  formData.append("category", input.category ?? "");
+
+  const response = await fetch(`${API_URL}/admin/materials/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return updateAdminStudyMaterial(id, input);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data = (await response.json()) as { material: StudyMaterial };
+  return data.material;
+}
+
+export async function deleteAdminStudyMaterialFile(
+  materialId: string,
+  fileId: string
+) {
+  const data = await apiFetch<{ material: StudyMaterial }>(
+    `/admin/materials/${materialId}/files/${fileId}`,
+    { method: "DELETE" }
+  );
+  return data.material;
+}
+
 export async function deleteAdminStudyMaterial(id: string) {
   return apiFetch<{ success: boolean }>(`/admin/materials/${id}`, {
     method: "DELETE",
   });
 }
 
-export function getStudyMaterialViewUrl(id: string) {
-  return `${API_URL}/materials/${id}/view`;
+export function getStudyMaterialFileViewUrl(materialId: string, fileId: string) {
+  return `${API_URL}/materials/${materialId}/files/${fileId}/view`;
 }

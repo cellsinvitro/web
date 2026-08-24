@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import StudyMaterialViewer from "@/components/StudyMaterialViewer";
-import {
-  fetchStudyMaterial,
-  getStudyMaterialViewUrl,
-} from "@/lib/api";
+import ResourceFileGrid from "@/components/ResourceFileGrid";
+import { fetchStudyMaterial } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
+import {
+  getMaterialFileCountLabel,
+  getMaterialTypeSummary,
+} from "@/lib/resources";
 
 export default function ResourceDetailPageClient() {
   const params = useParams<{ id: string }>();
@@ -41,7 +42,7 @@ export default function ResourceDetailPageClient() {
       <Navbar />
 
       <section className="bg-white pt-24 pb-16 sm:pb-20 lg:pb-24">
-        <div className="mx-auto max-w-5xl px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8">
           <Link
             href="/resources"
             className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-slate-950"
@@ -82,16 +83,16 @@ export default function ResourceDetailPageClient() {
                   </p>
                 ) : null}
                 <p className="mt-4 text-xs text-slate-400">
-                  View-only preview. This content can only be read on this page.
+                  {getMaterialTypeSummary(material.files)} ·{" "}
+                  {getMaterialFileCountLabel(material.files.length)}. View-only
+                  preview. Click a file to open it.
                 </p>
               </div>
 
               <div className="mt-8">
-                <StudyMaterialViewer
+                <ResourceFileGrid
                   materialId={material.id}
-                  mimeType={material.mimeType}
-                  title={material.title}
-                  viewUrl={getStudyMaterialViewUrl(material.id)}
+                  files={material.files}
                 />
               </div>
             </>

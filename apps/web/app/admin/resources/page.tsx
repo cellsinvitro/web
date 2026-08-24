@@ -1,15 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   deleteAdminStudyMaterial,
   fetchAdminStudyMaterials,
   uploadAdminStudyMaterial,
 } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
-import { formatFileSize, formatResourceDate } from "@/lib/resources";
+import { formatResourceDate, getMaterialFileCountLabel, getMaterialTypeSummary } from "@/lib/resources";
 
 export default function AdminResourcesPage() {
+  const router = useRouter();
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +22,7 @@ export default function AdminResourcesPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<FileList | null>(null);
 
   const loadMaterials = useCallback(async () => {
     setLoading(true);
@@ -40,8 +43,10 @@ export default function AdminResourcesPage() {
 
   const handleUpload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!file) {
-      setActionError("Please choose a PDF or image file.");
+    const form = event.currentTarget;
+
+    if (!files || files.length === 0) {
+      setActionError("Please choose at least one PDF or image file.");
       return;
     }
 
@@ -52,14 +57,14 @@ export default function AdminResourcesPage() {
         title: title.trim(),
         description: description.trim() || undefined,
         category: category.trim() || undefined,
-        file,
+        files: Array.from(files),
       });
       setMaterials((prev) => [material, ...prev]);
       setTitle("");
       setDescription("");
       setCategory("");
-      setFile(null);
-      event.currentTarget.reset();
+      setFiles(null);
+      form.reset();
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to upload resource"
@@ -67,6 +72,10 @@ export default function AdminResourcesPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const openResource = (materialId: string) => {
+    router.push(`/admin/resources/${materialId}`);
   };
 
   const handleDelete = async (material: StudyMaterial) => {
@@ -161,12 +170,13 @@ export default function AdminResourcesPage() {
             <input
               type="file"
               required
+              multiple
               accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => setFiles(event.target.files)}
               className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800"
             />
             <span className="mt-1.5 block text-xs text-slate-400">
-              PDF or image up to 15 MB.
+              Select one or more PDFs or images up to 15 MB each.
             </span>
           </label>
 
@@ -187,7 +197,7 @@ export default function AdminResourcesPage() {
               <tr>
                 <th className="px-4 py-3 font-semibold">Resource</th>
                 <th className="px-4 py-3 font-semibold">Type</th>
-                <th className="px-4 py-3 font-semibold">Size</th>
+                <th className="px-4 py-3 font-semibold">Files</th>
                 <th className="px-4 py-3 font-semibold">Added</th>
                 <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
@@ -214,10 +224,12 @@ export default function AdminResourcesPage() {
               ) : (
                 materials.map((material) => {
                   const isPending = pendingId === material.id;
+
                   return (
                     <tr
                       key={material.id}
-                      className="border-b border-slate-100 last:border-0"
+                      onClick={() => openResource(material.id)}
+                      className="cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80"
                     >
                       <td className="px-4 py-4">
                         <p className="font-medium text-slate-950">
@@ -230,25 +242,34 @@ export default function AdminResourcesPage() {
                         ) : null}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
-                        {material.mimeType === "application/pdf"
-                          ? "PDF"
-                          : "Image"}
+                        {getMaterialTypeSummary(material.files)}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
-                        {formatFileSize(material.fileSize)}
+                        {getMaterialFileCountLabel(material.files.length)}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
                         {formatResourceDate(material.createdAt)}
                       </td>
-                      <td className="px-4 py-4">
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => handleDelete(material)}
-                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Delete
-                        </button>
+                      <td
+                        className="px-4 py-4"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/admin/resources/${material.id}`}
+                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleDelete(material)}
+                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

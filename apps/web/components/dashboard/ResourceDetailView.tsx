@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import StudyMaterialViewer from "@/components/StudyMaterialViewer";
-import {
-  fetchStudyMaterial,
-  getStudyMaterialViewUrl,
-} from "@/lib/api";
+import ResourceFileGrid from "@/components/ResourceFileGrid";
+import { fetchStudyMaterial } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
+import {
+  getMaterialFileCountLabel,
+  getMaterialTypeSummary,
+} from "@/lib/resources";
 
 type ResourceDetailViewProps = {
   backHref?: string;
@@ -84,17 +85,14 @@ export default function ResourceDetailView({
               </p>
             ) : null}
             <p className="mt-4 text-xs text-slate-400">
-              View-only preview. This content can only be read on this page.
+              {getMaterialTypeSummary(material.files)} ·{" "}
+              {getMaterialFileCountLabel(material.files.length)}. View-only
+              preview. Click a file to open it.
             </p>
           </div>
 
           <div className="mt-8">
-            <StudyMaterialViewer
-              materialId={material.id}
-              mimeType={material.mimeType}
-              title={material.title}
-              viewUrl={getStudyMaterialViewUrl(material.id)}
-            />
+            <ResourceFileGrid materialId={material.id} files={material.files} />
           </div>
         </>
       ) : null}

@@ -7,25 +7,11 @@ import Footer from "@/components/Footer";
 import { fetchStudyMaterials } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function getTypeLabel(mimeType: string) {
-  if (mimeType === "application/pdf") return "PDF";
-  if (mimeType.startsWith("image/")) return "Image";
-  return "File";
-}
+import {
+  formatResourceDate,
+  getMaterialFileCountLabel,
+  getMaterialTypeSummary,
+} from "@/lib/resources";
 
 export default function ResourcesPageClient() {
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
@@ -91,7 +77,7 @@ export default function ResourcesPageClient() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                        {getTypeLabel(material.mimeType)}
+                        {getMaterialTypeSummary(material.files)}
                       </span>
                       {material.category ? (
                         <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
@@ -110,8 +96,8 @@ export default function ResourcesPageClient() {
                       <div className="flex-1" />
                     )}
                     <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
-                      <span>{formatFileSize(material.fileSize)}</span>
-                      <span>{formatDate(material.createdAt)}</span>
+                      <span>{getMaterialFileCountLabel(material.files.length)}</span>
+                      <span>{formatResourceDate(material.createdAt)}</span>
                     </div>
                     <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-slate-700">
                       View material

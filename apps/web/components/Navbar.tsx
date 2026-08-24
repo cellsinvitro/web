@@ -8,7 +8,6 @@ import { isAdmin } from "@/lib/admin";
 
 
 const navItems = [
-  { label: "", href: "/" },
   { label: "Tools", href: "/tools" },
   { label: "CyroSearch", href: "/cyrosearch" },
   { label: "Resource Library", href: "/resources" },
@@ -166,14 +165,6 @@ export default function Navbar() {
                   {item.label}
                 </Link>
               ))}
-              {!loading && user ? (
-                <Link
-                  href="/dashboard"
-                  className="text-sm font-medium text-slate-700 transition-colors hover:text-slate-950"
-                >
-                  Dashboard
-                </Link>
-              ) : null}
             </div>
 
             <div className="hidden items-center gap-3 md:flex">

@@ -5,9 +5,9 @@ import Link from "next/link";
 import { fetchStudyMaterials } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
 import {
-  formatFileSize,
   formatResourceDate,
-  getResourceTypeLabel,
+  getMaterialFileCountLabel,
+  getMaterialTypeSummary,
 } from "@/lib/resources";
 
 type ResourceLibraryListProps = {
@@ -81,7 +81,7 @@ export default function ResourceLibraryList({
               >
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                    {getResourceTypeLabel(material.mimeType)}
+                    {getMaterialTypeSummary(material.files)}
                   </span>
                   {material.category ? (
                     <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
@@ -100,7 +100,7 @@ export default function ResourceLibraryList({
                   <div className="flex-1" />
                 )}
                 <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
-                  <span>{formatFileSize(material.fileSize)}</span>
+                  <span>{getMaterialFileCountLabel(material.files.length)}</span>
                   <span>{formatResourceDate(material.createdAt)}</span>
                 </div>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-slate-700">
