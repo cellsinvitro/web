@@ -5,34 +5,32 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 
-// this is to be remove when pushed to production
-const navItems = [{label: "", href: "/"}]
 
-// const navItems = [
-//   // { label: "Tools", href: "/tools" },
-//   // { label: "CyroSearch", href: "/cyrosearch" },
-//   // { label: "Research Kits", href: "/#kits" },
-//   // { label: "Contact", href: "/contact" },
-// ];
+const navItems = [
+  { label: "Tools", href: "/tools" },
+  { label: "CyroSearch", href: "/cyrosearch" },
+  // { label: "Research Kits", href: "/#kits" },
+  { label: "Contact", href: "/contact" },
+];
 
 const menuLinks = [
-  // {
-  //   label: "CyroSearch",
-  //   description: "Search for your desired cyrosearch",
-  //   href: "/cyrosearch",
-  //   icon: (
-  //     <svg
-  //       viewBox="0 0 24 24"
-  //       className="h-4 w-4"
-  //       fill="none"
-  //       stroke="currentColor"
-  //       strokeWidth="1.8"
-  //     >
-  //       <circle cx="11" cy="11" r="7" />
-  //       <path d="m20 20-3.5-3.5" strokeLinecap="round" />
-  //     </svg>
-  //   ),
-  // },
+  {
+    label: "CyroSearch",
+    description: "Search for your desired cyrosearch",
+    href: "/cyrosearch",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
   {
     label: "Contact",
     description: "Reach our team",
