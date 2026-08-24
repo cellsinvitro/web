@@ -7,20 +7,7 @@ import {
   uploadAdminStudyMaterial,
 } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+import { formatFileSize, formatResourceDate } from "@/lib/resources";
 
 export default function AdminResourcesPage() {
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
@@ -113,8 +100,7 @@ export default function AdminResourcesPage() {
           Resource Library
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Upload PDFs and images for the public Resource Library. Users can
-          only view content on the website.
+          Upload PDFs and images for logged-in users on the dashboard.
         </p>
       </div>
 
@@ -252,7 +238,7 @@ export default function AdminResourcesPage() {
                         {formatFileSize(material.fileSize)}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
-                        {formatDate(material.createdAt)}
+                        {formatResourceDate(material.createdAt)}
                       </td>
                       <td className="px-4 py-4">
                         <button

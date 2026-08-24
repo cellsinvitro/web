@@ -1,12 +1,5 @@
-import type { Metadata } from "next";
-import ResourcesPageClient from "./ResourcesPageClient";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Resource Library | CellsInVitro",
-  description:
-    "Browse study materials, protocols, and reference documents curated by the CellsInVitro team.",
-};
-
-export default function ResourcesPage() {
-  return <ResourcesPageClient />;
+export default function ResourcesRedirectPage() {
+  redirect("/login?redirect=/dashboard/resources");
 }

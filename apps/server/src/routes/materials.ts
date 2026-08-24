@@ -5,8 +5,11 @@ import {
   readStudyMaterialFile,
   toPublicStudyMaterial,
 } from "../lib/study-materials.js";
+import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 
-export const materialsRoutes = new Hono();
+export const materialsRoutes = new Hono<{ Variables: AuthVariables }>();
+
+materialsRoutes.use("*", requireAuth);
 
 materialsRoutes.get("/", async (c) => {
   const materials = await prisma.studyMaterial.findMany({

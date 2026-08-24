@@ -188,9 +188,6 @@ export async function uploadAdminStudyMaterial(input: {
   }
   formData.append("file", input.file);
 
-  const API_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
-
   const response = await fetch(`${API_URL}/admin/materials`, {
     method: "POST",
     credentials: "include",
@@ -212,45 +209,6 @@ export async function uploadAdminStudyMaterial(input: {
   return data.material;
 }
 
-export async function updateAdminStudyMaterial(
-  id: string,
-  input: { title?: string; description?: string; category?: string }
-) {
-  const formData = new FormData();
-  if (input.title !== undefined) {
-    formData.append("title", input.title);
-  }
-  if (input.description !== undefined) {
-    formData.append("description", input.description);
-  }
-  if (input.category !== undefined) {
-    formData.append("category", input.category);
-  }
-
-  const API_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
-
-  const response = await fetch(`${API_URL}/admin/materials/${id}`, {
-    method: "PATCH",
-    credentials: "include",
-    body: formData,
-  });
-
-  if (response.status === 401) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      return updateAdminStudyMaterial(id, input);
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data = (await response.json()) as { material: StudyMaterial };
-  return data.material;
-}
-
 export async function deleteAdminStudyMaterial(id: string) {
   return apiFetch<{ success: boolean }>(`/admin/materials/${id}`, {
     method: "DELETE",
@@ -258,7 +216,5 @@ export async function deleteAdminStudyMaterial(id: string) {
 }
 
 export function getStudyMaterialViewUrl(id: string) {
-  const API_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
   return `${API_URL}/materials/${id}/view`;
 }

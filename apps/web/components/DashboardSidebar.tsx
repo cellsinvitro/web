@@ -4,14 +4,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { isAdmin } from "@/lib/admin";
 
 const navItems = [
-  { label: "Overview", href: "/admin" },
-  { label: "Users", href: "/admin/users" },
-  { label: "Resources", href: "/admin/resources" },
+  { label: "Overview", href: "/dashboard" },
+  { label: "Resource Library", href: "/dashboard/resources" },
+  { label: "Account", href: "/dashboard/account" },
 ];
 
-export default function AdminSidebar() {
+export default function DashboardSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -29,7 +30,7 @@ export default function AdminSidebar() {
           <div>
             <p className="text-sm font-bold text-slate-950">CellsInVitro</p>
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-              Admin
+              Dashboard
             </p>
           </div>
         </Link>
@@ -38,8 +39,8 @@ export default function AdminSidebar() {
       <nav className="flex-1 space-y-1 p-3">
         {navItems.map((item) => {
           const active =
-            item.href === "/admin"
-              ? pathname === "/admin"
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
 
           return (
@@ -56,19 +57,45 @@ export default function AdminSidebar() {
             </Link>
           );
         })}
+
+        <div className="pt-3">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Explore
+          </p>
+          <Link
+            href="/tools"
+            className="block rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950"
+          >
+            Lab Tools
+          </Link>
+          <Link
+            href="/contact"
+            className="block rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950"
+          >
+            Contact
+          </Link>
+          {isAdmin(user?.role) ? (
+            <Link
+              href="/admin"
+              className="block rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950"
+            >
+              Admin Panel
+            </Link>
+          ) : null}
+        </div>
       </nav>
 
       <div className="border-t border-slate-100 p-4">
         <p className="truncate text-sm font-medium text-slate-900">
-          {user?.name || "Admin"}
+          {user?.name || "Account"}
         </p>
         <p className="truncate text-xs text-slate-500">{user?.email}</p>
         <div className="mt-3 flex gap-2">
           <Link
-            href="/dashboard"
+            href="/"
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
           >
-            User dashboard
+            Site
           </Link>
           <button
             type="button"

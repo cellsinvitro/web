@@ -1,17 +1,27 @@
 "use client";
 
-const googleAuthHref = "/api/auth/google";
+function buildGoogleAuthHref(redirectTo?: string) {
+  if (
+    redirectTo?.startsWith("/") &&
+    !redirectTo.startsWith("//")
+  ) {
+    return `/api/auth/google?redirect=${encodeURIComponent(redirectTo)}`;
+  }
+  return "/api/auth/google?redirect=%2Fdashboard";
+}
 
 export default function GoogleSignInButton({
   label = "Continue with Google",
   compact = false,
+  redirectTo = "/dashboard",
 }: {
   label?: string;
   compact?: boolean;
+  redirectTo?: string;
 }) {
   return (
     <a
-      href={googleAuthHref}
+      href={buildGoogleAuthHref(redirectTo)}
       className={`inline-flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 transition-all hover:bg-slate-50 ${
         compact ? "px-4 py-2.5" : "gap-3 px-6 py-3.5"
       }`}

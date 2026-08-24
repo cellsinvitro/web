@@ -1,11 +1,10 @@
-import type { Metadata } from "next";
-import ResourceDetailPageClient from "./ResourceDetailPageClient";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Resource | CellsInVitro",
-  description: "View study material in the CellsInVitro Resource Library.",
+type PageProps = {
+  params: Promise<{ id: string }>;
 };
 
-export default function ResourceDetailPage() {
-  return <ResourceDetailPageClient />;
+export default async function ResourceDetailRedirectPage({ params }: PageProps) {
+  const { id } = await params;
+  redirect(`/login?redirect=${encodeURIComponent(`/dashboard/resources/${id}`)}`);
 }
