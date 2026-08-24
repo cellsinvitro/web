@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 type FormState = {
   name: string;
   email: string;
+  phone: string;
   subject: string;
   message: string;
 };
@@ -12,6 +13,7 @@ type FormState = {
 const initialState: FormState = {
   name: "",
   email: "",
+  phone: "",
   subject: "",
   message: "",
 };
@@ -50,6 +52,7 @@ export default function ContactForm() {
         body: JSON.stringify({
           name: form.name.trim(),
           email: form.email.trim(),
+          ...(form.phone.trim() && { phone: form.phone.trim() }),
           subject: form.subject.trim(),
           message: form.message.trim(),
         }),
@@ -136,11 +139,26 @@ export default function ContactForm() {
             autoComplete="email"
             value={form.email}
             onChange={(e) => updateField("email", e.target.value)}
-            placeholder="you@institution.edu"
+            placeholder="you@gmail.com"
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
           />
         </label>
       </div>
+
+      <label className="block">
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Phone <span className="font-normal normal-case tracking-normal text-slate-400">(optional)</span>
+        </span>
+        <input
+          type="tel"
+          name="phone"
+          autoComplete="tel"
+          value={form.phone}
+          onChange={(e) => updateField("phone", e.target.value)}
+          placeholder="+91 00000-00000"
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+        />
+      </label>
 
       <label className="block">
         <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
