@@ -144,3 +144,77 @@ export async function deleteAdminUser(userId: string) {
     method: "DELETE",
   });
 }
+
+export type StudyMaterial = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchStudyMaterials() {
+  const data = await apiFetch<{ materials: StudyMaterial[] }>("/materials");
+  return data.materials;
+}
+
+export async function fetchStudyMaterial(id: string) {
+  const data = await apiFetch<{ material: StudyMaterial }>(`/materials/${id}`);
+  return data.material;
+}
+
+export async function fetchAdminStudyMaterials() {
+  const data = await apiFetch<{ materials: StudyMaterial[] }>("/admin/materials");
+  return data.materials;
+}
+
+export async function uploadAdminStudyMaterial(input: {
+  title: string;
+  description?: string;
+  category?: string;
+  file: File;
+}) {
+  const formData = new FormData();
+  formData.append("title", input.title);
+  if (input.description) {
+    formData.append("description", input.description);
+  }
+  if (input.category) {
+    formData.append("category", input.category);
+  }
+  formData.append("file", input.file);
+
+  const response = await fetch(`${API_URL}/admin/materials`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return uploadAdminStudyMaterial(input);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data = (await response.json()) as { material: StudyMaterial };
+  return data.material;
+}
+
+export async function deleteAdminStudyMaterial(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/materials/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function getStudyMaterialViewUrl(id: string) {
+  return `${API_URL}/materials/${id}/view`;
+}

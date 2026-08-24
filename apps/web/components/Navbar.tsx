@@ -17,9 +17,9 @@ const navItems = [
 
 const menuLinks = [
   {
-    label: "CyroSearch",
-    description: "Search for your desired cyrosearch",
-    href: "/cyrosearch",
+    label: "Dashboard",
+    description: "Your account and study materials",
+    href: "/dashboard",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -28,15 +28,17 @@ const menuLinks = [
         stroke="currentColor"
         strokeWidth="1.8"
       >
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+        <path
+          d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"
+          strokeLinejoin="round"
+        />
       </svg>
     ),
   },
   {
-    label: "Contact",
-    description: "Reach our team",
-    href: "/contact",
+    label: "Resource Library",
+    description: "Study materials and protocols",
+    href: "/dashboard/resources",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -45,28 +47,14 @@ const menuLinks = [
         stroke="currentColor"
         strokeWidth="1.8"
       >
-        <path d="M4 6h16v12H4z" strokeLinejoin="round" />
-        <path d="m4 7 8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M6 4h9l3 3v13H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+          strokeLinejoin="round"
+        />
+        <path d="M15 4v3h3M8 12h8M8 16h5" strokeLinecap="round" />
       </svg>
     ),
   },
-  // {
-  //   label: "Tools",
-  //   description: "Free lab calculators",
-  //   href: "/tools",
-  //   icon: (
-  //     <svg
-  //       viewBox="0 0 24 24"
-  //       className="h-4 w-4"
-  //       fill="none"
-  //       stroke="currentColor"
-  //       strokeWidth="1.8"
-  //     >
-  //       <rect x="4" y="2" width="16" height="20" rx="2" />
-  //       <path d="M8 6h8M8 10h2M12 10h2M16 10h0M8 14h2M12 14h2M16 14h0M8 18h2M12 18h4" strokeLinecap="round" />
-  //     </svg>
-  //   ),
-  // },
 ];
 
 function getInitials(name: string | null, email: string) {
@@ -177,6 +165,14 @@ export default function Navbar() {
                   {item.label}
                 </Link>
               ))}
+              {!loading && user ? (
+                <Link
+                  href="/dashboard"
+                  className="text-sm font-medium text-slate-700 transition-colors hover:text-slate-950"
+                >
+                  Dashboard
+                </Link>
+              ) : null}
             </div>
 
             <div className="hidden items-center gap-3 md:flex">
@@ -343,7 +339,7 @@ export default function Navbar() {
                 </div>
               ) : (
                 <Link
-                  href="/login"
+                  href="/login?redirect=%2Fdashboard"
                   className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800"
                 >
                   Login
@@ -457,7 +453,7 @@ export default function Navbar() {
                       </Link>
                     ))}
                     <Link
-                      href="/login"
+                      href="/login?redirect=%2Fdashboard"
                       onClick={closeMenus}
                       className="mt-2 rounded-xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white"
                     >

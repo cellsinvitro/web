@@ -6,6 +6,8 @@ import { HTTPException } from "hono/http-exception";
 import { prisma } from "./lib/prisma.js";
 import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
+import { materialsRoutes } from "./routes/materials.js";
+import { adminMaterialsRoutes } from "./routes/admin-materials.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -35,7 +37,9 @@ app.get("/health/db", async (c) => {
 });
 
 app.route("/auth", authRoutes);
+app.route("/admin/materials", adminMaterialsRoutes);
 app.route("/admin", adminRoutes);
+app.route("/materials", materialsRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

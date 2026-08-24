@@ -7,6 +7,7 @@ import { setAuthCookies } from "../lib/cookies.js";
 import { issueTokenPair } from "../lib/session.js";
 
 const STATE_COOKIE = "oauth_state";
+const REDIRECT_COOKIE = "oauth_redirect";
 const STATE_MAX_AGE = 60 * 10;
 
 type GoogleTokenResponse = {
@@ -57,6 +58,13 @@ function redirectToLogin(error: string) {
   return `${frontendOrigin()}/login?error=${encodeURIComponent(error)}`;
 }
 
+function safeRedirectPath(value: string | undefined) {
+  if (value?.startsWith("/") && !value.startsWith("//")) {
+    return value;
+  }
+  return "/dashboard";
+}
+
 function cookieBase() {
   const isProd = process.env.NODE_ENV === "production";
   return {
@@ -78,8 +86,13 @@ googleAuthRoutes.get("/", (c) => {
     return c.redirect(redirectToLogin("google_config"));
   }
   const state = randomBytes(32).toString("base64url");
+  const redirectPath = safeRedirectPath(c.req.query("redirect"));
 
   setCookie(c, STATE_COOKIE, state, {
+    ...cookieBase(),
+    maxAge: STATE_MAX_AGE,
+  });
+  setCookie(c, REDIRECT_COOKIE, redirectPath, {
     ...cookieBase(),
     maxAge: STATE_MAX_AGE,
   });
@@ -109,7 +122,13 @@ googleAuthRoutes.get("/callback", async (c) => {
     return c.redirect(redirectToLogin("google"));
   }
 
+  const redirectPath = safeRedirectPath(getCookie(c, REDIRECT_COOKIE));
+
   setCookie(c, STATE_COOKIE, "", {
+    ...cookieBase(),
+    maxAge: 0,
+  });
+  setCookie(c, REDIRECT_COOKIE, "", {
     ...cookieBase(),
     maxAge: 0,
   });
@@ -191,7 +210,7 @@ googleAuthRoutes.get("/callback", async (c) => {
 
     const tokens = await issueTokenPair(user);
     setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
-    return c.redirect(`${frontendOrigin()}/`);
+    return c.redirect(`${frontendOrigin()}${redirectPath}`);
   } catch {
     return c.redirect(redirectToLogin("google"));
   }

@@ -20,7 +20,7 @@ const inputClassName =
 export default function AuthForm({
   initialTab = "login",
   oauthError,
-  redirectTo = "/",
+  redirectTo = "/dashboard",
 }: {
   initialTab?: AuthTab;
   oauthError?: string;
@@ -104,7 +104,7 @@ export default function AuthForm({
         </button>
       </div>
 
-      <GoogleSignInButton label="Continue with Google" compact />
+      <GoogleSignInButton label="Continue with Google" compact redirectTo={redirectTo} />
 
       <div className="flex items-center gap-3">
         <span className="h-px flex-1 bg-slate-200" />

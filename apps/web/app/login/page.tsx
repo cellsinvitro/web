@@ -19,7 +19,7 @@ export default async function LoginPage({
   const redirectTo =
     params.redirect?.startsWith("/") && !params.redirect.startsWith("//")
       ? params.redirect
-      : "/";
+      : "/dashboard";
 
   return (
     <main className="flex h-dvh max-h-dvh items-center justify-center overflow-hidden bg-white px-4 py-6 sm:px-6">
