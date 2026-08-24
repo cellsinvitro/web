@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { prisma } from "./lib/prisma.js";
 import { authRoutes } from "./routes/auth.js";
+import { adminRoutes } from "./routes/admin.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -34,6 +35,7 @@ app.get("/health/db", async (c) => {
 });
 
 app.route("/auth", authRoutes);
+app.route("/admin", adminRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

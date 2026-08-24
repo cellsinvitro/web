@@ -20,9 +20,11 @@ const inputClassName =
 export default function AuthForm({
   initialTab = "login",
   oauthError,
+  redirectTo = "/",
 }: {
   initialTab?: AuthTab;
   oauthError?: string;
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const { login, register } = useAuth();
@@ -53,7 +55,7 @@ export default function AuthForm({
       } else {
         await register(name.trim(), email.trim(), password);
       }
-      router.push("/");
+      router.push(redirectTo);
     } catch (err) {
       setError(
         err instanceof Error
