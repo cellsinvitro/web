@@ -5,31 +5,34 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 
-const navItems = [
-  { label: "Tools", href: "/tools" },
-  { label: "CyroSearch", href: "/cyrosearch" },
-  // { label: "Research Kits", href: "/#kits" },
-  { label: "Contact", href: "/contact" },
-];
+// this is to be remove when pushed to production
+const navItems = [{label: "", href: "/"}]
+
+// const navItems = [
+//   // { label: "Tools", href: "/tools" },
+//   // { label: "CyroSearch", href: "/cyrosearch" },
+//   // { label: "Research Kits", href: "/#kits" },
+//   // { label: "Contact", href: "/contact" },
+// ];
 
 const menuLinks = [
-  {
-    label: "CyroSearch",
-    description: "Search for your desired cyrosearch",
-    href: "/cyrosearch",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-4 w-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      >
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-3.5-3.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
+  // {
+  //   label: "CyroSearch",
+  //   description: "Search for your desired cyrosearch",
+  //   href: "/cyrosearch",
+  //   icon: (
+  //     <svg
+  //       viewBox="0 0 24 24"
+  //       className="h-4 w-4"
+  //       fill="none"
+  //       stroke="currentColor"
+  //       strokeWidth="1.8"
+  //     >
+  //       <circle cx="11" cy="11" r="7" />
+  //       <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+  //     </svg>
+  //   ),
+  // },
   {
     label: "Contact",
     description: "Reach our team",
@@ -47,23 +50,23 @@ const menuLinks = [
       </svg>
     ),
   },
-  {
-    label: "Tools",
-    description: "Free lab calculators",
-    href: "/tools",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-4 w-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      >
-        <rect x="4" y="2" width="16" height="20" rx="2" />
-        <path d="M8 6h8M8 10h2M12 10h2M16 10h0M8 14h2M12 14h2M16 14h0M8 18h2M12 18h4" strokeLinecap="round" />
-      </svg>
-    ),
-  },
+  // {
+  //   label: "Tools",
+  //   description: "Free lab calculators",
+  //   href: "/tools",
+  //   icon: (
+  //     <svg
+  //       viewBox="0 0 24 24"
+  //       className="h-4 w-4"
+  //       fill="none"
+  //       stroke="currentColor"
+  //       strokeWidth="1.8"
+  //     >
+  //       <rect x="4" y="2" width="16" height="20" rx="2" />
+  //       <path d="M8 6h8M8 10h2M12 10h2M16 10h0M8 14h2M12 14h2M16 14h0M8 18h2M12 18h4" strokeLinecap="round" />
+  //     </svg>
+  //   ),
+  // },
 ];
 
 function getInitials(name: string | null, email: string) {
