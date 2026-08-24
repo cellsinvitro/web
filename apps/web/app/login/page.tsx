@@ -11,11 +11,15 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; tab?: string }>;
+  searchParams: Promise<{ error?: string; tab?: string; redirect?: string }>;
 }) {
   const params = await searchParams;
   const oauthError = params.error;
   const initialTab = params.tab === "register" ? "register" : "login";
+  const redirectTo =
+    params.redirect?.startsWith("/") && !params.redirect.startsWith("//")
+      ? params.redirect
+      : "/";
 
   return (
     <main className="flex h-dvh max-h-dvh items-center justify-center overflow-hidden bg-white px-4 py-6 sm:px-6">
@@ -51,7 +55,11 @@ export default async function LoginPage({
             </div>
 
             <div className="px-6 py-6 md:px-7 md:py-7">
-              <AuthForm initialTab={initialTab} oauthError={oauthError} />
+              <AuthForm
+                initialTab={initialTab}
+                oauthError={oauthError}
+                redirectTo={redirectTo}
+              />
             </div>
           </div>
         </div>

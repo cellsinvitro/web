@@ -102,3 +102,39 @@ export async function fetchCurrentUser() {
     return null;
   }
 }
+
+export type AdminStats = {
+  totalUsers: number;
+  emailUsers: number;
+  googleUsers: number;
+  recentSignups: number;
+};
+
+export type AdminUser = AuthUser & {
+  authProvider: "email" | "google";
+  hasPassword: boolean;
+};
+
+export async function fetchAdminStats() {
+  const data = await apiFetch<{ stats: AdminStats }>("/admin/stats");
+  return data.stats;
+}
+
+export async function fetchAdminUsers() {
+  const data = await apiFetch<{ users: AdminUser[] }>("/admin/users");
+  return data.users;
+}
+
+export async function updateAdminUserRole(userId: string, role: "USER" | "ADMIN") {
+  const data = await apiFetch<{ user: AuthUser }>(`/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+  return data.user;
+}
+
+export async function deleteAdminUser(userId: string) {
+  return apiFetch<{ success: boolean }>(`/admin/users/${userId}`, {
+    method: "DELETE",
+  });
+}

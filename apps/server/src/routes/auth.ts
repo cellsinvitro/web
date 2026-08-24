@@ -9,6 +9,7 @@ import {
   setAuthCookies,
 } from "../lib/cookies.js";
 import { issueTokenPair } from "../lib/session.js";
+import { publicUserSelect, toPublicUser } from "../lib/user.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { googleAuthRoutes } from "./google.js";
 
@@ -158,18 +159,12 @@ authRoutes.get("/me", requireAuth, async (c) => {
   const authUser = c.get("user");
   const user = await prisma.user.findUnique({
     where: { id: authUser.sub },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      avatarUrl: true,
-      createdAt: true,
-    },
+    select: publicUserSelect,
   });
 
   if (!user) {
     throw new HTTPException(401, { message: "Unauthorized" });
   }
 
-  return c.json({ user });
+  return c.json({ user: toPublicUser(user) });
 });

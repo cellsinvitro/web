@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
+import { isAdmin } from "@/lib/admin";
 
 
 const navItems = [
@@ -245,6 +246,37 @@ export default function Navbar() {
                       </div>
 
                       <div className="p-1.5">
+                        {isAdmin(user.role) ? (
+                          <Link
+                            href="/admin"
+                            role="menuitem"
+                            onClick={closeMenus}
+                            className="mb-1 flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50"
+                          >
+                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                              >
+                                <path
+                                  d="M12 3 4 7v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V7l-8-4Z"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium text-slate-900">
+                                Admin
+                              </span>
+                              <span className="block text-xs text-slate-500">
+                                Manage users and site data
+                              </span>
+                            </span>
+                          </Link>
+                        ) : null}
                         {menuLinks.map((item) => (
                           <Link
                             key={item.label}
@@ -367,6 +399,29 @@ export default function Navbar() {
                         </div>
                       </div>
                     </div>
+                    {isAdmin(user.role) ? (
+                      <Link
+                        href="/admin"
+                        onClick={closeMenus}
+                        className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white/60"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          >
+                            <path
+                              d="M12 3 4 7v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V7l-8-4Z"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                        Admin
+                      </Link>
+                    ) : null}
                     {menuLinks.map((item) => (
                       <Link
                         key={item.label}
