@@ -35,7 +35,11 @@ async function proxy(request: NextRequest, path: string[]) {
 
   const method = request.method;
   const body =
-    method === "GET" || method === "HEAD" ? undefined : await request.text();
+    method === "GET" || method === "HEAD"
+      ? undefined
+      : contentType?.includes("multipart/form-data")
+        ? await request.arrayBuffer()
+        : await request.text();
 
   let upstream: Response;
   try {

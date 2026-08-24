@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 const navItems = [
   { label: "Dashboard", href: "/admin" },
   { label: "Users", href: "/admin/users" },
+  { label: "Resources", href: "/admin/resources" },
 ];
 
 export default function AdminSidebar() {
