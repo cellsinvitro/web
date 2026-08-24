@@ -16,7 +16,7 @@ export default function IC50Page() {
       <Navbar />
 
       <section className="bg-white pt-24 pb-16 sm:pb-20 lg:pb-24">
-        <div className="mx-auto max-w-6xl px-6 lg:px-8">
+        <div className="mx-auto px-6 lg:px-8">
           <Link
             href="/tools"
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-800"
@@ -36,26 +36,24 @@ export default function IC50Page() {
             All tools
           </Link>
 
-          <div className="mt-7 grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:gap-16">
-            <aside className="space-y-6 lg:sticky lg:top-28">
-              <div className="max-w-xl">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
-                  Lab Tools
-                </p>
-                <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                  IC₅₀
-                  <span className="text-slate-500"> calculator.</span>
-                </h1>
-                <p className="mt-5 text-base leading-7 text-slate-500">
-                  Enter inhibition assay data, fit a four-parameter logistic curve,
-                  and estimate the half-maximal inhibitory concentration.
-                </p>
-              </div>
+          <div className="mt-7 max-w-xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+              Lab Tools
+            </p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+              IC₅₀
+              <span className="text-slate-500"> calculator.</span>
+            </h1>
+            <p className="mt-5 text-base leading-7 text-slate-500">
+              Enter inhibition assay data, fit a four-parameter logistic curve,
+              and estimate the half-maximal inhibitory concentration.
+            </p>
+          </div>
 
+          <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+            <aside className="shrink-0 lg:w-1/4">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <h2 className="text-sm font-semibold text-slate-950">
-                  4PL model
-                </h2>
+                <h2 className="text-sm font-semibold text-slate-950">4PL model</h2>
                 <p className="mt-3 font-mono text-sm leading-7 text-slate-600">
                   Y = Bottom + (Top − Bottom) / (1 + (X / IC₅₀)<sup>n</sup>)
                 </p>
@@ -74,7 +72,7 @@ export default function IC50Page() {
               </div>
             </aside>
 
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="w-full rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:w-3/4">
               <IC50Calculator />
             </div>
           </div>
