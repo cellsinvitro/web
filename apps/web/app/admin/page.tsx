@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { fetchAdminStats } from "@/lib/api";
 import type { AdminStats } from "@/lib/api";
 
@@ -69,18 +68,6 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Quick actions</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Manage accounts and review user access.
-        </p>
-        <Link
-          href="/admin/users"
-          className="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-        >
-          Manage users
-        </Link>
-      </div>
     </div>
   );
 }

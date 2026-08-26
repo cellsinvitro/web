@@ -16,8 +16,8 @@ export default function DashboardLayout({
   return (
     <AuthGuard>
       <div className="min-h-dvh bg-slate-50">
-        <div className="mx-auto flex min-h-dvh max-w-7xl">
-          <div className="hidden w-60 shrink-0 md:block">
+        <div className="flex min-h-dvh">
+          <div className="hidden shrink-0 md:block">
             <DashboardSidebar />
           </div>
           <main className="min-w-0 flex-1">
