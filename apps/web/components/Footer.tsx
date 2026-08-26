@@ -8,7 +8,7 @@ const footerLinks = [
     title: "Explore",
     links: [
       { label: "Home", href: "/#home" },
-      { label: "Research Kits", href: "/#kits" },
+      { label: "Research Kits", href: "/kits" },
       { label: "Features", href: "/#features" },
       { label: "Our Team", href: "/#team" },
       { label: "Contact Us", href: "/contact" },
@@ -17,9 +17,9 @@ const footerLinks = [
   {
     title: "Research",
     links: [
-      { label: "Anti-Cancer", href: "/#kits" },
-      { label: "Anti-Oxidant", href: "/#kits" },
-      { label: "Anti-Diabetic", href: "/#kits" },
+      { label: "Anti-Cancer", href: "/kits" },
+      { label: "Anti-Oxidant", href: "/kits" },
+      { label: "Anti-Diabetic", href: "/kits" },
     ],
   },
 ];

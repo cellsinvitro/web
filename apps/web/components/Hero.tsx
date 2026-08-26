@@ -54,7 +54,7 @@ export default function Hero() {
           {/* CTA buttons */}
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="#kits"
+              href="/kits"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 hover:bg-slate-800"
             >
               Explore Research Kits

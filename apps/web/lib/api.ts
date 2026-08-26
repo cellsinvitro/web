@@ -342,3 +342,133 @@ export async function downloadStudyMaterialFile(
   anchor.click();
   URL.revokeObjectURL(objectUrl);
 }
+
+export type ResearchKit = {
+  id: string;
+  title: string;
+  category: string;
+  imageUrl: string | null;
+  assays: string[];
+  published: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchKits() {
+  const response = await fetch(`${API_URL}/kits`);
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  const data = (await response.json()) as { kits: ResearchKit[] };
+  return data.kits;
+}
+
+export async function fetchKit(id: string) {
+  const response = await fetch(`${API_URL}/kits/${id}`);
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  const data = (await response.json()) as { kit: ResearchKit };
+  return data.kit;
+}
+
+export async function fetchAdminKits() {
+  const data = await apiFetch<{ kits: ResearchKit[] }>("/admin/kits");
+  return data.kits;
+}
+
+export async function createAdminKit(input: {
+  title: string;
+  category: string;
+  assays: string[];
+  published?: boolean;
+  sortOrder?: number;
+  image: File;
+}) {
+  const formData = new FormData();
+  formData.append("title", input.title);
+  formData.append("category", input.category);
+  formData.append("assays", JSON.stringify(input.assays));
+  formData.append("published", String(input.published ?? true));
+  formData.append("sortOrder", String(input.sortOrder ?? 0));
+  formData.append("image", input.image);
+
+  const response = await fetch(`${API_URL}/admin/kits`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return createAdminKit(input);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data = (await response.json()) as { kit: ResearchKit };
+  return data.kit;
+}
+
+export async function updateAdminKit(
+  id: string,
+  input: {
+    title?: string;
+    category?: string;
+    assays?: string[];
+    published?: boolean;
+    sortOrder?: number;
+    image?: File;
+  }
+) {
+  const formData = new FormData();
+  if (input.title !== undefined) {
+    formData.append("title", input.title);
+  }
+  if (input.category !== undefined) {
+    formData.append("category", input.category);
+  }
+  if (input.assays !== undefined) {
+    formData.append("assays", JSON.stringify(input.assays));
+  }
+  if (input.published !== undefined) {
+    formData.append("published", String(input.published));
+  }
+  if (input.sortOrder !== undefined) {
+    formData.append("sortOrder", String(input.sortOrder));
+  }
+  if (input.image) {
+    formData.append("image", input.image);
+  }
+
+  const response = await fetch(`${API_URL}/admin/kits/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return updateAdminKit(id, input);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data = (await response.json()) as { kit: ResearchKit };
+  return data.kit;
+}
+
+export async function deleteAdminKit(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/kits/${id}`, {
+    method: "DELETE",
+  });
+}

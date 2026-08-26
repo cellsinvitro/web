@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function ResourceDetailRedirectPage({ params }: PageProps) {
   const { id } = await params;
-  redirect(`/login?redirect=${encodeURIComponent(`/dashboard/resources/${id}`)}`);
+  redirect(`/dashboard/resources/${id}`);
 }
