@@ -307,3 +307,38 @@ export async function deleteAdminStudyMaterial(id: string) {
 export function getStudyMaterialFileViewUrl(materialId: string, fileId: string) {
   return `${API_URL}/materials/${materialId}/files/${fileId}/view`;
 }
+
+export function getStudyMaterialFileDownloadUrl(
+  materialId: string,
+  fileId: string
+) {
+  return `${API_URL}/materials/${materialId}/files/${fileId}/download`;
+}
+
+export async function downloadStudyMaterialFile(
+  materialId: string,
+  file: StudyMaterialFile
+) {
+  const url = `${getStudyMaterialFileDownloadUrl(materialId, file.id)}?t=${file.updatedAt}`;
+  const response = await fetch(url, { credentials: "include" });
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return downloadStudyMaterialFile(materialId, file);
+    }
+    throw new Error("Please sign in to download this file");
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = file.fileName;
+  anchor.click();
+  URL.revokeObjectURL(objectUrl);
+}

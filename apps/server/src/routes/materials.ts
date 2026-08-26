@@ -28,10 +28,7 @@ materialsRoutes.get("/", async (c) => {
   });
 });
 
-materialsRoutes.get("/:materialId/files/:fileId/view", async (c) => {
-  const materialId = c.req.param("materialId");
-  const fileId = c.req.param("fileId");
-
+async function loadStudyMaterialFileBuffer(materialId: string, fileId: string) {
   const file = await prisma.studyMaterialFile.findFirst({
     where: { id: fileId, materialId },
   });
@@ -51,11 +48,42 @@ materialsRoutes.get("/:materialId/files/:fileId/view", async (c) => {
     throw new HTTPException(404, { message: "Resource file not found" });
   }
 
+  return { file, fileData };
+}
+
+function contentDispositionAttachment(fileName: string) {
+  const safe = fileName.replace(/[^\w.\- ()]/g, "_");
+  return `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
+materialsRoutes.get("/:materialId/files/:fileId/view", async (c) => {
+  const { file, fileData } = await loadStudyMaterialFileBuffer(
+    c.req.param("materialId"),
+    c.req.param("fileId")
+  );
+
   return new Response(fileData, {
     status: 200,
     headers: {
       "Content-Type": file.mimeType,
       "Content-Disposition": "inline",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "private, no-store",
+    },
+  });
+});
+
+materialsRoutes.get("/:materialId/files/:fileId/download", async (c) => {
+  const { file, fileData } = await loadStudyMaterialFileBuffer(
+    c.req.param("materialId"),
+    c.req.param("fileId")
+  );
+
+  return new Response(fileData, {
+    status: 200,
+    headers: {
+      "Content-Type": file.mimeType,
+      "Content-Disposition": contentDispositionAttachment(file.fileName),
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, no-store",
     },

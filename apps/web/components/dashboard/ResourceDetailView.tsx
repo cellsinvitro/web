@@ -86,8 +86,8 @@ export default function ResourceDetailView({
             ) : null}
             <p className="mt-4 text-xs text-slate-400">
               {getMaterialTypeSummary(material.files)} ·{" "}
-              {getMaterialFileCountLabel(material.files.length)}. View-only
-              preview. Click a file to open it.
+              {getMaterialFileCountLabel(material.files.length)}. Click a file
+              to preview or download.
             </p>
           </div>
 
