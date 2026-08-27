@@ -1,4 +1,4 @@
-import type { AuthResponse, AuthUser } from "./auth-storage";
+import type { AuthResponse, AuthUser, Designation } from "./auth-storage";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
@@ -101,6 +101,17 @@ export async function fetchCurrentUser() {
   } catch {
     return null;
   }
+}
+
+export async function updateProfile(input: {
+  name?: string;
+  designation?: Designation | null;
+}) {
+  const data = await apiFetch<{ user: AuthUser }>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.user;
 }
 
 export type AdminStats = {

@@ -413,6 +413,11 @@ export default function DashboardPage() {
                 description="Browse assay-based research kits."
               />
               <QuickAction
+                href="/dashboard/account"
+                title="Profile"
+                description="Account details and display name."
+              />
+              <QuickAction
                 href="/tools"
                 title="Lab tools"
                 description="Calculators and lab utilities."

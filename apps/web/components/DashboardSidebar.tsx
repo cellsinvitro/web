@@ -93,7 +93,7 @@ const navItems = [
   { label: "My Courses", href: "/dashboard/courses", icon: CoursesIcon },
   { label: "Resource Library", href: "/dashboard/resources", icon: ResourcesIcon },
   { label: "Research Kits", href: "/dashboard/kits", icon: KitsIcon },
-  { label: "Account", href: "/dashboard/account", icon: AccountIcon },
+  { label: "Profile", href: "/dashboard/account", icon: AccountIcon },
 ];
 
 const exploreItems = [

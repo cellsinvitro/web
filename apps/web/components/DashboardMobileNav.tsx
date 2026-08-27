@@ -8,7 +8,7 @@ const mobileNavItems = [
   { label: "Courses", href: "/dashboard/courses" },
   { label: "Resources", href: "/dashboard/resources" },
   { label: "Kits", href: "/dashboard/kits" },
-  { label: "Account", href: "/dashboard/account" },
+  { label: "Profile", href: "/dashboard/account" },
 ];
 
 export default function DashboardMobileNav() {

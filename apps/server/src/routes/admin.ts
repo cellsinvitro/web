@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import type { Designation } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
 import { publicUserSelect, toPublicUser } from "../lib/user.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
@@ -45,6 +46,7 @@ type AdminUserRecord = {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  designation: Designation | null;
   role: "USER" | "ADMIN";
   createdAt: Date;
   updatedAt: Date;

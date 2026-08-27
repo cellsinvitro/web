@@ -100,6 +100,16 @@ export function validateCourseFile(file: File, contentType: string) {
     return null;
   }
 
+  if (contentType === "IMAGE") {
+    if (!isCourseImageMimeType(file.type)) {
+      return "Only JPEG, PNG, WebP, or GIF images are allowed";
+    }
+    if (file.size <= 0 || file.size > MAX_IMAGE_SIZE) {
+      return "Image must be between 1 byte and 15 MB";
+    }
+    return null;
+  }
+
   if (isCourseImageMimeType(file.type)) {
     if (file.size <= 0 || file.size > MAX_IMAGE_SIZE) {
       return "Image must be between 1 byte and 15 MB";

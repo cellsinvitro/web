@@ -67,7 +67,16 @@ export function toPublicModule(module: {
     updatedAt: module.updatedAt.toISOString(),
   };
 
-  if (module.contentType === "QUIZ" || module.contentType === "ASSIGNMENT") {
+  if (module.contentType === "QUIZ") {
+    const questions = parseQuizQuestions(module.contentJson).map((question) => ({
+      id: question.id,
+      text: question.text,
+      options: question.options,
+    }));
+    return { ...base, contentJson: { questions } };
+  }
+
+  if (module.contentType === "ASSIGNMENT" || module.contentType === "TEXT") {
     return { ...base, contentJson: module.contentJson };
   }
 

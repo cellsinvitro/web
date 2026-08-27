@@ -2,9 +2,32 @@ export const MODULE_CONTENT_TYPES = [
   { value: "VIDEO", label: "Video" },
   { value: "PDF", label: "PDF" },
   { value: "PPT", label: "PowerPoint" },
+  { value: "TEXT", label: "Text" },
+  { value: "IMAGE", label: "Image" },
   { value: "ASSIGNMENT", label: "Assignment" },
   { value: "QUIZ", label: "Quiz / Test" },
 ] as const;
+
+export const ACCESS_DURATION_PRESETS = [30, 90, 180] as const;
+
+export function moduleAcceptsFile(contentType: string) {
+  return ["VIDEO", "PDF", "PPT", "IMAGE"].includes(contentType);
+}
+
+export function moduleFileAccept(contentType: string) {
+  switch (contentType) {
+    case "VIDEO":
+      return "video/mp4,video/webm,video/quicktime";
+    case "PDF":
+      return "application/pdf";
+    case "PPT":
+      return ".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    case "IMAGE":
+      return "image/jpeg,image/png,image/webp,image/gif";
+    default:
+      return undefined;
+  }
+}
 
 export const REMINDER_MODES = [
   { value: "AUTOMATIC", label: "Automatic" },
@@ -57,8 +80,14 @@ export function parseQuizQuestionsJson(contentJson: unknown) {
     id: string;
     text: string;
     options: string[];
-    correctIndex: number;
+    correctIndex?: number;
   }>;
+}
+
+export function parseTextBody(contentJson: unknown) {
+  if (!contentJson || typeof contentJson !== "object") return "";
+  const body = (contentJson as { body?: unknown }).body;
+  return typeof body === "string" ? body : "";
 }
 
 export function parseAssignmentJson(contentJson: unknown) {

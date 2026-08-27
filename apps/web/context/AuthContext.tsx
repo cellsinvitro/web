@@ -13,8 +13,14 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  updateProfile,
 } from "@/lib/api";
-import type { AuthUser } from "@/lib/auth-storage";
+import type { AuthUser, Designation } from "@/lib/auth-storage";
+
+type ProfileUpdateInput = {
+  name?: string;
+  designation?: Designation | null;
+};
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -22,6 +28,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (input: ProfileUpdateInput) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -64,8 +71,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateProfileFields = useCallback(async (input: ProfileUpdateInput) => {
+    const updated = await updateProfile(input);
+    setUser(updated);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        updateProfile: updateProfileFields,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

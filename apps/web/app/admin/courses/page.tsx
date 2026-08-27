@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
-  createAdminCourse,
   deleteAdminCourse,
   fetchAdminCourses,
   fetchAdminPackages,
   createAdminPackage,
+  updateAdminPackage,
   deleteAdminPackage,
   sendCourseReminders,
   type Course,
@@ -16,19 +15,19 @@ import {
 } from "@/lib/api";
 import { formatPrice } from "@/lib/courses";
 import { useConfirm } from "@/context/ConfirmContext";
+import AdminCourseWizard from "@/components/admin/AdminCourseWizard";
 
 export default function AdminCoursesPage() {
-  const router = useRouter();
   const confirm = useConfirm();
   const [courses, setCourses] = useState<Course[]>([]);
   const [packages, setPackages] = useState<CoursePackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [price, setPrice] = useState("0");
-  const [creating, setCreating] = useState(false);
   const [pkgTitle, setPkgTitle] = useState("");
   const [pkgPrice, setPkgPrice] = useState("0");
+  const [pkgAccessDays, setPkgAccessDays] = useState("90");
+  const [pkgCourseIds, setPkgCourseIds] = useState<string[]>([]);
+  const [editingPkgId, setEditingPkgId] = useState<string | null>(null);
   const [reminderResult, setReminderResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -48,24 +47,6 @@ export default function AdminCoursesPage() {
     load();
   }, [load]);
 
-  const handleCreateCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setCreating(true);
-    try {
-      const form = new FormData();
-      form.append("title", title.trim());
-      form.append("price", String(Math.round(Number(price) * 100)));
-      form.append("published", "false");
-      const course = await createAdminCourse(form);
-      router.push(`/admin/courses/${course.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const handleCreatePackage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pkgTitle.trim()) return;
@@ -73,10 +54,14 @@ export default function AdminCoursesPage() {
       await createAdminPackage({
         title: pkgTitle.trim(),
         price: Math.round(Number(pkgPrice) * 100),
+        accessDurationDays: Number(pkgAccessDays) || 90,
         published: false,
+        courseIds: pkgCourseIds,
       });
       setPkgTitle("");
       setPkgPrice("0");
+      setPkgAccessDays("90");
+      setPkgCourseIds([]);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create package failed");
@@ -125,43 +110,20 @@ export default function AdminCoursesPage() {
         <p className="mb-4 text-sm text-slate-600">{reminderResult}</p>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">New course</h2>
-          <form onSubmit={handleCreateCourse} className="mt-4 space-y-3">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Course title"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
-            />
-            <input
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="Price (INR)"
-              type="number"
-              min="0"
-              step="0.01"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
-            />
-            <button
-              type="submit"
-              disabled={creating}
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              Create course
-            </button>
-          </form>
-        </section>
+      <AdminCourseWizard onFinished={load} />
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">New package</h2>
-          <form onSubmit={handleCreatePackage} className="mt-4 space-y-3">
+      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">New package</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Bundle topic-based courses. Advanced courses can still require a basic course as a prerequisite.
+        </p>
+        <form onSubmit={handleCreatePackage} className="mt-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <input
               value={pkgTitle}
               onChange={(e) => setPkgTitle(e.target.value)}
               placeholder="Package title"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
             />
             <input
               value={pkgPrice}
@@ -169,17 +131,46 @@ export default function AdminCoursesPage() {
               placeholder="Price (INR)"
               type="number"
               min="0"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
             />
-            <button
-              type="submit"
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"
-            >
-              Create package
-            </button>
-          </form>
-        </section>
-      </div>
+            <input
+              value={pkgAccessDays}
+              onChange={(e) => setPkgAccessDays(e.target.value)}
+              placeholder="Access days"
+              type="number"
+              min="1"
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+            />
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">Include courses</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {courses.map((course) => (
+                <label key={course.id} className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={pkgCourseIds.includes(course.id)}
+                    onChange={(e) => {
+                      setPkgCourseIds((prev) =>
+                        e.target.checked
+                          ? [...prev, course.id]
+                          : prev.filter((id) => id !== course.id)
+                      );
+                    }}
+                  />
+                  {course.title}
+                </label>
+              ))}
+            </div>
+          </div>
+          <button
+            type="submit"
+            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Create package
+          </button>
+        </form>
+      </section>
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-slate-950">All courses</h2>
@@ -243,31 +234,69 @@ export default function AdminCoursesPage() {
           {packages.map((pkg) => (
             <div
               key={pkg.id}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3"
             >
-              <div>
-                <p className="font-medium text-slate-950">{pkg.title}</p>
-                <p className="text-xs text-slate-500">
-                  {formatPrice(pkg.price, pkg.currency)} · {pkg.courseCount} courses
-                </p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-slate-950">{pkg.title}</p>
+                  <p className="text-xs text-slate-500">
+                    {formatPrice(pkg.price, pkg.currency)} · {pkg.courseCount} courses ·{" "}
+                    {pkg.accessDurationDays} days
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPkgId(editingPkgId === pkg.id ? null : pkg.id)}
+                    className="text-sm text-slate-600 hover:underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        title: "Delete package",
+                        message: `Delete "${pkg.title}"? This cannot be undone.`,
+                        confirmLabel: "Delete package",
+                        variant: "danger",
+                      });
+                      if (!confirmed) return;
+                      await deleteAdminPackage(pkg.id);
+                      load();
+                    }}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  const confirmed = await confirm({
-                    title: "Delete package",
-                    message: `Delete "${pkg.title}"? This cannot be undone.`,
-                    confirmLabel: "Delete package",
-                    variant: "danger",
-                  });
-                  if (!confirmed) return;
-                  await deleteAdminPackage(pkg.id);
-                  load();
-                }}
-                className="text-sm text-red-600 hover:underline"
-              >
-                Delete
-              </button>
+              {editingPkgId === pkg.id ? (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <p className="text-xs text-slate-500">Courses in this package</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {courses.map((course) => {
+                      const selected = (pkg.courses ?? []).some((c) => c.id === course.id);
+                      return (
+                        <label key={course.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            defaultChecked={selected}
+                            onChange={async (e) => {
+                              const current = new Set((pkg.courses ?? []).map((c) => c.id));
+                              if (e.target.checked) current.add(course.id);
+                              else current.delete(course.id);
+                              await updateAdminPackage(pkg.id, { courseIds: [...current] });
+                              load();
+                            }}
+                          />
+                          {course.title}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

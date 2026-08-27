@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   addCoursePrerequisite,
-  createAdminModule,
   deleteAdminModule,
   fetchAdminCourse,
   fetchAdminCourses,
@@ -12,18 +11,16 @@ import {
   removeCoursePrerequisite,
   reorderAdminModules,
   updateAdminCourse,
-  updateAdminModule,
   type Course,
   type CourseModule,
 } from "@/lib/api";
 import {
-  buildDefaultAssignmentJson,
-  buildDefaultQuizJson,
+  formatDuration,
   getModuleTypeLabel,
-  MODULE_CONTENT_TYPES,
   REMINDER_MODES,
 } from "@/lib/courses";
 import { useConfirm } from "@/context/ConfirmContext";
+import AdminModuleForm from "@/components/admin/AdminModuleForm";
 
 export default function AdminCourseDetailPage({ courseId }: { courseId: string }) {
   const confirm = useConfirm();
@@ -35,14 +32,10 @@ export default function AdminCourseDetailPage({ courseId }: { courseId: string }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"modules" | "settings" | "enrollments">("modules");
-
-  const [moduleTitle, setModuleTitle] = useState("");
-  const [moduleType, setModuleType] = useState("VIDEO");
-  const [moduleFile, setModuleFile] = useState<File | null>(null);
   const [prereqId, setPrereqId] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const [c, all, enr] = await Promise.all([
         fetchAdminCourse(courseId),
@@ -74,23 +67,6 @@ export default function AdminCourseDetailPage({ courseId }: { courseId: string }
       form.set("published", "false");
     }
     await updateAdminCourse(courseId, form);
-    load();
-  };
-
-  const handleAddModule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!moduleTitle.trim()) return;
-    const form = new FormData();
-    form.append("title", moduleTitle.trim());
-    form.append("contentType", moduleType);
-    if (moduleType === "QUIZ") form.append("contentJson", buildDefaultQuizJson(10));
-    if (moduleType === "ASSIGNMENT") form.append("contentJson", buildDefaultAssignmentJson());
-    if (moduleFile && ["VIDEO", "PDF", "PPT"].includes(moduleType)) {
-      form.append("file", moduleFile);
-    }
-    await createAdminModule(courseId, form);
-    setModuleTitle("");
-    setModuleFile(null);
     load();
   };
 
@@ -138,36 +114,15 @@ export default function AdminCourseDetailPage({ courseId }: { courseId: string }
 
       {tab === "modules" ? (
         <div className="mt-6 space-y-6">
-          <form onSubmit={handleAddModule} className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 className="font-semibold text-slate-950">Add module</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <input
-                value={moduleTitle}
-                onChange={(e) => setModuleTitle(e.target.value)}
-                placeholder="Module title"
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm"
-              />
-              <select
-                value={moduleType}
-                onChange={(e) => setModuleType(e.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm"
-              >
-                {MODULE_CONTENT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-              {["VIDEO", "PDF", "PPT"].includes(moduleType) ? (
-                <input
-                  type="file"
-                  onChange={(e) => setModuleFile(e.target.files?.[0] ?? null)}
-                  className="text-sm"
-                />
-              ) : null}
+            <p className="mt-1 text-sm text-slate-500">
+              Video, PDF, PowerPoint, text, image, assignment, or quiz. Reorder anytime.
+            </p>
+            <div className="mt-4">
+              <AdminModuleForm courseId={courseId} onSaved={() => load({ silent: true })} />
             </div>
-            <button type="submit" className="mt-3 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
-              Add module
-            </button>
-          </form>
+          </div>
 
           <div className="space-y-2">
             {(course.modules ?? []).map((module, i) => (
@@ -267,6 +222,9 @@ export default function AdminCourseDetailPage({ courseId }: { courseId: string }
           </label>
           <div>
             <p className="text-sm font-medium text-slate-950">Prerequisites</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Learners must complete these courses (certificate issued) before purchasing this one.
+            </p>
             <div className="mt-2 flex gap-2">
               <select
                 value={prereqId}
@@ -364,17 +322,6 @@ function ModuleRow({
   onRefresh: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [quizJson, setQuizJson] = useState(
-    module.contentType === "QUIZ" ? JSON.stringify(module.contentJson, null, 2) : ""
-  );
-
-  const saveQuiz = async () => {
-    const form = new FormData();
-    form.append("contentJson", quizJson);
-    await updateAdminModule(courseId, module.id, form);
-    setEditing(false);
-    onRefresh();
-  };
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -383,26 +330,32 @@ function ModuleRow({
           <p className="font-medium text-slate-950">
             {index + 1}. {module.title}
           </p>
-          <p className="text-xs text-slate-500">{getModuleTypeLabel(module.contentType)}</p>
+          <p className="text-xs text-slate-500">
+            {getModuleTypeLabel(module.contentType)}
+            {module.durationMinutes ? ` · ${formatDuration(module.durationMinutes)}` : ""}
+            {module.fileName ? ` · ${module.fileName}` : ""}
+          </p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => onReorder(module.id, "up")} className="text-xs text-slate-500">↑</button>
           <button type="button" onClick={() => onReorder(module.id, "down")} className="text-xs text-slate-500">↓</button>
-          {module.contentType === "QUIZ" ? (
-            <button type="button" onClick={() => setEditing(!editing)} className="text-xs text-slate-600">Edit quiz</button>
-          ) : null}
+          <button type="button" onClick={() => setEditing(!editing)} className="text-xs text-slate-600">
+            {editing ? "Close" : "Edit"}
+          </button>
           <button type="button" onClick={onDelete} className="text-xs text-red-600">Delete</button>
         </div>
       </div>
       {editing ? (
-        <div className="mt-3">
-          <textarea
-            value={quizJson}
-            onChange={(e) => setQuizJson(e.target.value)}
-            rows={8}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <AdminModuleForm
+            courseId={courseId}
+            existing={module}
+            onSaved={() => {
+              setEditing(false);
+              onRefresh();
+            }}
+            onCancel={() => setEditing(false)}
           />
-          <button type="button" onClick={saveQuiz} className="mt-2 text-sm font-medium">Save quiz JSON</button>
         </div>
       ) : null}
     </div>

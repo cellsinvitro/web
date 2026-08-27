@@ -17,6 +17,21 @@ enum UserRole {
   ADMIN
 }
 
+enum Designation {
+  PHD
+  MD
+  MSC
+  BSC
+  BTECH
+  MTECH
+  POSTDOC
+  PROFESSOR
+  RESEARCH_SCIENTIST
+  GRADUATE_STUDENT
+  UNDERGRADUATE
+  OTHER
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
@@ -24,6 +39,7 @@ model User {
   googleId      String?        @unique
   name          String?
   avatarUrl     String?
+  designation   Designation?
   role          UserRole       @default(USER)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -85,6 +101,8 @@ enum ModuleContentType {
   VIDEO
   PDF
   PPT
+  TEXT
+  IMAGE
   ASSIGNMENT
   QUIZ
 }

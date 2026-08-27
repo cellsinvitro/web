@@ -7,6 +7,7 @@ import {
   getVideoPublicId,
   readStoredCourseContent,
 } from "../lib/course-content.js";
+import { getCloudinaryImageUrl, getCloudinaryPublicId, isCloudinaryStorageKey } from "../lib/cloudinary.js";
 import {
   courseInclude,
   packageInclude,
@@ -274,9 +275,44 @@ coursesRoutes.get("/my/:courseId/modules/:moduleId/content", requireAuth, async 
     });
   }
 
-  if (module.contentType === "QUIZ" || module.contentType === "ASSIGNMENT") {
+  if (module.contentType === "IMAGE") {
+    if (!module.storageKey) throw new HTTPException(404, { message: "Content not available" });
+    if (isCloudinaryStorageKey(module.storageKey)) {
+      return c.json({
+        type: "image",
+        imageUrl: getCloudinaryImageUrl(getCloudinaryPublicId(module.storageKey)),
+      });
+    }
+    const data = await readStoredCourseContent(module.storageKey);
+    return new Response(data, {
+      headers: {
+        "Content-Type": module.mimeType || "image/jpeg",
+        "Content-Disposition": "inline",
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+
+  if (module.contentType === "TEXT") {
     return c.json({
-      type: module.contentType.toLowerCase(),
+      type: "text",
+      contentJson: module.contentJson,
+    });
+  }
+
+  if (module.contentType === "QUIZ") {
+    const questions = parseQuizQuestions(module.contentJson).map((question) => ({
+      id: question.id,
+      text: question.text,
+      options: question.options,
+    }));
+    return c.json({ type: "quiz", contentJson: { questions } });
+  }
+
+  if (module.contentType === "ASSIGNMENT") {
+    return c.json({
+      type: "assignment",
       contentJson: module.contentJson,
     });
   }
@@ -416,6 +452,12 @@ coursesRoutes.post("/my/:courseId/modules/:moduleId/complete", requireAuth, asyn
 
   if (module.contentType === "VIDEO") {
     throw new HTTPException(400, { message: "Video modules complete via watch progress" });
+  }
+  if (module.contentType === "QUIZ") {
+    throw new HTTPException(400, { message: "Quiz modules complete by passing the test" });
+  }
+  if (module.contentType === "ASSIGNMENT") {
+    throw new HTTPException(400, { message: "Assignment modules complete by submitting" });
   }
 
   await prisma.moduleProgress.upsert({

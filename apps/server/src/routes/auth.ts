@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import type { Designation } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
 import { hashToken, verifyRefreshToken } from "../lib/jwt.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
@@ -9,7 +10,7 @@ import {
   setAuthCookies,
 } from "../lib/cookies.js";
 import { issueTokenPair } from "../lib/session.js";
-import { publicUserSelect, toPublicUser } from "../lib/user.js";
+import { publicUserSelect, toPublicUser, isValidDesignation } from "../lib/user.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { googleAuthRoutes } from "./google.js";
 
@@ -165,6 +166,40 @@ authRoutes.get("/me", requireAuth, async (c) => {
   if (!user) {
     throw new HTTPException(401, { message: "Unauthorized" });
   }
+
+  return c.json({ user: toPublicUser(user) });
+});
+
+type UpdateProfileBody = {
+  name?: string;
+  designation?: string | null;
+};
+
+authRoutes.patch("/me", requireAuth, async (c) => {
+  const authUser = c.get("user");
+  const body = (await c.req.json().catch(() => ({}))) as UpdateProfileBody;
+
+  const data: { name?: string | null; designation?: Designation | null } = {};
+
+  if (body.name !== undefined) {
+    data.name = body.name?.trim() || null;
+  }
+
+  if (body.designation !== undefined) {
+    if (body.designation === null || body.designation === "") {
+      data.designation = null;
+    } else if (!isValidDesignation(body.designation)) {
+      throw new HTTPException(400, { message: "Invalid designation" });
+    } else {
+      data.designation = body.designation;
+    }
+  }
+
+  const user = await prisma.user.update({
+    where: { id: authUser.sub },
+    data,
+    select: publicUserSelect,
+  });
 
   return c.json({ user: toPublicUser(user) });
 });

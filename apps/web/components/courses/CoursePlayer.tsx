@@ -14,6 +14,7 @@ import {
   getModuleTypeLabel,
   parseAssignmentJson,
   parseQuizQuestionsJson,
+  parseTextBody,
 } from "@/lib/courses";
 
 type ModuleProgress = {
@@ -99,6 +100,41 @@ function PdfViewer({ courseId, moduleId }: { courseId: string; moduleId: string 
       title="Document"
       className="h-[70vh] w-full rounded-xl border border-slate-200"
     />
+  );
+}
+
+function ImageViewer({ courseId, moduleId }: { courseId: string; moduleId: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    fetch(getModuleContentUrl(courseId, moduleId), { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load image");
+        const contentType = res.headers.get("content-type") ?? "";
+        if (contentType.includes("application/json")) {
+          const data = (await res.json()) as { imageUrl?: string };
+          if (!data.imageUrl) throw new Error("Image URL missing");
+          setSrc(data.imageUrl);
+          return;
+        }
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load image"));
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [courseId, moduleId]);
+
+  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (!src) return <p className="text-sm text-slate-500">Loading image…</p>;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" className="max-h-[70vh] w-full rounded-xl object-contain" />
   );
 }
 
@@ -328,6 +364,36 @@ export default function CoursePlayer({
               {activeModule.contentType === "PDF" || activeModule.contentType === "PPT" ? (
                 <>
                   <PdfViewer courseId={course.id} moduleId={activeModule.id} />
+                  {!progressMap.get(activeModule.id)?.completed ? (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkComplete(activeModule.id)}
+                      className="mt-4 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Mark as completed
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+              {activeModule.contentType === "IMAGE" ? (
+                <>
+                  <ImageViewer courseId={course.id} moduleId={activeModule.id} />
+                  {!progressMap.get(activeModule.id)?.completed ? (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkComplete(activeModule.id)}
+                      className="mt-4 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Mark as completed
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+              {activeModule.contentType === "TEXT" ? (
+                <>
+                  <div className="whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700">
+                    {parseTextBody(activeModule.contentJson) || "No text content yet."}
+                  </div>
                   {!progressMap.get(activeModule.id)?.completed ? (
                     <button
                       type="button"

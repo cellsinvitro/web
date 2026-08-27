@@ -184,7 +184,7 @@ adminCoursesRoutes.post("/courses/:courseId/modules", async (c) => {
   let contentJson: unknown = null;
 
   const file = collectUploadedFile(body, "file");
-  if (file && ["VIDEO", "PDF", "PPT"].includes(contentType)) {
+  if (file && ["VIDEO", "PDF", "PPT", "IMAGE"].includes(contentType)) {
     const validationError = validateCourseFile(file, contentType);
     if (validationError) throw new HTTPException(400, { message: validationError });
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -195,7 +195,7 @@ adminCoursesRoutes.post("/courses/:courseId/modules", async (c) => {
     fileSize = stored.fileSize;
   }
 
-  if (["QUIZ", "ASSIGNMENT"].includes(contentType) && body.contentJson) {
+  if (["QUIZ", "ASSIGNMENT", "TEXT"].includes(contentType) && body.contentJson) {
     contentJson = JSON.parse(String(body.contentJson));
   }
 
@@ -204,7 +204,14 @@ adminCoursesRoutes.post("/courses/:courseId/modules", async (c) => {
       courseId,
       title,
       description: String(body.description ?? "").trim() || null,
-      contentType: contentType as "VIDEO" | "PDF" | "PPT" | "ASSIGNMENT" | "QUIZ",
+      contentType: contentType as
+        | "VIDEO"
+        | "PDF"
+        | "PPT"
+        | "TEXT"
+        | "IMAGE"
+        | "ASSIGNMENT"
+        | "QUIZ",
       sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : (maxOrder._max.sortOrder ?? 0) + 1,
       durationMinutes: body.durationMinutes ? Number(body.durationMinutes) : null,
       isRequired: String(body.isRequired) !== "false",

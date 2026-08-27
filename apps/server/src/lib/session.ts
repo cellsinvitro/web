@@ -1,4 +1,4 @@
-import type { UserRole } from "../generated/prisma/client.js";
+import type { UserRole, Designation } from "../generated/prisma/client.js";
 import { prisma } from "./prisma.js";
 import {
   getAccessExpiresInSeconds,
@@ -12,7 +12,9 @@ export async function issueTokenPair(user: {
   email: string;
   name: string | null;
   avatarUrl?: string | null;
+  designation?: Designation | null;
   role: UserRole;
+  createdAt?: Date;
 }) {
   const accessToken = await signAccessToken({
     sub: user.id,
@@ -34,7 +36,9 @@ export async function issueTokenPair(user: {
       email: user.email,
       name: user.name,
       avatarUrl: user.avatarUrl ?? null,
+      designation: user.designation ?? null,
       role: user.role,
+      createdAt: user.createdAt?.toISOString(),
     },
     accessToken,
     refreshToken,
