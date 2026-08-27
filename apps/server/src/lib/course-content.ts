@@ -166,7 +166,7 @@ export function getSignedVideoUrl(publicId: string, expiresInSeconds = 3600) {
     resource_type: "video",
     secure: true,
     sign_url: true,
-    type: "authenticated",
+    type: "upload",
     expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
   });
 }

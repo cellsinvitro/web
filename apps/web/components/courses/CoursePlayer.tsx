@@ -84,9 +84,11 @@ function VideoPlayer({
       ref={videoRef}
       src={streamUrl}
       controls
+      playsInline
       controlsList="nodownload noplaybackrate"
       disablePictureInPicture
-      className="w-full rounded-xl bg-black"
+      className="aspect-video w-full rounded-xl bg-black object-contain"
+      onError={() => setError("Unable to play this video. Please try again later.")}
       onContextMenu={(e) => e.preventDefault()}
     />
   );
