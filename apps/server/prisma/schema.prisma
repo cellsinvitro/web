@@ -28,6 +28,10 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
+  enrollments   Enrollment[]
+  moduleProgress ModuleProgress[]
+  payments      Payment[]
+  certificates  Certificate[]
 }
 
 model RefreshToken {
@@ -75,4 +79,211 @@ model ResearchKit {
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+enum ModuleContentType {
+  VIDEO
+  PDF
+  PPT
+  ASSIGNMENT
+  QUIZ
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  EXPIRED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  MANUAL
+}
+
+enum ReminderMode {
+  AUTOMATIC
+  MANUAL
+  OFF
+}
+
+model Course {
+  id                    String              @id @default(cuid())
+  title                 String
+  description           String?
+  category              String?
+  thumbnailStorageKey   String?
+  price                 Int                 @default(0)
+  currency              String              @default("INR")
+  accessDurationDays    Int                 @default(90)
+  passingPercentage     Int                 @default(75)
+  published             Boolean             @default(false)
+  sortOrder             Int                 @default(0)
+  reminderMode          ReminderMode        @default(AUTOMATIC)
+  reminderDaysBefore    Int[]               @default([7, 3, 1])
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  modules               CourseModule[]
+  prerequisites         CoursePrerequisite[] @relation("CoursePrerequisites")
+  prerequisiteFor       CoursePrerequisite[] @relation("PrerequisiteCourses")
+  enrollments           Enrollment[]
+  payments              Payment[]
+  certificates          Certificate[]
+  packageItems          CoursePackageItem[]
+}
+
+model CourseModule {
+  id                  String            @id @default(cuid())
+  courseId            String
+  course              Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?
+  contentType         ModuleContentType
+  sortOrder           Int               @default(0)
+  durationMinutes     Int?
+  isRequired          Boolean           @default(true)
+  storageKey          String?
+  fileName            String?
+  mimeType            String?
+  fileSize            Int?
+  contentJson         Json?
+  videoWatchThreshold Float             @default(0.95)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  progress            ModuleProgress[]
+
+  @@index([courseId])
+}
+
+model CoursePrerequisite {
+  id                   String @id @default(cuid())
+  courseId             String
+  course               Course @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisiteCourseId String
+  prerequisiteCourse   Course @relation("PrerequisiteCourses", fields: [prerequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteCourseId])
+  @@index([courseId])
+  @@index([prerequisiteCourseId])
+}
+
+model CoursePackage {
+  id                 String              @id @default(cuid())
+  title              String
+  description        String?
+  price              Int                 @default(0)
+  currency           String              @default("INR")
+  accessDurationDays Int                 @default(90)
+  published          Boolean             @default(false)
+  sortOrder          Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  items              CoursePackageItem[]
+  enrollments        Enrollment[]
+  payments           Payment[]
+}
+
+model CoursePackageItem {
+  id        String        @id @default(cuid())
+  packageId String
+  package   CoursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, courseId])
+  @@index([packageId])
+  @@index([courseId])
+}
+
+model Enrollment {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId   String?
+  course     Course?          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  packageId  String?
+  package    CoursePackage?   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  status     EnrollmentStatus @default(ACTIVE)
+  purchasedAt DateTime         @default(now())
+  expiresAt  DateTime
+  paymentId  String?
+  payment    Payment?         @relation(fields: [paymentId], references: [id])
+  reminders  CourseReminder[]
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([packageId])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId          String?
+  course            Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  packageId         String?
+  package           CoursePackage?  @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  amount            Int
+  currency          String          @default("INR")
+  provider          PaymentProvider @default(RAZORPAY)
+  providerOrderId   String?
+  providerPaymentId String?
+  status            PaymentStatus   @default(PENDING)
+  createdAt         DateTime        @default(now())
+  completedAt       DateTime?
+  enrollments       Enrollment[]
+
+  @@index([userId])
+  @@index([providerOrderId])
+}
+
+model ModuleProgress {
+  id                    String       @id @default(cuid())
+  userId                String
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId              String
+  module                CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  startedAt             DateTime     @default(now())
+  completedAt           DateTime?
+  watchProgress         Float        @default(0)
+  quizScore             Float?
+  quizPassed            Boolean?
+  assignmentSubmission  String?
+  assignmentSubmittedAt DateTime?
+
+  @@unique([userId, moduleId])
+  @@index([userId])
+  @@index([moduleId])
+}
+
+model Certificate {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId          String
+  course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  certificateNumber String   @unique
+  verificationHash  String   @unique
+  issuedAt          DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model CourseReminder {
+  id           String     @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  sentAt       DateTime   @default(now())
+  reminderType String
+
+  @@index([enrollmentId])
 }

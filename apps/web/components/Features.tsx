@@ -3,7 +3,7 @@ const features = [
     number: "02",
     title: "Structured Learning",
     description:
-      "Certified courses covering Cell Culture, Molecular Biology, and Microscopy are coming soon.",
+      "Self-paced certified courses in Cell Culture, Molecular Biology, and Microscopy with modular content and assessments.",
   },
   {
     number: "03",
