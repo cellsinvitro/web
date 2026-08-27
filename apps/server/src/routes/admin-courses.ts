@@ -165,9 +165,12 @@ adminCoursesRoutes.post("/courses/:courseId/modules", async (c) => {
   const body = await c.req.parseBody();
   const title = String(body.title ?? "").trim();
   const contentType = String(body.contentType ?? "").trim();
+  const supportedContentTypes = ["VIDEO", "PDF", "PPT", "TEXT", "IMAGE", "ASSIGNMENT", "QUIZ"] as const;
 
   if (!title) throw new HTTPException(400, { message: "Title is required" });
-  if (!contentType) throw new HTTPException(400, { message: "Content type is required" });
+  if (!supportedContentTypes.includes(contentType as (typeof supportedContentTypes)[number])) {
+    throw new HTTPException(400, { message: "Unsupported content type" });
+  }
 
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) throw new HTTPException(404, { message: "Course not found" });
@@ -242,10 +245,15 @@ adminCoursesRoutes.patch("/courses/:courseId/modules/:moduleId", async (c) => {
   let fileName = existing.fileName;
   let mimeType = existing.mimeType;
   let fileSize = existing.fileSize;
+  const supportedContentTypes = ["VIDEO", "PDF", "PPT", "TEXT", "IMAGE", "ASSIGNMENT", "QUIZ"] as const;
+  const contentType = body.contentType ? String(body.contentType).trim() : existing.contentType;
+  if (!supportedContentTypes.includes(contentType as (typeof supportedContentTypes)[number])) {
+    throw new HTTPException(400, { message: "Unsupported content type" });
+  }
 
   const file = collectUploadedFile(body, "file");
   if (file) {
-    const validationError = validateCourseFile(file, existing.contentType);
+    const validationError = validateCourseFile(file, contentType);
     if (validationError) throw new HTTPException(400, { message: validationError });
     const buffer = Buffer.from(await file.arrayBuffer());
     if (existing.storageKey) await deleteStoredCourseContent(existing.storageKey);
@@ -253,7 +261,7 @@ adminCoursesRoutes.patch("/courses/:courseId/modules/:moduleId", async (c) => {
       file.name,
       file.type,
       buffer,
-      existing.contentType
+      contentType
     );
     storageKey = stored.storageKey;
     fileName = stored.fileName;
@@ -266,6 +274,14 @@ adminCoursesRoutes.patch("/courses/:courseId/modules/:moduleId", async (c) => {
     contentJson = JSON.parse(String(body.contentJson)) as object;
   }
 
+  if (contentType !== existing.contentType && !file) {
+    if (existing.storageKey) await deleteStoredCourseContent(existing.storageKey);
+    storageKey = null;
+    fileName = null;
+    mimeType = null;
+    fileSize = null;
+  }
+
   const module = await prisma.courseModule.update({
     where: { id: moduleId },
     data: {
@@ -273,6 +289,14 @@ adminCoursesRoutes.patch("/courses/:courseId/modules/:moduleId", async (c) => {
       ...(body.description !== undefined
         ? { description: String(body.description).trim() || null }
         : {}),
+      contentType: contentType as
+        | "VIDEO"
+        | "PDF"
+        | "PPT"
+        | "TEXT"
+        | "IMAGE"
+        | "ASSIGNMENT"
+        | "QUIZ",
       ...(body.sortOrder !== undefined ? { sortOrder: Number(body.sortOrder) } : {}),
       ...(body.durationMinutes !== undefined
         ? { durationMinutes: Number(body.durationMinutes) || null }

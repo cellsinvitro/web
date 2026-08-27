@@ -43,15 +43,13 @@ export default function AdminModuleForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const typeLocked = Boolean(existing);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Module title is required");
       return;
     }
-    if (moduleAcceptsFile(contentType) && !existing && !file) {
+    if (moduleAcceptsFile(contentType) && !file && (!existing || existing.contentType !== contentType)) {
       setError("Please choose a file to upload");
       return;
     }
@@ -66,7 +64,7 @@ export default function AdminModuleForm({
       const form = new FormData();
       form.append("title", title.trim());
       form.append("description", description.trim());
-      if (!existing) form.append("contentType", contentType);
+      form.append("contentType", contentType);
       if (durationMinutes) form.append("durationMinutes", durationMinutes);
       if (file && moduleAcceptsFile(contentType)) form.append("file", file);
       if (contentType === "TEXT") {
@@ -116,23 +114,18 @@ export default function AdminModuleForm({
           placeholder="Module title"
           className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
         />
-        {typeLocked ? (
-          <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
-            {MODULE_CONTENT_TYPES.find((t) => t.value === contentType)?.label ?? contentType}
-          </div>
-        ) : (
-          <select
-            value={contentType}
-            onChange={(e) => setContentType(e.target.value)}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
-          >
-            {MODULE_CONTENT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        )}
+        <select
+          value={contentType}
+          onChange={(e) => setContentType(e.target.value)}
+          className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+          aria-label="Module content type"
+        >
+          {MODULE_CONTENT_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
         <input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
