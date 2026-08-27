@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { fetchCourseCatalog, type Course, type CoursePackage } from "@/lib/api";
 import { formatPrice } from "@/lib/courses";
 
@@ -25,8 +24,8 @@ export default function CoursesPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50">
-        <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
+      <main className="min-h-screen bg-slate-50 pt-24 pb-16 sm:pb-20">
+        <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
             Learning
           </p>
@@ -117,7 +116,6 @@ export default function CoursesPage() {
           )}
         </div>
       </main>
-      <Footer />
     </>
   );
 }
