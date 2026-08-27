@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import type { AdminUser } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/context/ConfirmContext";
 
 function formatDate(value?: string) {
   if (!value) return "—";
@@ -45,6 +46,7 @@ export default function UserDetailPanel({
   onUserDeleted,
 }: UserDetailPanelProps) {
   const { user: currentUser } = useAuth();
+  const confirm = useConfirm();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,9 +90,13 @@ export default function UserDetailPanel({
 
   const handleDelete = async () => {
     if (!user) return;
-    if (!window.confirm(`Delete account for ${user.email}? This cannot be undone.`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Delete account",
+      message: `Delete account for ${user.email}? This cannot be undone.`,
+      confirmLabel: "Delete account",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setPending(true);
     setActionError(null);

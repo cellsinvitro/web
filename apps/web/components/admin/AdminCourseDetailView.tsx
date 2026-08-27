@@ -23,8 +23,10 @@ import {
   MODULE_CONTENT_TYPES,
   REMINDER_MODES,
 } from "@/lib/courses";
+import { useConfirm } from "@/context/ConfirmContext";
 
 export default function AdminCourseDetailPage({ courseId }: { courseId: string }) {
+  const confirm = useConfirm();
   const [course, setCourse] = useState<Course | null>(null);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [enrollments, setEnrollments] = useState<
@@ -176,10 +178,15 @@ export default function AdminCourseDetailPage({ courseId }: { courseId: string }
                 courseId={courseId}
                 onReorder={handleReorder}
                 onDelete={async () => {
-                  if (confirm("Delete module?")) {
-                    await deleteAdminModule(courseId, module.id);
-                    load();
-                  }
+                  const confirmed = await confirm({
+                    title: "Delete module",
+                    message: "Delete this module? This cannot be undone.",
+                    confirmLabel: "Delete module",
+                    variant: "danger",
+                  });
+                  if (!confirmed) return;
+                  await deleteAdminModule(courseId, module.id);
+                  load();
                 }}
                 onRefresh={load}
               />

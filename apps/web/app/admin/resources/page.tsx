@@ -10,9 +10,11 @@ import {
 } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
 import { formatResourceDate, getMaterialFileCountLabel, getMaterialTypeSummary } from "@/lib/resources";
+import { useConfirm } from "@/context/ConfirmContext";
 
 export default function AdminResourcesPage() {
   const router = useRouter();
+  const confirm = useConfirm();
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,11 +81,13 @@ export default function AdminResourcesPage() {
   };
 
   const handleDelete = async (material: StudyMaterial) => {
-    if (
-      !window.confirm(`Delete "${material.title}"? This cannot be undone.`)
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Delete resource",
+      message: `Delete "${material.title}"? This cannot be undone.`,
+      confirmLabel: "Delete resource",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setPendingId(material.id);
     setActionError(null);

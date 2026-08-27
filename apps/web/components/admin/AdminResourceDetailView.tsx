@@ -19,10 +19,12 @@ import {
   getMaterialTotalSize,
   getMaterialTypeSummary,
 } from "@/lib/resources";
+import { useConfirm } from "@/context/ConfirmContext";
 
 export default function AdminResourceDetailView() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const confirm = useConfirm();
   const materialId = params.id;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,9 +144,13 @@ export default function AdminResourceDetailView() {
   const handleDeleteFile = async (fileId: string) => {
     if (!material) return;
 
-    if (!window.confirm("Remove this file from the resource?")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Remove file",
+      message: "Remove this file from the resource?",
+      confirmLabel: "Remove file",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setDeletingFileId(fileId);
     setActionError(null);
@@ -163,11 +169,13 @@ export default function AdminResourceDetailView() {
   const handleDelete = async () => {
     if (!material) return;
 
-    if (
-      !window.confirm(`Delete "${material.title}"? This cannot be undone.`)
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Delete resource",
+      message: `Delete "${material.title}"? This cannot be undone.`,
+      confirmLabel: "Delete resource",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setDeleting(true);
     setActionError(null);

@@ -15,9 +15,11 @@ import {
   type CoursePackage,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/courses";
+import { useConfirm } from "@/context/ConfirmContext";
 
 export default function AdminCoursesPage() {
   const router = useRouter();
+  const confirm = useConfirm();
   const [courses, setCourses] = useState<Course[]>([]);
   const [packages, setPackages] = useState<CoursePackage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,10 +214,15 @@ export default function AdminCoursesPage() {
                       <button
                         type="button"
                         onClick={async () => {
-                          if (confirm("Delete this course?")) {
-                            await deleteAdminCourse(course.id);
-                            load();
-                          }
+                          const confirmed = await confirm({
+                            title: "Delete course",
+                            message: `Delete "${course.title}"? This cannot be undone.`,
+                            confirmLabel: "Delete course",
+                            variant: "danger",
+                          });
+                          if (!confirmed) return;
+                          await deleteAdminCourse(course.id);
+                          load();
                         }}
                         className="text-red-600 hover:underline"
                       >
@@ -247,10 +254,15 @@ export default function AdminCoursesPage() {
               <button
                 type="button"
                 onClick={async () => {
-                  if (confirm("Delete package?")) {
-                    await deleteAdminPackage(pkg.id);
-                    load();
-                  }
+                  const confirmed = await confirm({
+                    title: "Delete package",
+                    message: `Delete "${pkg.title}"? This cannot be undone.`,
+                    confirmLabel: "Delete package",
+                    variant: "danger",
+                  });
+                  if (!confirmed) return;
+                  await deleteAdminPackage(pkg.id);
+                  load();
                 }}
                 className="text-sm text-red-600 hover:underline"
               >

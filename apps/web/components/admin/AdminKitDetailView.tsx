@@ -16,10 +16,12 @@ import {
   formatKitDate,
   parseAssaysText,
 } from "@/lib/kits";
+import { useConfirm } from "@/context/ConfirmContext";
 
 export default function AdminKitDetailView() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const confirm = useConfirm();
   const kitId = params.id;
 
   const [kit, setKit] = useState<ResearchKit | null>(null);
@@ -134,9 +136,13 @@ export default function AdminKitDetailView() {
   const handleDelete = async () => {
     if (!kit) return;
 
-    if (!window.confirm(`Delete "${kit.title}"? This cannot be undone.`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Delete kit",
+      message: `Delete "${kit.title}"? This cannot be undone.`,
+      confirmLabel: "Delete kit",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setDeleting(true);
     setActionError(null);

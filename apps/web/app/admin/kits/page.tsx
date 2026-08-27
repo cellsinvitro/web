@@ -16,9 +16,11 @@ import {
   formatKitDate,
   parseAssaysText,
 } from "@/lib/kits";
+import { useConfirm } from "@/context/ConfirmContext";
 
 export default function AdminKitsPage() {
   const router = useRouter();
+  const confirm = useConfirm();
   const [kits, setKits] = useState<ResearchKit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,9 +112,13 @@ export default function AdminKitsPage() {
   };
 
   const handleDelete = async (kit: ResearchKit) => {
-    if (!window.confirm(`Delete "${kit.title}"? This cannot be undone.`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Delete kit",
+      message: `Delete "${kit.title}"? This cannot be undone.`,
+      confirmLabel: "Delete kit",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setPendingId(kit.id);
     setActionError(null);
