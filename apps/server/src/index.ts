@@ -10,6 +10,9 @@ import { materialsRoutes } from "./routes/materials.js";
 import { adminMaterialsRoutes } from "./routes/admin-materials.js";
 import { adminKitsRoutes } from "./routes/admin-kits.js";
 import { kitsRoutes } from "./routes/kits.js";
+import { adminCoursesRoutes } from "./routes/admin-courses.js";
+import { coursesRoutes, certificateRoutes } from "./routes/courses.js";
+import { paymentsRoutes } from "./routes/payments.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -41,9 +44,13 @@ app.get("/health/db", async (c) => {
 app.route("/auth", authRoutes);
 app.route("/admin/materials", adminMaterialsRoutes);
 app.route("/admin/kits", adminKitsRoutes);
+app.route("/admin", adminCoursesRoutes);
 app.route("/admin", adminRoutes);
 app.route("/materials", materialsRoutes);
 app.route("/kits", kitsRoutes);
+app.route("/courses", coursesRoutes);
+app.route("/payments", paymentsRoutes);
+app.route("/certificates", certificateRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

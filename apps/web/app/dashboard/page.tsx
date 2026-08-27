@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchStudyMaterials } from "@/lib/api";
 import { isAdmin } from "@/lib/admin";
 import { formatResourceDate } from "@/lib/resources";
+import EnrolledCoursesList from "@/components/dashboard/EnrolledCoursesList";
 import ResourceLibraryList from "@/components/dashboard/ResourceLibraryList";
 
 function StatCard({
@@ -120,8 +121,14 @@ export default function DashboardPage() {
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
-            href="/dashboard/resources"
+            href="/dashboard/courses"
             className="inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+          >
+            My courses
+          </Link>
+          <Link
+            href="/dashboard/resources"
+            className="inline-flex rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
           >
             Browse resources
           </Link>
@@ -146,6 +153,26 @@ export default function DashboardPage() {
             </Link>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-10">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-slate-950">
+              My courses
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Enrolled courses and learning progress.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/courses"
+            className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-950"
+          >
+            View all
+          </Link>
+        </div>
+        <EnrolledCoursesList limit={3} />
       </div>
 
       <div className="mt-10">

@@ -472,3 +472,405 @@ export async function deleteAdminKit(id: string) {
     method: "DELETE",
   });
 }
+
+// --- Courses ---
+
+export type CourseModule = {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string | null;
+  contentType: string;
+  sortOrder: number;
+  durationMinutes: number | null;
+  isRequired: boolean;
+  hasContent: boolean;
+  fileName: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
+  videoWatchThreshold: number;
+  contentJson?: unknown;
+  storageKey?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Course = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  thumbnailUrl: string | null;
+  price: number;
+  currency: string;
+  accessDurationDays: number;
+  passingPercentage: number;
+  published: boolean;
+  sortOrder: number;
+  moduleCount: number;
+  modules?: CourseModule[];
+  prerequisites?: Array<{ id: string; courseId: string; title: string }>;
+  reminderMode?: string;
+  reminderDaysBefore?: number[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CoursePackage = {
+  id: string;
+  title: string;
+  description: string | null;
+  price: number;
+  currency: string;
+  accessDurationDays: number;
+  published: boolean;
+  sortOrder: number;
+  courseCount: number;
+  courses?: Array<{ id: string; title: string; category: string | null }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Enrollment = {
+  id: string;
+  course: Course;
+  status: string;
+  purchasedAt: string;
+  expiresAt: string;
+  progressPercent: number;
+  completedModules: number;
+  totalModules: number;
+  certificate: {
+    id: string;
+    certificateNumber: string;
+    issuedAt: string;
+  } | null;
+};
+
+export type Certificate = {
+  id: string;
+  certificateNumber: string;
+  verificationHash: string;
+  issuedAt: string;
+  course: { id: string; title: string; category: string | null };
+  verificationUrl: string;
+};
+
+export async function fetchCourseCatalog() {
+  const data = await apiFetch<{ courses: Course[]; packages: CoursePackage[] }>("/courses");
+  return data;
+}
+
+export async function fetchPublicCourse(id: string) {
+  const data = await apiFetch<{ course: Course }>(`/courses/${id}`);
+  return data.course;
+}
+
+export async function fetchPublicPackage(id: string) {
+  const data = await apiFetch<{ package: CoursePackage }>(`/courses/packages/${id}`);
+  return data.package;
+}
+
+export async function fetchMyEnrollments() {
+  const data = await apiFetch<{ enrollments: Enrollment[] }>("/courses/my/enrollments");
+  return data.enrollments;
+}
+
+export async function fetchMyCertificates() {
+  const data = await apiFetch<{ certificates: Certificate[] }>("/courses/my/certificates");
+  return data.certificates;
+}
+
+export async function fetchMyCourse(courseId: string) {
+  return apiFetch<{
+    course: Course;
+    enrollment: {
+      status: string;
+      purchasedAt: string;
+      expiresAt: string;
+      progressPercent: number;
+    };
+    moduleProgress: Array<{
+      moduleId: string;
+      completed: boolean;
+      watchProgress: number;
+      quizScore: number | null;
+      quizPassed: boolean | null;
+      assignmentSubmitted: boolean;
+    }>;
+    certificate: { certificateNumber: string; issuedAt: string } | null;
+  }>(`/courses/my/${courseId}`);
+}
+
+export async function fetchCourseAccess(courseId: string) {
+  return apiFetch<{
+    enrolled: boolean;
+    prerequisitesMet: boolean;
+    locked: boolean;
+    prerequisites: Array<{ courseId: string }>;
+  }>(`/courses/my/${courseId}/access`);
+}
+
+export function getModuleContentUrl(courseId: string, moduleId: string) {
+  return `${API_URL}/courses/my/${courseId}/modules/${moduleId}/content`;
+}
+
+export async function updateModuleProgress(
+  courseId: string,
+  moduleId: string,
+  watchProgress: number
+) {
+  return apiFetch<{ watchProgress: number; completed: boolean }>(
+    `/courses/my/${courseId}/modules/${moduleId}/progress`,
+    { method: "POST", body: JSON.stringify({ watchProgress }) }
+  );
+}
+
+export async function submitQuiz(
+  courseId: string,
+  moduleId: string,
+  answers: Record<string, number>
+) {
+  return apiFetch<{
+    score: number;
+    correct: number;
+    total: number;
+    passed: boolean;
+    passingPercentage: number;
+  }>(`/courses/my/${courseId}/modules/${moduleId}/quiz`, {
+    method: "POST",
+    body: JSON.stringify({ answers }),
+  });
+}
+
+export async function submitAssignment(
+  courseId: string,
+  moduleId: string,
+  submission: string
+) {
+  return apiFetch<{ submitted: boolean }>(
+    `/courses/my/${courseId}/modules/${moduleId}/assignment`,
+    { method: "POST", body: JSON.stringify({ submission }) }
+  );
+}
+
+export async function completeModule(courseId: string, moduleId: string) {
+  return apiFetch<{ completed: boolean }>(
+    `/courses/my/${courseId}/modules/${moduleId}/complete`,
+    { method: "POST", body: JSON.stringify({}) }
+  );
+}
+
+export async function createPaymentOrder(input: { courseId?: string; packageId?: string }) {
+  return apiFetch<{
+    free?: boolean;
+    paymentId?: string;
+    orderId?: string;
+    amount?: number;
+    currency?: string;
+    keyId?: string;
+  }>("/payments/create-order", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function verifyPayment(input: {
+  paymentId: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  return apiFetch<{ success: boolean }>("/payments/verify", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function verifyCertificate(certificateNumber: string) {
+  const response = await fetch(`${API_URL}/certificates/${certificateNumber}`);
+  if (!response.ok) {
+    throw new Error("Certificate not found");
+  }
+  return response.json() as Promise<{
+    valid: boolean;
+    certificateNumber: string;
+    verificationHash: string;
+    issuedAt: string;
+    recipientName: string;
+    courseTitle: string;
+    courseCategory: string | null;
+  }>;
+}
+
+export async function fetchAdminCourses() {
+  const data = await apiFetch<{ courses: Course[] }>("/admin/courses");
+  return data.courses;
+}
+
+export async function fetchAdminCourse(id: string) {
+  const data = await apiFetch<{ course: Course }>(`/admin/courses/${id}`);
+  return data.course;
+}
+
+export async function createAdminCourse(input: FormData) {
+  const response = await fetch(`${API_URL}/admin/courses`, {
+    method: "POST",
+    credentials: "include",
+    body: input,
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data = (await response.json()) as { course: Course };
+  return data.course;
+}
+
+export async function updateAdminCourse(id: string, input: FormData) {
+  const response = await fetch(`${API_URL}/admin/courses/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    body: input,
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data = (await response.json()) as { course: Course };
+  return data.course;
+}
+
+export async function deleteAdminCourse(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/courses/${id}`, { method: "DELETE" });
+}
+
+export async function createAdminModule(courseId: string, input: FormData) {
+  const response = await fetch(`${API_URL}/admin/courses/${courseId}/modules`, {
+    method: "POST",
+    credentials: "include",
+    body: input,
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data = (await response.json()) as { module: CourseModule };
+  return data.module;
+}
+
+export async function updateAdminModule(
+  courseId: string,
+  moduleId: string,
+  input: FormData
+) {
+  const response = await fetch(
+    `${API_URL}/admin/courses/${courseId}/modules/${moduleId}`,
+    { method: "PATCH", credentials: "include", body: input }
+  );
+  if (!response.ok) throw new Error(await parseError(response));
+  return (await response.json()) as { module: CourseModule };
+}
+
+export async function deleteAdminModule(courseId: string, moduleId: string) {
+  return apiFetch<{ success: boolean }>(
+    `/admin/courses/${courseId}/modules/${moduleId}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function reorderAdminModules(courseId: string, moduleIds: string[]) {
+  return apiFetch<{ modules: CourseModule[] }>(
+    `/admin/courses/${courseId}/modules/reorder`,
+    { method: "POST", body: JSON.stringify({ moduleIds }) }
+  );
+}
+
+export async function addCoursePrerequisite(courseId: string, prerequisiteCourseId: string) {
+  return apiFetch<{ prerequisite: { id: string; courseId: string; title: string } }>(
+    `/admin/courses/${courseId}/prerequisites`,
+    { method: "POST", body: JSON.stringify({ prerequisiteCourseId }) }
+  );
+}
+
+export async function removeCoursePrerequisite(courseId: string, prereqId: string) {
+  return apiFetch<{ success: boolean }>(
+    `/admin/courses/${courseId}/prerequisites/${prereqId}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function fetchAdminPackages() {
+  const data = await apiFetch<{ packages: CoursePackage[] }>("/admin/packages");
+  return data.packages;
+}
+
+export async function createAdminPackage(input: {
+  title: string;
+  description?: string;
+  price: number;
+  currency?: string;
+  accessDurationDays?: number;
+  published?: boolean;
+  sortOrder?: number;
+  courseIds?: string[];
+}) {
+  const data = await apiFetch<{ package: CoursePackage }>("/admin/packages", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.package;
+}
+
+export async function updateAdminPackage(
+  id: string,
+  input: Partial<{
+    title: string;
+    description: string;
+    price: number;
+    currency: string;
+    accessDurationDays: number;
+    published: boolean;
+    sortOrder: number;
+    courseIds: string[];
+  }>
+) {
+  const data = await apiFetch<{ package: CoursePackage }>(`/admin/packages/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.package;
+}
+
+export async function deleteAdminPackage(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/packages/${id}`, { method: "DELETE" });
+}
+
+export async function fetchAdminCourseEnrollments(courseId: string) {
+  const data = await apiFetch<{
+    enrollments: Array<{
+      id: string;
+      user: { id: string; name: string | null; email: string };
+      status: string;
+      purchasedAt: string;
+      expiresAt: string;
+      progressPercent: number;
+      hasCertificate: boolean;
+      certificateNumber?: string;
+    }>;
+  }>(`/admin/courses/${courseId}/enrollments`);
+  return data.enrollments;
+}
+
+export async function fetchAdminCertificates() {
+  const data = await apiFetch<{
+    certificates: Array<{
+      id: string;
+      certificateNumber: string;
+      verificationHash: string;
+      issuedAt: string;
+      user: { id: string; name: string | null; email: string };
+      course: { id: string; title: string };
+    }>;
+  }>("/admin/certificates");
+  return data.certificates;
+}
+
+export async function sendCourseReminders() {
+  return apiFetch<{ sent: number; checked: number }>("/admin/reminders/send", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
