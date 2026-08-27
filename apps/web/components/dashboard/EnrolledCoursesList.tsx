@@ -5,7 +5,13 @@ import Link from "next/link";
 import { fetchMyEnrollments, type Enrollment } from "@/lib/api";
 import { formatCourseDate } from "@/lib/courses";
 
-export default function EnrolledCoursesList({ limit }: { limit?: number }) {
+export default function EnrolledCoursesList({
+  limit,
+  compact = false,
+}: {
+  limit?: number;
+  compact?: boolean;
+}) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +36,15 @@ export default function EnrolledCoursesList({ limit }: { limit?: number }) {
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (enrollments.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+      <div
+        className={`rounded-xl border border-dashed border-slate-200 text-center ${
+          compact ? "px-4 py-5" : "p-8"
+        }`}
+      >
         <p className="text-sm text-slate-500">You haven&apos;t enrolled in any courses yet.</p>
         <Link
           href="/courses"
-          className="mt-3 inline-flex text-sm font-medium text-slate-950 hover:underline"
+          className="mt-2 inline-flex text-sm font-medium text-slate-950 hover:underline"
         >
           Browse courses
         </Link>
@@ -43,12 +53,14 @@ export default function EnrolledCoursesList({ limit }: { limit?: number }) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className={`grid gap-3 ${compact ? "" : "sm:grid-cols-2"}`}>
       {enrollments.map((enrollment) => (
         <Link
           key={enrollment.id}
           href={`/dashboard/courses/${enrollment.course.id}`}
-          className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className={`group rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md ${
+            compact ? "p-3" : "p-5"
+          }`}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -74,20 +86,24 @@ export default function EnrolledCoursesList({ limit }: { limit?: number }) {
             </span>
           </div>
 
-          <div className="mt-4">
+          <div className={compact ? "mt-2.5" : "mt-4"}>
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>Progress</span>
               <span>{enrollment.progressPercent}%</span>
             </div>
-            <div className="mt-1.5 h-2 rounded-full bg-slate-100">
+            <div className={`rounded-full bg-slate-100 ${compact ? "mt-1 h-1.5" : "mt-1.5 h-2"}`}>
               <div
-                className="h-2 rounded-full bg-slate-950 transition-all"
+                className={`rounded-full bg-slate-950 transition-all ${compact ? "h-1.5" : "h-2"}`}
                 style={{ width: `${enrollment.progressPercent}%` }}
               />
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+          <div
+            className={`flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 ${
+              compact ? "mt-2.5" : "mt-4"
+            }`}
+          >
             <span>Expires {formatCourseDate(enrollment.expiresAt)}</span>
             <span>
               {enrollment.completedModules}/{enrollment.totalModules} modules

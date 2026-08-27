@@ -40,12 +40,12 @@ export default function Hero() {
           </div>
 
           {/* Main heading */}
-          <h1 className="text-5xl font-bold leading-[1.05] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
+          <h1 className="select-none text-5xl font-bold leading-[1.05] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
             Where cellular science meets innovation.
           </h1>
 
           {/* Description */}
-          <p className="mt-7 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
+          <p className="mt-7 max-w-xl select-none text-base leading-7 text-slate-600 sm:text-lg">
             Empowering researchers with reliable, research-focused solutions
             designed to accelerate discovery and advance the future of
             biotechnology.
