@@ -10,6 +10,7 @@ import {
 import type { AdminUser } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { AdminSpinner } from "@/components/AdminLoader";
 
 function formatDate(value?: string) {
   if (!value) return "—";
@@ -152,8 +153,11 @@ export default function AdminUsersPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                      Loading users...
+                    <td colSpan={5} className="px-4 py-10 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <AdminSpinner size={36} />
+                        <span className="text-xs text-slate-400">Loading users…</span>
+                      </div>
                     </td>
                   </tr>
                 ) : error ? (

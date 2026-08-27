@@ -17,6 +17,7 @@ import {
   parseAssaysText,
 } from "@/lib/kits";
 import { useConfirm } from "@/context/ConfirmContext";
+import { AdminSpinner } from "@/components/AdminLoader";
 
 export default function AdminKitsPage() {
   const router = useRouter();
@@ -307,8 +308,11 @@ export default function AdminKitsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                    Loading kits...
+                  <td colSpan={6} className="px-4 py-10 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <AdminSpinner size={36} />
+                      <span className="text-xs text-slate-400">Loading kits…</span>
+                    </div>
                   </td>
                 </tr>
               ) : error ? (

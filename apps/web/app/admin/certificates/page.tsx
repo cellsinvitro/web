@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchAdminCertificates } from "@/lib/api";
 import { formatCourseDate } from "@/lib/courses";
+import AdminLoader from "@/components/AdminLoader";
 
 export default function AdminCertificatesPage() {
   const [certificates, setCertificates] = useState<
@@ -25,7 +26,7 @@ export default function AdminCertificatesPage() {
       <h1 className="mt-4 text-2xl font-semibold text-slate-950">Certificates</h1>
 
       {loading ? (
-        <p className="mt-6 text-sm text-slate-500">Loading…</p>
+        <AdminLoader label="Loading certificates…" />
       ) : (
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
