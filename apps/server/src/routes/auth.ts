@@ -74,7 +74,7 @@ authRoutes.post("/register", async (c) => {
   const tokens = await issueTokenPair(user);
   setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
   return c.json(
-    { user: tokens.user, expiresIn: tokens.expiresIn },
+    { user: tokens.user, expiresIn: tokens.expiresIn, accessToken: tokens.accessToken },
     201
   );
 });
@@ -101,7 +101,7 @@ authRoutes.post("/login", async (c) => {
 
   const tokens = await issueTokenPair(user);
   setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
-  return c.json({ user: tokens.user, expiresIn: tokens.expiresIn });
+  return c.json({ user: tokens.user, expiresIn: tokens.expiresIn, accessToken: tokens.accessToken });
 });
 
 authRoutes.post("/refresh", async (c) => {
@@ -139,7 +139,7 @@ authRoutes.post("/refresh", async (c) => {
   await prisma.refreshToken.delete({ where: { id: stored.id } });
   const tokens = await issueTokenPair(stored.user);
   setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
-  return c.json({ user: tokens.user, expiresIn: tokens.expiresIn });
+  return c.json({ user: tokens.user, expiresIn: tokens.expiresIn, accessToken: tokens.accessToken });
 });
 
 authRoutes.post("/logout", async (c) => {

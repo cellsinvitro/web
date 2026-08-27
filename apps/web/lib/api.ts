@@ -1,7 +1,19 @@
-import type { AuthResponse, AuthUser, Designation } from "./auth-storage";
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+  type AuthResponse,
+  type AuthUser,
+  type Designation,
+} from "./auth-storage";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
+const UPLOAD_API_URL =
+  process.env.NEXT_PUBLIC_UPLOAD_API_URL?.replace(/\/$/, "") ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "https://cellsinvitro.onrender.com"
+    : API_URL);
 
 type ApiErrorBody = {
   error?: string;
@@ -20,7 +32,10 @@ async function refreshAccessToken() {
     body: JSON.stringify({}),
   });
 
-  return response.ok;
+  if (!response.ok) return false;
+  const data = (await response.json()) as AuthResponse;
+  if (data.accessToken) setAccessToken(data.accessToken);
+  return true;
 }
 
 export async function apiFetch<T>(
@@ -29,6 +44,8 @@ export async function apiFetch<T>(
   retry = true
 ): Promise<T> {
   const headers = new Headers(options.headers);
+  const accessToken = getAccessToken();
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json");
   }
@@ -58,7 +75,7 @@ export async function registerUser(input: {
   email: string;
   password: string;
 }) {
-  return apiFetch<AuthResponse>(
+  const data = await apiFetch<AuthResponse>(
     "/auth/register",
     {
       method: "POST",
@@ -66,10 +83,12 @@ export async function registerUser(input: {
     },
     false
   );
+  if (data.accessToken) setAccessToken(data.accessToken);
+  return data;
 }
 
 export async function loginUser(input: { email: string; password: string }) {
-  return apiFetch<AuthResponse>(
+  const data = await apiFetch<AuthResponse>(
     "/auth/login",
     {
       method: "POST",
@@ -77,6 +96,8 @@ export async function loginUser(input: { email: string; password: string }) {
     },
     false
   );
+  if (data.accessToken) setAccessToken(data.accessToken);
+  return data;
 }
 
 export async function logoutUser() {
@@ -91,6 +112,8 @@ export async function logoutUser() {
     );
   } catch {
     // Cookie clear still happens server-side when the request succeeds.
+  } finally {
+    clearAccessToken();
   }
 }
 
@@ -751,11 +774,16 @@ export async function deleteAdminCourse(id: string) {
 }
 
 export async function createAdminModule(courseId: string, input: FormData) {
-  const response = await fetch(`${API_URL}/admin/courses/${courseId}/modules`, {
+  const response = await fetch(`${UPLOAD_API_URL}/admin/courses/${courseId}/modules`, {
     method: "POST",
     credentials: "include",
+    headers: getUploadHeaders(),
     body: input,
   });
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return createAdminModule(courseId, input);
+  }
   if (!response.ok) throw new Error(await parseError(response));
   const data = (await response.json()) as { module: CourseModule };
   return data.module;
@@ -767,11 +795,22 @@ export async function updateAdminModule(
   input: FormData
 ) {
   const response = await fetch(
-    `${API_URL}/admin/courses/${courseId}/modules/${moduleId}`,
-    { method: "PATCH", credentials: "include", body: input }
+    `${UPLOAD_API_URL}/admin/courses/${courseId}/modules/${moduleId}`,
+    { method: "PATCH", credentials: "include", headers: getUploadHeaders(), body: input }
   );
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return updateAdminModule(courseId, moduleId, input);
+  }
   if (!response.ok) throw new Error(await parseError(response));
   return (await response.json()) as { module: CourseModule };
+}
+
+function getUploadHeaders() {
+  const headers = new Headers();
+  const accessToken = getAccessToken();
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  return headers;
 }
 
 export async function deleteAdminModule(courseId: string, moduleId: string) {
