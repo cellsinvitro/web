@@ -208,23 +208,31 @@ export default function AdminCoursesPage() {
                       {course.published ? "Published" : "Draft"}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const confirmed = await confirm({
-                            title: "Delete course",
-                            message: `Delete "${course.title}"? This cannot be undone.`,
-                            confirmLabel: "Delete course",
-                            variant: "danger",
-                          });
-                          if (!confirmed) return;
-                          await deleteAdminCourse(course.id);
-                          load();
-                        }}
-                        className="text-red-600 hover:underline"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href={`/admin/courses/${course.id}`}
+                          className="font-medium text-slate-700 hover:text-slate-950 hover:underline"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const confirmed = await confirm({
+                              title: "Delete course",
+                              message: `Delete "${course.title}"? This cannot be undone.`,
+                              confirmLabel: "Delete course",
+                              variant: "danger",
+                            });
+                            if (!confirmed) return;
+                            await deleteAdminCourse(course.id);
+                            load();
+                          }}
+                          className="text-red-600 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
