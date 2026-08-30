@@ -801,7 +801,7 @@ export type VideoUploadSignature = {
 export async function getAdminVideoUploadSignature(courseId: string) {
   const response = await fetch(
     `${UPLOAD_API_URL}/admin/courses/${courseId}/video-upload-signature`,
-    { credentials: "include", headers: getUploadHeaders() }
+    { method: "POST", credentials: "include", headers: getUploadHeaders() }
   );
   if (response.status === 401) {
     const refreshed = await refreshAccessToken();
@@ -823,7 +823,13 @@ export function uploadVideoDirectly(
       if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
     });
     request.addEventListener("load", () => {
-      const data = JSON.parse(request.responseText || "{}");
+      let data: { public_id?: string; error?: { message?: string } };
+      try {
+        data = JSON.parse(request.responseText || "{}");
+      } catch {
+        reject(new Error(`Cloudinary upload failed (HTTP ${request.status})`));
+        return;
+      }
       if (request.status >= 200 && request.status < 300 && data.public_id) {
         resolve(data as { public_id: string });
       } else {

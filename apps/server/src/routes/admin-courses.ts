@@ -10,6 +10,7 @@ import {
   storeCourseThumbnail,
   validateCourseFile,
 } from "../lib/course-content.js";
+import { isCloudinaryConfigured } from "../lib/cloudinary.js";
 import {
   courseInclude,
   packageInclude,
@@ -165,6 +166,11 @@ adminCoursesRoutes.delete("/courses/:id", async (c) => {
 adminCoursesRoutes.post("/courses/:courseId/video-upload-signature", async (c) => {
   const course = await prisma.course.findUnique({ where: { id: c.req.param("courseId") } });
   if (!course) throw new HTTPException(404, { message: "Course not found" });
+  if (!isCloudinaryConfigured()) {
+    throw new HTTPException(503, {
+      message: "Video uploads are not configured on the server. Contact the site administrator.",
+    });
+  }
   const timestamp = Math.floor(Date.now() / 1000);
   return c.json(createVideoUploadSignature(timestamp, `module-${randomUUID()}`));
 });
