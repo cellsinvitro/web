@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { createAdminModule, updateAdminModule, type CourseModule } from "@/lib/api";
+import {
+  createAdminModule,
+  getAdminVideoUploadSignature,
+  updateAdminModule,
+  uploadVideoDirectly,
+  type CourseModule,
+} from "@/lib/api";
 import {
   MODULE_CONTENT_TYPES,
   moduleAcceptsFile,
@@ -41,6 +47,7 @@ export default function AdminModuleForm({
     questionsFromContentJson(existing?.contentType === "QUIZ" ? existing.contentJson : null)
   );
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,7 +73,17 @@ export default function AdminModuleForm({
       form.append("description", description.trim());
       form.append("contentType", contentType);
       if (durationMinutes) form.append("durationMinutes", durationMinutes);
-      if (file && moduleAcceptsFile(contentType)) form.append("file", file);
+      if (file && contentType === "VIDEO") {
+        setUploadProgress(0);
+        const signature = await getAdminVideoUploadSignature(courseId);
+        const result = await uploadVideoDirectly(file, signature, setUploadProgress);
+        form.append("videoPublicId", result.public_id);
+        form.append("videoFileName", file.name);
+        form.append("videoMimeType", file.type);
+        form.append("videoFileSize", String(file.size));
+      } else if (file && moduleAcceptsFile(contentType)) {
+        form.append("file", file);
+      }
       if (contentType === "TEXT") {
         form.append("contentJson", JSON.stringify({ body: textBody }));
       }
@@ -100,6 +117,7 @@ export default function AdminModuleForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save module");
     } finally {
+      setUploadProgress(null);
       setSubmitting(false);
     }
   };
@@ -215,7 +233,13 @@ export default function AdminModuleForm({
           disabled={submitting}
           className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "Saving…" : existing ? "Save module" : "Add module"}
+          {uploadProgress !== null
+            ? `Uploading video (${uploadProgress}%)`
+            : submitting
+              ? "Saving…"
+              : existing
+                ? "Save module"
+                : "Add module"}
         </button>
         {onCancel ? (
           <button

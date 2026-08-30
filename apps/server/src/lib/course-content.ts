@@ -160,6 +160,25 @@ export async function uploadVideoToCloudinary(data: Buffer) {
   });
 }
 
+export function createVideoUploadSignature(timestamp: number, publicId: string) {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+  const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
+  const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error("Cloudinary is not configured");
+  }
+
+  const paramsToSign = { folder: VIDEO_UPLOAD_FOLDER, public_id: publicId, timestamp };
+  return {
+    cloudName,
+    apiKey,
+    publicId,
+    folder: VIDEO_UPLOAD_FOLDER,
+    timestamp,
+    signature: cloudinary.utils.api_sign_request(paramsToSign, apiSecret),
+  };
+}
+
 export function getSignedVideoUrl(publicId: string, expiresInSeconds = 3600) {
   configureCloudinary();
   return cloudinary.url(publicId, {

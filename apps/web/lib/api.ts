@@ -789,6 +789,60 @@ export async function createAdminModule(courseId: string, input: FormData) {
   return data.module;
 }
 
+export type VideoUploadSignature = {
+  cloudName: string;
+  apiKey: string;
+  publicId: string;
+  folder: string;
+  timestamp: number;
+  signature: string;
+};
+
+export async function getAdminVideoUploadSignature(courseId: string) {
+  const response = await fetch(
+    `${UPLOAD_API_URL}/admin/courses/${courseId}/video-upload-signature`,
+    { credentials: "include", headers: getUploadHeaders() }
+  );
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return getAdminVideoUploadSignature(courseId);
+  }
+  if (!response.ok) throw new Error(await parseError(response));
+  return (await response.json()) as VideoUploadSignature;
+}
+
+export function uploadVideoDirectly(
+  file: File,
+  signature: VideoUploadSignature,
+  onProgress: (progress: number) => void
+) {
+  return new Promise<{ public_id: string }>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", `https://api.cloudinary.com/v1_1/${signature.cloudName}/video/upload`);
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+    });
+    request.addEventListener("load", () => {
+      const data = JSON.parse(request.responseText || "{}");
+      if (request.status >= 200 && request.status < 300 && data.public_id) {
+        resolve(data as { public_id: string });
+      } else {
+        reject(new Error(data.error?.message || "Cloudinary video upload failed"));
+      }
+    });
+    request.addEventListener("error", () => reject(new Error("Network error while uploading video")));
+    request.addEventListener("abort", () => reject(new Error("Video upload was cancelled")));
+    const form = new FormData();
+    form.append("file", file);
+    form.append("api_key", signature.apiKey);
+    form.append("timestamp", String(signature.timestamp));
+    form.append("signature", signature.signature);
+    form.append("folder", signature.folder);
+    form.append("public_id", signature.publicId);
+    request.send(form);
+  });
+}
+
 export async function updateAdminModule(
   courseId: string,
   moduleId: string,

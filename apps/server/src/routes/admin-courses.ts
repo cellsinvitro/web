@@ -1,8 +1,10 @@
 import { Hono } from "hono";
+import { randomUUID } from "node:crypto";
 import { HTTPException } from "hono/http-exception";
 import { prisma } from "../lib/prisma.js";
 import {
   collectUploadedFile,
+  createVideoUploadSignature,
   deleteStoredCourseContent,
   storeCourseContentFile,
   storeCourseThumbnail,
@@ -160,6 +162,13 @@ adminCoursesRoutes.delete("/courses/:id", async (c) => {
 
 // --- Modules ---
 
+adminCoursesRoutes.post("/courses/:courseId/video-upload-signature", async (c) => {
+  const course = await prisma.course.findUnique({ where: { id: c.req.param("courseId") } });
+  if (!course) throw new HTTPException(404, { message: "Course not found" });
+  const timestamp = Math.floor(Date.now() / 1000);
+  return c.json(createVideoUploadSignature(timestamp, `module-${randomUUID()}`));
+});
+
 adminCoursesRoutes.post("/courses/:courseId/modules", async (c) => {
   const courseId = c.req.param("courseId");
   const body = await c.req.parseBody();
@@ -196,6 +205,17 @@ adminCoursesRoutes.post("/courses/:courseId/modules", async (c) => {
     fileName = stored.fileName;
     mimeType = stored.mimeType;
     fileSize = stored.fileSize;
+  }
+
+  const videoPublicId = String(body.videoPublicId ?? "").trim();
+  if (contentType === "VIDEO" && !file && videoPublicId) {
+    if (!videoPublicId.startsWith("cellsinvitro/course-videos/module-")) {
+      throw new HTTPException(400, { message: "Invalid Cloudinary video" });
+    }
+    storageKey = `video:${videoPublicId}`;
+    fileName = String(body.videoFileName ?? "video");
+    mimeType = String(body.videoMimeType ?? "video/mp4");
+    fileSize = Number(body.videoFileSize) || null;
   }
 
   if (["QUIZ", "ASSIGNMENT", "TEXT"].includes(contentType) && body.contentJson) {
@@ -267,6 +287,18 @@ adminCoursesRoutes.patch("/courses/:courseId/modules/:moduleId", async (c) => {
     fileName = stored.fileName;
     mimeType = stored.mimeType;
     fileSize = stored.fileSize;
+  }
+
+  const videoPublicId = String(body.videoPublicId ?? "").trim();
+  if (contentType === "VIDEO" && !file && videoPublicId) {
+    if (!videoPublicId.startsWith("cellsinvitro/course-videos/module-")) {
+      throw new HTTPException(400, { message: "Invalid Cloudinary video" });
+    }
+    if (existing.storageKey) await deleteStoredCourseContent(existing.storageKey);
+    storageKey = `video:${videoPublicId}`;
+    fileName = String(body.videoFileName ?? "video");
+    mimeType = String(body.videoMimeType ?? "video/mp4");
+    fileSize = Number(body.videoFileSize) || null;
   }
 
   let contentJson = existing.contentJson;
