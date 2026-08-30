@@ -393,46 +393,6 @@ export default function DashboardPage() {
           </SectionCard>
 
           <SectionCard
-            title="Quick access"
-            description="Jump to the areas you use most."
-          >
-            <div className="grid gap-3">
-              <QuickAction
-                href="/dashboard/courses"
-                title="My courses"
-                description="Track modules, quizzes, and certificates."
-              />
-              <QuickAction
-                href="/dashboard/resources"
-                title="Resource library"
-                description="Protocols, guides, and reference documents."
-              />
-              <QuickAction
-                href="/dashboard/kits"
-                title="Research kits"
-                description="Browse assay-based research kits."
-              />
-              <QuickAction
-                href="/dashboard/account"
-                title="Profile"
-                description="Account details and display name."
-              />
-              <QuickAction
-                href="/tools"
-                title="Lab tools"
-                description="Calculators and lab utilities."
-              />
-              {isAdmin(user?.role) ? (
-                <QuickAction
-                  href="/admin"
-                  title="Admin panel"
-                  description="Manage users, content, and courses."
-                />
-              ) : null}
-            </div>
-          </SectionCard>
-
-          <SectionCard
             title="Recent resources"
             description="Latest study materials in the library."
             action={

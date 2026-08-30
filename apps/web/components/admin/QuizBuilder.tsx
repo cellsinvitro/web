@@ -16,7 +16,7 @@ export function emptyQuizQuestion(index: number): QuizQuestionDraft {
   };
 }
 
-export function questionsFromContentJson(contentJson: unknown, fallbackCount = 10): QuizQuestionDraft[] {
+export function questionsFromContentJson(contentJson: unknown, fallbackCount = 1): QuizQuestionDraft[] {
   if (!contentJson || typeof contentJson !== "object") {
     return Array.from({ length: fallbackCount }, (_, i) => emptyQuizQuestion(i));
   }
