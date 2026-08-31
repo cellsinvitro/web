@@ -142,6 +142,95 @@ export type AdminStats = {
   emailUsers: number;
   googleUsers: number;
   recentSignups: number;
+  adminUsers?: number;
+
+  users?: {
+    total: number;
+    email: number;
+    google: number;
+    admin: number;
+    recentSignups: number;
+  };
+  materials?: {
+    total: number;
+    totalFiles: number;
+    totalStorageBytes: number;
+  };
+  kits?: {
+    total: number;
+    published: number;
+    draft: number;
+  };
+  courses?: {
+    total: number;
+    published: number;
+    draft: number;
+    totalModules: number;
+  };
+  packages?: {
+    total: number;
+    published: number;
+  };
+  enrollments?: {
+    total: number;
+    active: number;
+    completed: number;
+    expired: number;
+  };
+  certificates?: {
+    total: number;
+  };
+  payments?: {
+    total: number;
+    completed: number;
+    pending: number;
+    failed: number;
+    totalRevenue: number;
+  };
+};
+
+export type AdminOverviewData = {
+  stats: AdminStats;
+  breakdowns?: {
+    userDesignations: Array<{ designation: string; count: number }>;
+    materialCategories: Array<{ category: string; count: number }>;
+    kitCategories: Array<{ category: string; count: number }>;
+    courseCategories: Array<{ category: string; count: number }>;
+  };
+  recent?: {
+    users: AdminUser[];
+    materials: StudyMaterial[];
+    kits: ResearchKit[];
+    courses: Array<Course & { _count?: { enrollments: number } }>;
+    enrollments: Array<{
+      id: string;
+      status: string;
+      purchasedAt: string;
+      expiresAt: string;
+      user: { id: string; name: string | null; email: string };
+      course: { id: string; title: string } | null;
+      package: { id: string; title: string } | null;
+    }>;
+    certificates: Array<{
+      id: string;
+      certificateNumber: string;
+      verificationHash: string;
+      issuedAt: string;
+      user: { id: string; name: string | null; email: string };
+      course: { id: string; title: string };
+    }>;
+    payments: Array<{
+      id: string;
+      amount: number;
+      currency: string;
+      status: string;
+      provider: string;
+      createdAt: string;
+      user: { id: string; name: string | null; email: string };
+      course: { id: string; title: string } | null;
+      package: { id: string; title: string } | null;
+    }>;
+  };
 };
 
 export type AdminUser = AuthUser & {
@@ -150,10 +239,11 @@ export type AdminUser = AuthUser & {
   updatedAt?: string;
 };
 
-export async function fetchAdminStats() {
-  const data = await apiFetch<{ stats: AdminStats }>("/admin/stats");
-  return data.stats;
+export async function fetchAdminStats(): Promise<AdminOverviewData> {
+  const data = await apiFetch<AdminOverviewData>("/admin/stats");
+  return data;
 }
+
 
 export async function fetchAdminUsers() {
   const data = await apiFetch<{ users: AdminUser[] }>("/admin/users");
