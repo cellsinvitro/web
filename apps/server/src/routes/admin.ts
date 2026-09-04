@@ -170,6 +170,7 @@ adminRoutes.get("/stats", async (c) => {
     prisma.consultancyBooking.findMany({
       take: 10,
       orderBy: { createdAt: "desc" },
+      where: { status: { in: ["CONFIRMED", "COMPLETED"] } },
       include: {
         user: { select: { id: true, name: true, email: true } },
         consultant: { select: { id: true, name: true } },

@@ -24,6 +24,11 @@ function toPublicConsultant(consultant: any, apiBaseUrl: string) {
   return { ...consultant, photoUrl: resolveConsultantPhotoUrl(consultant.photoUrl, apiBaseUrl), consultationTypes: consultant.consultationTypes as string[] };
 }
 
+function parseBoolean(value: unknown, fallback = true) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["true", "1", "on", "yes"].includes(String(value).toLowerCase());
+}
+
 async function storeConsultantImage(image: File | null) {
   if (!image) return null;
   if (!isImageMimeType(image.type) || image.size <= 0 || image.size > 15 * 1024 * 1024) {
@@ -101,11 +106,13 @@ adminConsultancyRoutes.post("/consultancy/consultants", async (c) => {
   const image = body.image instanceof File ? body.image : null;
   const expertise = body.expertise ? String(body.expertise).split(",").map((item) => item.trim()).filter(Boolean) : [];
   const consultationTypes = body.consultationTypes ? String(body.consultationTypes).split(",").map((type) => type.trim().toUpperCase()).filter(Boolean) : ["VIDEO", "AUDIO"];
-  const categoryId = String(body.categoryId ?? "");
   const name = String(body.name ?? "").trim();
-  if (!categoryId || !name) throw new HTTPException(400, { message: "Category and consultant name are required" });
-  const category = await prisma.consultancyCategory.findUnique({ where: { id: categoryId } });
-  if (!category) throw new HTTPException(404, { message: "Category not found" });
+  const categoryId = body.categoryId ? String(body.categoryId) : null;
+  if (!name) throw new HTTPException(400, { message: "Consultant name is required" });
+  if (categoryId) {
+    const category = await prisma.consultancyCategory.findUnique({ where: { id: categoryId } });
+    if (!category) throw new HTTPException(404, { message: "Category not found" });
+  }
 
   let storedPhotoKey: string | null = null;
   try {
@@ -146,7 +153,6 @@ adminConsultancyRoutes.patch("/consultancy/consultants/:id", async (c) => {
   const consultant = await prisma.consultant.update({
     where: { id },
     data: {
-      ...(body.categoryId !== undefined ? { categoryId: String(body.categoryId) } : {}),
       ...(body.name !== undefined ? { name: String(body.name).trim() } : {}),
       ...(body.title !== undefined ? { title: String(body.title).trim() || null } : {}),
       ...(storedPhotoKey ? { photoUrl: storedPhotoKey } : {}),
@@ -157,7 +163,7 @@ adminConsultancyRoutes.patch("/consultancy/consultants/:id", async (c) => {
       ...(body.durationMinutes !== undefined ? { durationMinutes: Number(body.durationMinutes) } : {}),
       ...(body.hourlyRate !== undefined ? { hourlyRate: Number(body.hourlyRate) } : {}),
       ...(body.currency !== undefined ? { currency: String(body.currency) } : {}),
-      ...(body.available !== undefined ? { available: Boolean(body.available) } : {}),
+      ...(body.available !== undefined ? { available: parseBoolean(body.available) } : {}),
       ...(body.sortOrder !== undefined ? { sortOrder: Number(body.sortOrder) } : {}),
     },
     include: { category: true, slots: true },
@@ -211,6 +217,7 @@ adminConsultancyRoutes.delete("/consultancy/slots/:id", async (c) => {
 
 adminConsultancyRoutes.get("/consultancy/bookings", async (c) => {
   const bookings = await prisma.consultancyBooking.findMany({
+    where: { status: { in: ["CONFIRMED", "COMPLETED"] } },
     include: {
       user: { select: { id: true, name: true, email: true } },
       consultant: { include: { category: true } },

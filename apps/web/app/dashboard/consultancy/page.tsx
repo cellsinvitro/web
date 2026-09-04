@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  fetchConsultancyCategories,
   fetchConsultancyConsultants,
   fetchMyConsultancyBookings,
-  type ConsultancyCategory,
   type ConsultancyConsultant,
   type ConsultancyBooking,
 } from "@/lib/api";
@@ -20,23 +18,19 @@ function formatDate(dateStr: string) {
 }
 
 export default function DashboardConsultancyPage() {
-  const [categories, setCategories] = useState<ConsultancyCategory[]>([]);
   const [consultants, setConsultants] = useState<ConsultancyConsultant[]>([]);
   const [bookings, setBookings] = useState<ConsultancyBooking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        const [categoryData, consultantData, bookingData] = await Promise.all([
-          fetchConsultancyCategories(),
+        const [consultantData, bookingData] = await Promise.all([
           fetchConsultancyConsultants(),
           fetchMyConsultancyBookings(),
         ]);
-        setCategories(categoryData);
         setConsultants(consultantData);
         setBookings(bookingData);
       } catch (err) {
@@ -48,11 +42,6 @@ export default function DashboardConsultancyPage() {
 
     load();
   }, []);
-
-  const filteredConsultants = useMemo(() => {
-    if (categoryFilter === "all") return consultants;
-    return consultants.filter((consultant) => consultant.categoryId === categoryFilter);
-  }, [categories, categoryFilter, consultants]);
 
   if (loading) {
     return (
@@ -74,7 +63,7 @@ export default function DashboardConsultancyPage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Consultancy</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-950">Consultancy</p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-950">Connect with expert guidance</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
               Browse specialist consultants, review availability, and secure a session with a researcher or scientific advisor.
@@ -82,45 +71,21 @@ export default function DashboardConsultancyPage() {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setCategoryFilter("all")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              categoryFilter === "all" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            All categories
-          </button>
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => setCategoryFilter(category.id)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                categoryFilter === category.id ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {category.name}
-            </button>
-          ))}
-        </div>
-
         {error ? <p className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
         <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {filteredConsultants.length === 0 ? (
+          {consultants.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
-              No consultants are available in this category right now.
+              No consultants are available right now.
             </div>
           ) : (
-            filteredConsultants.map((consultant) => (
+            consultants.map((consultant) => (
               <article key={consultant.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="h-40 bg-gradient-to-br from-slate-100 to-emerald-50 p-5">
+                <div className="h-40 overflow-hidden bg-slate-100">
                   {consultant.photoUrl ? (
-                    <img src={consultant.photoUrl} alt={consultant.name} className="h-full w-full rounded-xl object-cover" />
+                    <img src={consultant.photoUrl} alt={consultant.name} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center rounded-xl bg-slate-900 text-xl font-semibold text-white">
+                    <div className="flex h-full w-full items-center justify-center bg-slate-900 text-xl font-semibold text-white">
                       {consultant.name
                         .split(" ")
                         .slice(0, 2)
@@ -137,7 +102,7 @@ export default function DashboardConsultancyPage() {
                         {consultant.available ? "Available" : "Offline"}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">{consultant.title || consultant.category.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">{consultant.title || "Scientific Consultant"}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2 text-xs text-slate-600">

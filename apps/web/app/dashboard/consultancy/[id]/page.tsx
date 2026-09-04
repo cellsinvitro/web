@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createConsultancyBookingOrder,
+  cancelConsultancyBooking,
   fetchConsultancyConsultant,
   verifyConsultancyPayment,
   type ConsultancyConsultant,
@@ -98,7 +99,7 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
 
   const handlePayment = async () => {
     if (!consultant || !selectedSlotId || !consultationType) {
-      setError("Please complete the booking details before paying.");
+      setError("Please complete the booking details before booking.");
       return;
     }
 
@@ -136,10 +137,19 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
+            setBookingId(null);
             router.push("/dashboard/consultancy");
           } catch (err) {
+            await cancelConsultancyBooking(order.bookingId).catch(() => undefined);
             setError(err instanceof Error ? err.message : "Payment verification failed");
           }
+        },
+        modal: {
+          ondismiss: async () => {
+            await cancelConsultancyBooking(order.bookingId).catch(() => undefined);
+            setBookingId(null);
+            setError("Payment was cancelled. The slot is still available.");
+          },
         },
         theme: { color: "#0f172a" },
       });
@@ -184,11 +194,11 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="h-72 bg-gradient-to-br from-slate-100 to-emerald-50 p-6">
+          <div className="h-72 overflow-hidden bg-slate-100">
             {consultant.photoUrl ? (
-              <img src={consultant.photoUrl} alt={consultant.name} className="h-full w-full rounded-2xl object-cover" />
+              <img src={consultant.photoUrl} alt={consultant.name} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center rounded-2xl bg-slate-900 text-3xl font-semibold text-white">
+              <div className="flex h-full w-full items-center justify-center bg-slate-900 text-3xl font-semibold text-white">
                 {consultant.name.split(" ").slice(0,2).map((part) => part[0]?.toUpperCase() ?? "").join("")}
               </div>
             )}
@@ -198,7 +208,6 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
             <div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">{consultant.category.name}</p>
                   <h1 className="mt-2 text-3xl font-semibold text-slate-950">{consultant.name}</h1>
                 </div>
                 <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">
@@ -350,7 +359,7 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
               disabled={paymentLoading || !selectedSlotId || !userDetails.name || !userDetails.email}
               className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {paymentLoading ? "Processing payment…" : `Pay ₹${consultant.hourlyRate} & confirm booking`}
+              {paymentLoading ? "Opening payment…" : `Book now · ₹${consultant.hourlyRate}`}
             </button>
 
             {bookingId ? <p className="text-xs text-slate-500">Booking reference: {bookingId}</p> : null}
