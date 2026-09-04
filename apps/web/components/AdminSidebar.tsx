@@ -67,6 +67,7 @@ const navItems = [
   { label: "Overview", href: "/admin", icon: OverviewIcon },
   { label: "Users", href: "/admin/users", icon: UsersIcon },
   { label: "Courses", href: "/admin/courses", icon: CoursesIcon },
+  { label: "Consultancy", href: "/admin/consultancy", icon: CoursesIcon },
   { label: "Resources", href: "/admin/resources", icon: ResourcesIcon },
   { label: "Kits", href: "/admin/kits", icon: KitsIcon },
 ];

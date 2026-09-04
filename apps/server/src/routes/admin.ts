@@ -56,6 +56,7 @@ adminRoutes.get("/stats", async (c) => {
     failedPayments,
     revenueAggregate,
     recentPayments,
+    recentConsultancyBookings,
   ] = await Promise.all([
     // User stats & breakdown
     prisma.user.count(),
@@ -166,6 +167,14 @@ adminRoutes.get("/stats", async (c) => {
         package: { select: { id: true, title: true } },
       },
     }),
+    prisma.consultancyBooking.findMany({
+      take: 10,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        consultant: { select: { id: true, name: true } },
+      },
+    }),
   ]);
 
   const userDesignations = userDesignationsRaw.map((item) => ({
@@ -255,6 +264,7 @@ adminRoutes.get("/stats", async (c) => {
       enrollments: recentEnrollments,
       certificates: recentCertificates,
       payments: recentPayments,
+      consultancyBookings: recentConsultancyBookings,
     },
   });
 });

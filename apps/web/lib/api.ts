@@ -230,6 +230,18 @@ export type AdminOverviewData = {
       course: { id: string; title: string } | null;
       package: { id: string; title: string } | null;
     }>;
+    consultancyBookings: Array<{
+      id: string;
+      amount: number;
+      currency: string;
+      status: string;
+      provider: string;
+      createdAt: string;
+      user: { id: string; name: string | null; email: string };
+      consultant: { id: string; name: string };
+      consultationType: string;
+      providerPaymentId: string | null;
+    }>;
   };
 };
 
@@ -680,6 +692,63 @@ export type Certificate = {
   verificationUrl: string;
 };
 
+export type ConsultancyCategory = {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  published: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConsultancyConsultant = {
+  id: string;
+  categoryId: string;
+  name: string;
+  title: string | null;
+  photoUrl: string | null;
+  expertise: string[];
+  experienceYears: number;
+  bio: string | null;
+  consultationTypes: string[];
+  durationMinutes: number;
+  hourlyRate: number;
+  currency: string;
+  available: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  category: ConsultancyCategory;
+  slots: Array<{ id: string; date: string; startTime: string; endTime: string; isBooked: boolean }>;
+};
+
+export type ConsultancyBooking = {
+  id: string;
+  userId: string;
+  consultantId: string;
+  categoryId: string;
+  slotId: string;
+  amount: number;
+  currency: string;
+  consultationType: string;
+  status: string;
+  provider: string;
+  providerOrderId: string | null;
+  providerPaymentId: string | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: { id: string; name: string | null; email: string };
+  userEmail?: string | null;
+  consultant: { id: string; name: string; photoUrl: string | null; title: string | null; category: ConsultancyCategory };
+  category: ConsultancyCategory;
+  slot: { id: string; date: string; startTime: string; endTime: string; isBooked: boolean };
+};
+
 export async function fetchCourseCatalog() {
   const data = await apiFetch<{ courses: Course[]; packages: CoursePackage[] }>("/courses");
   return data;
@@ -825,6 +894,149 @@ export async function verifyCertificate(certificateNumber: string) {
     courseTitle: string;
     courseCategory: string | null;
   }>;
+}
+
+export async function fetchConsultancyCategories() {
+  const data = await apiFetch<{ categories: ConsultancyCategory[] }>("/consultancy/categories");
+  return data.categories;
+}
+
+export async function fetchConsultancyConsultants(categoryId?: string) {
+  const query = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : "";
+  const data = await apiFetch<{ consultants: ConsultancyConsultant[] }>(`/consultancy/consultants${query}`);
+  return data.consultants;
+}
+
+export async function fetchConsultancyConsultant(id: string) {
+  const data = await apiFetch<{ consultant: ConsultancyConsultant }>(`/consultancy/consultants/${id}`);
+  return data.consultant;
+}
+
+export async function fetchConsultancySlots(consultantId: string, date: string) {
+  const data = await apiFetch<{ slots: Array<{ id: string; date: string; startTime: string; endTime: string; isBooked: boolean }> }>(`/consultancy/consultants/${consultantId}/slots?date=${encodeURIComponent(date)}`);
+  return data.slots;
+}
+
+export async function createConsultancyBookingOrder(input: {
+  consultantId: string;
+  slotId: string;
+  consultationType: string;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
+  notes?: string;
+}) {
+  return apiFetch<{ bookingId: string; orderId: string; amount: number; currency: string; keyId: string }>("/consultancy/create-order", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function verifyConsultancyPayment(input: {
+  bookingId: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  return apiFetch<{ success: boolean }>("/consultancy/verify", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchMyConsultancyBookings() {
+  const data = await apiFetch<{ bookings: ConsultancyBooking[] }>('/consultancy/my-bookings');
+  return data.bookings;
+}
+
+export async function fetchAdminConsultancyCategories() {
+  const data = await apiFetch<{ categories: ConsultancyCategory[] }>('/admin/consultancy/categories');
+  return data.categories;
+}
+
+export async function createAdminConsultancyCategory(input: { name: string; description?: string; color?: string; published?: boolean; sortOrder?: number }) {
+  const data = await apiFetch<{ category: ConsultancyCategory }>('/admin/consultancy/categories', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return data.category;
+}
+
+export async function updateAdminConsultancyCategory(id: string, input: Partial<ConsultancyCategory>) {
+  const data = await apiFetch<{ category: ConsultancyCategory }>(`/admin/consultancy/categories/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+  return data.category;
+}
+
+export async function deleteAdminConsultancyCategory(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/consultancy/categories/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchAdminConsultancyConsultants() {
+  const data = await apiFetch<{ consultants: ConsultancyConsultant[] }>('/admin/consultancy/consultants');
+  return data.consultants;
+}
+
+export async function createAdminConsultancyConsultant(input: {
+  categoryId: string;
+  name: string;
+  title?: string;
+  hourlyRate?: number;
+  experienceYears?: number;
+  image?: File;
+}) {
+  const formData = new FormData();
+  Object.entries(input).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) formData.append(key, value instanceof File ? value : String(value));
+  });
+  const response = await fetch(`${API_URL}/admin/consultancy/consultants`, { method: 'POST', credentials: 'include', body: formData });
+  if (response.status === 401 && await refreshAccessToken()) return createAdminConsultancyConsultant(input);
+  if (!response.ok) throw new Error(await parseError(response));
+  const data = (await response.json()) as { consultant: ConsultancyConsultant };
+  return data.consultant;
+}
+
+export async function updateAdminConsultancyConsultant(id: string, input: Partial<ConsultancyConsultant> & { categoryId?: string; image?: File }) {
+  const formData = new FormData();
+  Object.entries(input).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) formData.append(key, value instanceof File ? value : String(value));
+  });
+  const response = await fetch(`${API_URL}/admin/consultancy/consultants/${id}`, { method: 'PATCH', credentials: 'include', body: formData });
+  if (response.status === 401 && await refreshAccessToken()) return updateAdminConsultancyConsultant(id, input);
+  if (!response.ok) throw new Error(await parseError(response));
+  const data = (await response.json()) as { consultant: ConsultancyConsultant };
+  return data.consultant;
+}
+
+export async function deleteAdminConsultancyConsultant(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/consultancy/consultants/${id}`, { method: 'DELETE' });
+}
+
+export async function createAdminConsultancySlot(consultantId: string, input: { date: string; startTime: string; endTime: string }) {
+  const data = await apiFetch<{ slot: { id: string; date: string; startTime: string; endTime: string; isBooked: boolean } }>(`/admin/consultancy/consultants/${consultantId}/slots`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return data.slot;
+}
+
+export async function deleteAdminConsultancySlot(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/consultancy/slots/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchAdminConsultancyBookings() {
+  const data = await apiFetch<{ bookings: ConsultancyBooking[] }>('/admin/consultancy/bookings');
+  return data.bookings;
+}
+
+export async function updateAdminConsultancyBooking(id: string, status: string) {
+  const data = await apiFetch<{ booking: ConsultancyBooking }>(`/admin/consultancy/bookings/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+  return data.booking;
 }
 
 export async function fetchAdminCourses() {

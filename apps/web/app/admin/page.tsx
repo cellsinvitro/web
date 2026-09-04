@@ -35,6 +35,16 @@ function formatDate(dateStr?: string) {
   }).format(new Date(dateStr));
 }
 
+type PaymentAuditRow = {
+  id: string;
+  amount: number;
+  status: string;
+  provider: string;
+  createdAt: string;
+  user: { name: string | null; email: string };
+  item: string;
+};
+
 function MetricCard({
   title,
   value,
@@ -192,10 +202,30 @@ export default function AdminDashboardPage() {
   }, [recent?.enrollments, searchQuery]);
 
   const filteredPayments = useMemo(() => {
-    if (!recent?.payments) return [];
-    if (!searchQuery.trim()) return recent.payments;
+    if (!recent) return [] as PaymentAuditRow[];
+    const rows: PaymentAuditRow[] = [
+      ...(recent.payments ?? []).map((payment) => ({
+        id: payment.id,
+        amount: payment.amount,
+        status: payment.status,
+        provider: payment.provider,
+        createdAt: payment.createdAt,
+        user: payment.user,
+        item: payment.course?.title || payment.package?.title || "Direct Enrollment",
+      })),
+      ...(recent.consultancyBookings ?? []).map((booking) => ({
+        id: booking.id,
+        amount: booking.amount * 100,
+        status: booking.status,
+        provider: booking.provider,
+        createdAt: booking.createdAt,
+        user: booking.user,
+        item: `Consultancy · ${booking.consultant.name} (${booking.consultationType})`,
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (!searchQuery.trim()) return rows;
     const q = searchQuery.toLowerCase();
-    return recent.payments.filter(
+    return rows.filter(
       (p) =>
         p.user.name?.toLowerCase().includes(q) ||
         p.user.email.toLowerCase().includes(q) ||
@@ -987,8 +1017,8 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                 <div>
                   <h3 className="font-bold text-slate-900">Financial Payment Audit Log</h3>
-                  <p className="text-xs text-slate-500">
-                    Razorpay and manual course transaction records
+                    <p className="text-xs text-slate-500">
+                    Course and consultancy payment records
                   </p>
                 </div>
               </div>
@@ -1021,7 +1051,7 @@ export default function AdminDashboardPage() {
                             <div className="text-[10px] font-mono text-slate-400">{p.id}</div>
                           </td>
                           <td className="px-5 py-3.5 text-xs text-slate-700">
-                            {p.course?.title || p.package?.title || "Direct Enrollment"}
+                            {p.item}
                           </td>
                           <td className="px-5 py-3.5 font-bold text-slate-900">
                             {formatCurrency(p.amount)}

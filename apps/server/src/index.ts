@@ -11,7 +11,9 @@ import { adminMaterialsRoutes } from "./routes/admin-materials.js";
 import { adminKitsRoutes } from "./routes/admin-kits.js";
 import { kitsRoutes } from "./routes/kits.js";
 import { adminCoursesRoutes } from "./routes/admin-courses.js";
+import { adminConsultancyRoutes } from "./routes/admin-consultancy.js";
 import { coursesRoutes, certificateRoutes } from "./routes/courses.js";
+import { consultancyRoutes } from "./routes/consultancy.js";
 import { paymentsRoutes } from "./routes/payments.js";
 
 const app = new Hono();
@@ -45,10 +47,12 @@ app.route("/auth", authRoutes);
 app.route("/admin/materials", adminMaterialsRoutes);
 app.route("/admin/kits", adminKitsRoutes);
 app.route("/admin", adminCoursesRoutes);
+app.route("/admin", adminConsultancyRoutes);
 app.route("/admin", adminRoutes);
 app.route("/materials", materialsRoutes);
 app.route("/kits", kitsRoutes);
 app.route("/courses", coursesRoutes);
+app.route("/consultancy", consultancyRoutes);
 app.route("/payments", paymentsRoutes);
 app.route("/certificates", certificateRoutes);
 
