@@ -58,7 +58,6 @@ consultancyRoutes.get("/consultants", async (c) => {
     where: {
       available: true,
       ...(categoryId ? { categoryId } : {}),
-      category: { published: true },
     },
     include: consultantInclude,
     orderBy: [{ sortOrder: "asc" as const }, { createdAt: "desc" as const }],
@@ -129,7 +128,7 @@ consultancyRoutes.get("/my-bookings", async (c) => {
   const userId = c.get("user").sub;
 
   const bookings = await prisma.consultancyBooking.findMany({
-    where: { userId },
+    where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
     include: {
       consultant: { include: { category: true } },
       slot: true,
@@ -217,18 +216,24 @@ consultancyRoutes.post("/create-order", async (c) => {
     },
   });
 
-  const order = await createRazorpayOrder({
-    amount: consultant.hourlyRate,
-    currency: consultant.currency,
-    receipt: booking.id,
-    notes: {
-      userId,
-      consultantId,
-      slotId,
-      title: `${consultant.name} consultation`,
-      consultationType,
-    },
-  });
+  let order;
+  try {
+    order = await createRazorpayOrder({
+      amount: consultant.hourlyRate,
+      currency: consultant.currency,
+      receipt: booking.id,
+      notes: {
+        userId,
+        consultantId,
+        slotId,
+        title: `${consultant.name} consultation`,
+        consultationType,
+      },
+    });
+  } catch (error) {
+    await prisma.consultancyBooking.delete({ where: { id: booking.id } });
+    throw error;
+  }
 
   await prisma.consultancyBooking.update({
     where: { id: booking.id },
@@ -270,10 +275,7 @@ consultancyRoutes.post("/verify", async (c) => {
   );
 
   if (!valid) {
-    await prisma.consultancyBooking.update({
-      where: { id: booking.id },
-      data: { status: "FAILED" },
-    });
+    await prisma.consultancyBooking.delete({ where: { id: booking.id } });
     throw new HTTPException(400, { message: "Payment verification failed" });
   }
 
@@ -292,5 +294,17 @@ consultancyRoutes.post("/verify", async (c) => {
     });
   });
 
+  return c.json({ success: true });
+});
+
+consultancyRoutes.delete("/bookings/:id", async (c) => {
+  const userId = c.get("user").sub;
+  const booking = await prisma.consultancyBooking.findFirst({
+    where: { id: c.req.param("id"), userId, status: "PENDING" },
+  });
+
+  if (!booking) return c.json({ success: true });
+
+  await prisma.consultancyBooking.delete({ where: { id: booking.id } });
   return c.json({ success: true });
 });

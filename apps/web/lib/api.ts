@@ -720,7 +720,7 @@ export type ConsultancyConsultant = {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
-  category: ConsultancyCategory;
+  category: ConsultancyCategory | null;
   slots: Array<{ id: string; date: string; startTime: string; endTime: string; isBooked: boolean }>;
 };
 
@@ -744,8 +744,9 @@ export type ConsultancyBooking = {
   updatedAt: string;
   user?: { id: string; name: string | null; email: string };
   userEmail?: string | null;
-  consultant: { id: string; name: string; photoUrl: string | null; title: string | null; category: ConsultancyCategory };
-  category: ConsultancyCategory;
+  notes?: string | null;
+  consultant: { id: string; name: string; photoUrl: string | null; title: string | null; category: ConsultancyCategory | null };
+  category: ConsultancyCategory | null;
   slot: { id: string; date: string; startTime: string; endTime: string; isBooked: boolean };
 };
 
@@ -944,6 +945,12 @@ export async function verifyConsultancyPayment(input: {
   });
 }
 
+export async function cancelConsultancyBooking(bookingId: string) {
+  return apiFetch<{ success: boolean }>(`/consultancy/bookings/${bookingId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchMyConsultancyBookings() {
   const data = await apiFetch<{ bookings: ConsultancyBooking[] }>('/consultancy/my-bookings');
   return data.bookings;
@@ -980,9 +987,10 @@ export async function fetchAdminConsultancyConsultants() {
 }
 
 export async function createAdminConsultancyConsultant(input: {
-  categoryId: string;
+  categoryId?: string;
   name: string;
   title?: string;
+  bio?: string;
   hourlyRate?: number;
   experienceYears?: number;
   image?: File;
