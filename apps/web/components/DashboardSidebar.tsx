@@ -91,6 +91,7 @@ function LogoutIcon({ className }: IconProps) {
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: OverviewIcon },
   { label: "My Courses", href: "/dashboard/courses", icon: CoursesIcon },
+  { label: "Consultancy", href: "/dashboard/consultancy", icon: ContactIcon },
   { label: "Resource Library", href: "/dashboard/resources", icon: ResourcesIcon },
   { label: "Research Kits", href: "/dashboard/kits", icon: KitsIcon },
   { label: "Profile", href: "/dashboard/account", icon: AccountIcon },
