@@ -1,1 +1,167 @@
 @import "tailwindcss";
+
+.cryosearch-theme .bg-slate-50,
+.cryosearch-theme .bg-slate-50\/40,
+.cryosearch-theme .bg-slate-50\/60,
+.cryosearch-theme .bg-slate-50\/80,
+.cryosearch-theme .bg-slate-50\/50,
+.cryosearch-theme .bg-slate-100 {
+	background-color: #f5f5f5;
+}
+
+.cryosearch-theme .bg-white,
+.cryosearch-theme .bg-white\/80,
+.cryosearch-theme .bg-white\/90 {
+	background-color: #ffffff;
+}
+
+.cryosearch-theme .bg-pink-50,
+.cryosearch-theme .bg-pink-50\/40,
+.cryosearch-theme .bg-amber-50\/50,
+.cryosearch-theme .bg-red-50,
+.cryosearch-theme .bg-rose-100,
+.cryosearch-theme .bg-emerald-100,
+.cryosearch-theme .bg-blue-50,
+.cryosearch-theme .bg-blue-100,
+.cryosearch-theme .bg-amber-100,
+.cryosearch-theme .bg-red-100 {
+	background-color: #f5f5f5;
+}
+
+.cryosearch-theme .bg-pink-600,
+.cryosearch-theme .bg-pink-700,
+.cryosearch-theme .bg-rose-600,
+.cryosearch-theme .bg-blue-600,
+.cryosearch-theme .bg-emerald-500,
+.cryosearch-theme .bg-emerald-600,
+.cryosearch-theme .bg-red-600 {
+	background-color: #111111;
+}
+
+.cryosearch-theme .bg-blue-200\/80,
+.cryosearch-theme .bg-pink-100,
+.cryosearch-theme .bg-pink-200 {
+	background-color: #e5e5e5;
+}
+
+.cryosearch-theme .bg-gradient-to-r {
+	background-image: linear-gradient(to right, #050505, #555555, #050505);
+}
+
+.cryosearch-theme .from-pink-600 {
+	--tw-gradient-from: #050505 var(--tw-gradient-from-position);
+	--tw-gradient-to: rgb(5 5 5 / 0) var(--tw-gradient-to-position);
+}
+
+.cryosearch-theme .via-rose-600 {
+	--tw-gradient-to: rgb(85 85 85 / 0) var(--tw-gradient-to-position);
+	--tw-gradient-stops: var(--tw-gradient-from), #555555 var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.cryosearch-theme .to-pink-700 {
+	--tw-gradient-to: #050505 var(--tw-gradient-to-position);
+}
+
+.cryosearch-theme .text-pink-100,
+.cryosearch-theme .text-pink-200,
+.cryosearch-theme .text-pink-700,
+.cryosearch-theme .text-rose-600,
+.cryosearch-theme .text-rose-700,
+.cryosearch-theme .text-emerald-700,
+.cryosearch-theme .text-blue-600,
+.cryosearch-theme .text-blue-100,
+.cryosearch-theme .text-blue-700,
+.cryosearch-theme .text-blue-800,
+.cryosearch-theme .text-blue-900,
+.cryosearch-theme .text-amber-700,
+.cryosearch-theme .text-amber-800,
+.cryosearch-theme .text-amber-900,
+.cryosearch-theme .text-red-600,
+.cryosearch-theme .text-red-700 {
+	color: #111111;
+}
+
+.cryosearch-theme .text-white {
+	color: #ffffff;
+}
+
+.cryosearch-theme .text-slate-400 {
+	color: #737373;
+}
+
+.cryosearch-theme .text-slate-500,
+.cryosearch-theme .text-slate-600,
+.cryosearch-theme .text-slate-700,
+.cryosearch-theme .text-slate-800,
+.cryosearch-theme .text-slate-900 {
+	color: #171717;
+}
+
+.cryosearch-theme .border-pink-100,
+.cryosearch-theme .border-pink-200,
+.cryosearch-theme .border-pink-300,
+.cryosearch-theme .border-rose-100,
+.cryosearch-theme .border-emerald-400,
+.cryosearch-theme .border-blue-200,
+.cryosearch-theme .border-blue-600,
+.cryosearch-theme .border-amber-200,
+.cryosearch-theme .border-amber-300,
+.cryosearch-theme .border-red-200 {
+	border-color: #d4d4d4;
+}
+
+.cryosearch-theme .border-slate-100,
+.cryosearch-theme .border-slate-200,
+.cryosearch-theme .border-slate-200\/60,
+.cryosearch-theme .border-slate-200\/80,
+.cryosearch-theme .border-slate-300 {
+	border-color: #d4d4d4;
+}
+
+.cryosearch-theme .hover\:bg-pink-50:hover,
+.cryosearch-theme .hover\:bg-slate-50:hover,
+.cryosearch-theme .hover\:bg-slate-100:hover,
+.cryosearch-theme .hover\:bg-slate-200:hover,
+.cryosearch-theme .hover\:bg-blue-100\/70:hover {
+	background-color: #e5e5e5;
+}
+
+.cryosearch-theme .hover\:bg-pink-500:hover,
+.cryosearch-theme .hover\:bg-pink-600:hover,
+.cryosearch-theme .hover\:bg-blue-500:hover,
+.cryosearch-theme .hover\:bg-emerald-500:hover {
+	background-color: #333333;
+}
+
+.cryosearch-theme .hover\:text-slate-600:hover,
+.cryosearch-theme .hover\:text-slate-700:hover,
+.cryosearch-theme .hover\:text-slate-800:hover,
+.cryosearch-theme .hover\:text-slate-900:hover,
+.cryosearch-theme .hover\:text-blue-800:hover {
+	color: #000000;
+}
+
+.cryosearch-theme .hover\:border-pink-300:hover,
+.cryosearch-theme .hover\:border-pink-400:hover,
+.cryosearch-theme .focus\:border-pink-500:focus,
+.cryosearch-theme .focus\:border-blue-500:focus {
+	border-color: #525252;
+}
+
+.cryosearch-theme .ring-pink-500\/20 {
+	--tw-ring-color: rgb(0 0 0 / 0.2);
+}
+
+.cryosearch-theme .focus\:ring-pink-500\/20:focus,
+.cryosearch-theme .focus\:ring-blue-500:focus {
+	--tw-ring-color: rgb(0 0 0 / 0.2);
+}
+
+.cryosearch-theme .hover\:from-pink-500:hover {
+	--tw-gradient-from: #333333 var(--tw-gradient-from-position);
+	--tw-gradient-to: rgb(51 51 51 / 0) var(--tw-gradient-to-position);
+}
+
+.cryosearch-theme .hover\:to-rose-500:hover {
+	--tw-gradient-to: #333333 var(--tw-gradient-to-position);
+}

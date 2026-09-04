@@ -15,6 +15,7 @@ import { adminConsultancyRoutes } from "./routes/admin-consultancy.js";
 import { coursesRoutes, certificateRoutes } from "./routes/courses.js";
 import { consultancyRoutes } from "./routes/consultancy.js";
 import { paymentsRoutes } from "./routes/payments.js";
+import { cryoSearchRoutes } from "./routes/cryosearch.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -55,6 +56,7 @@ app.route("/courses", coursesRoutes);
 app.route("/consultancy", consultancyRoutes);
 app.route("/payments", paymentsRoutes);
 app.route("/certificates", certificateRoutes);
+app.route("/cryosearch", cryoSearchRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

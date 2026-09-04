@@ -97,8 +97,18 @@ const navItems = [
   { label: "Profile", href: "/dashboard/account", icon: AccountIcon },
 ];
 
+function CyroSearchIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
+
 const exploreItems = [
   { label: "Lab Tools", href: "/tools", icon: ToolsIcon },
+  { label: "CyroSearch", href: "/cyrosearch", icon: CyroSearchIcon },
   { label: "Contact", href: "/contact", icon: ContactIcon },
 ];
 

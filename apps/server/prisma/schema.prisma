@@ -24,6 +24,7 @@ model User {
   payments           Payment[]
   consultancyBookings ConsultancyBooking[]
   refreshTokens      RefreshToken[]
+  cryoSearchState    CryoSearchState?
 }
 
 model RefreshToken {
@@ -35,6 +36,19 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model CryoSearchState {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  labs             Json
+  activities       Json
+  receivedRequests Json
+  sentRequests     Json
+  allowedUsers     Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model StudyMaterial {

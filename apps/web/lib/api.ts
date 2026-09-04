@@ -6,6 +6,13 @@ import {
   type AuthUser,
   type Designation,
 } from "./auth-storage";
+import type {
+  AllowedUsersModel,
+  LabActivityModel,
+  LabModel,
+  ReceivedRequest,
+  SentRequest,
+} from "./cryosearch/types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
@@ -135,6 +142,25 @@ export async function updateProfile(input: {
     body: JSON.stringify(input),
   });
   return data.user;
+}
+
+export type CryoSearchState = {
+  labs: LabModel[];
+  activities: LabActivityModel[];
+  receivedRequests: ReceivedRequest[];
+  sentRequests: SentRequest[];
+  allowedUsers: AllowedUsersModel[];
+};
+
+export async function fetchCryoSearchState() {
+  return apiFetch<CryoSearchState>("/cryosearch/state");
+}
+
+export async function saveCryoSearchState(state: CryoSearchState) {
+  return apiFetch<CryoSearchState>("/cryosearch/state", {
+    method: "PUT",
+    body: JSON.stringify(state),
+  });
 }
 
 export type AdminStats = {
