@@ -174,7 +174,13 @@ adminConsultancyRoutes.patch("/consultancy/consultants/:id", async (c) => {
 
 adminConsultancyRoutes.delete("/consultancy/consultants/:id", async (c) => {
   const id = c.req.param("id");
-  const consultant = await prisma.consultant.findUnique({ where: { id }, include: { bookings: true, slots: true } });
+  const consultant = await prisma.consultant.findUnique({
+    where: { id },
+    include: {
+      bookings: { where: { status: { in: ["CONFIRMED", "COMPLETED"] } } },
+      slots: true,
+    },
+  });
   if (!consultant) throw new HTTPException(404, { message: "Consultant not found" });
   if (consultant.bookings.length > 0 || consultant.slots.length > 0) {
     throw new HTTPException(400, { message: "Remove bookings and slots before deleting this consultant" });
