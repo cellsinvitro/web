@@ -273,7 +273,7 @@ model LiveClass {
   roomName              String           @unique
   scheduledAt           DateTime
   startTime             String
-  endTime               String
+  duration              Int
   maxParticipants       Int              @default(100)
   price                 Int              @default(0)
   currency              String           @default("INR")

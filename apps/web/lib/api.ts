@@ -1042,7 +1042,7 @@ export type LiveClass = {
   courseId: string | null;
   scheduledAt: string;
   startTime: string;
-  endTime: string;
+  duration: number;
   maxParticipants: number;
   price: number;
   currency: string;
