@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { fetchKits } from "@/lib/api";
 import type { ResearchKit } from "@/lib/api";
 import { KIT_CATEGORIES } from "@/lib/kits";
@@ -113,7 +114,7 @@ export default function ResearchKits({
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
-                className="h-[28rem] animate-pulse rounded-3xl border border-slate-200/80 bg-white"
+                className="h-112 animate-pulse rounded-3xl border border-slate-200/80 bg-white"
               />
             ))}
           </div>
@@ -139,7 +140,7 @@ export default function ResearchKits({
                 className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5"
               >
                 <div className="relative mx-4 mt-4 overflow-hidden rounded-2xl bg-slate-100">
-                  <div className="relative aspect-[16/9] w-full">
+                  <div className="relative aspect-video w-full">
                     {kit.imageUrl ? (
                       <Image
                         src={kit.imageUrl}
@@ -179,13 +180,20 @@ export default function ResearchKits({
                   </div>
 
                   <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      Coming Soon
-                    </span>
+                    <Link
+                      href={`/kits/${kit.id}`}
+                      className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-950"
+                    >
+                      See details
+                    </Link>
 
-                    <span className="text-slate-400 transition-transform duration-300 group-hover:translate-x-1">
+                    <Link
+                      href={`/kits/${kit.id}`}
+                      aria-label={`See details for ${kit.title}`}
+                      className="text-slate-400 transition-transform duration-300 hover:translate-x-1"
+                    >
                       →
-                    </span>
+                    </Link>
                   </div>
                 </div>
               </article>

@@ -511,6 +511,7 @@ export type ResearchKit = {
   category: string;
   imageUrl: string | null;
   assays: string[];
+  details: string | null;
   published: boolean;
   sortOrder: number;
   createdAt: string;
@@ -544,6 +545,7 @@ export async function createAdminKit(input: {
   title: string;
   category: string;
   assays: string[];
+  details?: string;
   published?: boolean;
   sortOrder?: number;
   image: File;
@@ -552,6 +554,7 @@ export async function createAdminKit(input: {
   formData.append("title", input.title);
   formData.append("category", input.category);
   formData.append("assays", JSON.stringify(input.assays));
+  formData.append("details", input.details ?? "");
   formData.append("published", String(input.published ?? true));
   formData.append("sortOrder", String(input.sortOrder ?? 0));
   formData.append("image", input.image);
@@ -583,6 +586,7 @@ export async function updateAdminKit(
     title?: string;
     category?: string;
     assays?: string[];
+    details?: string;
     published?: boolean;
     sortOrder?: number;
     image?: File;
@@ -597,6 +601,9 @@ export async function updateAdminKit(
   }
   if (input.assays !== undefined) {
     formData.append("assays", JSON.stringify(input.assays));
+  }
+  if (input.details !== undefined) {
+    formData.append("details", input.details);
   }
   if (input.published !== undefined) {
     formData.append("published", String(input.published));

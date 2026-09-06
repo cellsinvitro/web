@@ -83,6 +83,7 @@ export function toPublicKit(
     category: string;
     imageStorageKey: string | null;
     assays: string[];
+    details: string | null;
     published: boolean;
     sortOrder: number;
     createdAt: Date;
@@ -96,6 +97,7 @@ export function toPublicKit(
     category: kit.category,
     imageUrl: resolveKitImageUrl(kit.imageStorageKey, apiBaseUrl),
     assays: kit.assays,
+    details: kit.details,
     published: kit.published,
     sortOrder: kit.sortOrder,
     createdAt: kit.createdAt.toISOString(),
