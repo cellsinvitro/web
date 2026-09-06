@@ -40,18 +40,18 @@ function CoursesIcon({ className }: IconProps) {
   );
 }
 
-function AccountIcon({ className }: IconProps) {
+function LiveIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5 19.5 8.25v7.5l-3.75-2.25M4.5 6.75h7.5A2.25 2.25 0 0 1 14.25 9v6a2.25 2.25 0 0 1-2.25 2.25H4.5A2.25 2.25 0 0 1 2.25 15V9A2.25 2.25 0 0 1 4.5 6.75Z" />
     </svg>
   );
 }
 
-function ToolsIcon({ className }: IconProps) {
+function AccountIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437Zm6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
     </svg>
   );
 }
@@ -91,25 +91,12 @@ function LogoutIcon({ className }: IconProps) {
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: OverviewIcon },
   { label: "My Courses", href: "/dashboard/courses", icon: CoursesIcon },
+  { label: "Live Classes", href: "/dashboard/live-classes", icon: LiveIcon },
   { label: "Consultancy", href: "/dashboard/consultancy", icon: ContactIcon },
   { label: "Resource Library", href: "/dashboard/resources", icon: ResourcesIcon },
   { label: "Research Kits", href: "/dashboard/kits", icon: KitsIcon },
+  { label: "Order History", href: "/dashboard/orders", icon: KitsIcon },
   { label: "Profile", href: "/dashboard/account", icon: AccountIcon },
-];
-
-function CyroSearchIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35" />
-    </svg>
-  );
-}
-
-const exploreItems = [
-  { label: "Lab Tools", href: "/tools", icon: ToolsIcon },
-  { label: "CyroSearch", href: "/cyrosearch", icon: CyroSearchIcon },
-  { label: "Contact", href: "/contact", icon: ContactIcon },
 ];
 
 function NavLink({
@@ -187,22 +174,17 @@ export default function DashboardSidebar() {
           );
         })}
 
-        <div className="pt-3">
-          <p className="hidden px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 group-hover:block">
-            Explore
-          </p>
-          {exploreItems.map((item) => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-            />
-          ))}
-          {isAdmin(user?.role) ? (
-            <NavLink href="/admin" label="Admin Panel" icon={AdminIcon} />
-          ) : null}
-        </div>
+        {isAdmin(user?.role) ? (
+          <Link
+            href="/admin"
+            title="Admin Panel"
+            className="mt-3 flex items-center justify-center gap-2.5 rounded-xl bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 group-hover:justify-start"
+          >
+            <AdminIcon className="h-5 w-5 shrink-0" />
+            <span className="hidden whitespace-nowrap group-hover:inline">Admin Panel</span>
+          </Link>
+        ) : null}
+
       </nav>
 
       <div className="border-t border-slate-100 p-3 group-hover:p-4">

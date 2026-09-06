@@ -512,6 +512,10 @@ export type ResearchKit = {
   imageUrl: string | null;
   assays: string[];
   details: string | null;
+  price: number;
+  currency: string;
+  stock: number;
+  available: boolean;
   published: boolean;
   sortOrder: number;
   createdAt: string;
@@ -545,7 +549,9 @@ export async function createAdminKit(input: {
   title: string;
   category: string;
   assays: string[];
-  details?: string;
+  details?: string | null;
+  price?: number;
+  stock?: number;
   published?: boolean;
   sortOrder?: number;
   image: File;
@@ -554,7 +560,11 @@ export async function createAdminKit(input: {
   formData.append("title", input.title);
   formData.append("category", input.category);
   formData.append("assays", JSON.stringify(input.assays));
-  formData.append("details", input.details ?? "");
+  if (input.details !== undefined) {
+    formData.append("details", input.details ?? "");
+  }
+  formData.append("price", String(input.price ?? 0));
+  formData.append("stock", String(input.stock ?? 0));
   formData.append("published", String(input.published ?? true));
   formData.append("sortOrder", String(input.sortOrder ?? 0));
   formData.append("image", input.image);
@@ -586,7 +596,9 @@ export async function updateAdminKit(
     title?: string;
     category?: string;
     assays?: string[];
-    details?: string;
+    details?: string | null;
+    price?: number;
+    stock?: number;
     published?: boolean;
     sortOrder?: number;
     image?: File;
@@ -603,7 +615,13 @@ export async function updateAdminKit(
     formData.append("assays", JSON.stringify(input.assays));
   }
   if (input.details !== undefined) {
-    formData.append("details", input.details);
+    formData.append("details", input.details ?? "");
+  }
+  if (input.price !== undefined) {
+    formData.append("price", String(input.price));
+  }
+  if (input.stock !== undefined) {
+    formData.append("stock", String(input.stock));
   }
   if (input.published !== undefined) {
     formData.append("published", String(input.published));
@@ -888,7 +906,16 @@ export async function completeModule(courseId: string, moduleId: string) {
   );
 }
 
-export async function createPaymentOrder(input: { courseId?: string; packageId?: string }) {
+export async function createPaymentOrder(input: {
+  courseId?: string;
+  packageId?: string;
+  kitId?: string;
+  quantity?: number;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  shippingAddress?: string;
+}) {
   return apiFetch<{
     free?: boolean;
     paymentId?: string;
@@ -912,6 +939,197 @@ export async function verifyPayment(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export type KitFulfillmentStatus =
+  | "PROCESSING"
+  | "CONFIRMED"
+  | "PACKED"
+  | "SHIPPED"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "RETURNED";
+
+export type KitOrderEvent = {
+  id: string;
+  status: KitFulfillmentStatus;
+  note: string | null;
+  location: string | null;
+  createdAt: string;
+  actor?: { name: string | null; email: string } | null;
+};
+
+export type KitOrder = {
+  id: string;
+  createdAt: string;
+  completedAt: string | null;
+  amount: number;
+  currency: string;
+  quantity: number;
+  itemTitle: string;
+  imageUrl: string | null;
+  paymentStatus: string;
+  fulfillmentStatus: KitFulfillmentStatus;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  shippingAddress: string | null;
+  carrier: string | null;
+  trackingNumber: string | null;
+  estimatedDeliveryAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  events: KitOrderEvent[];
+  user?: { id: string; name: string | null; email: string };
+};
+
+export async function fetchKitOrders() {
+  const data = await apiFetch<{ orders: KitOrder[] }>("/payments/kits");
+  return data.orders;
+}
+
+export async function fetchKitOrder(id: string) {
+  const data = await apiFetch<{ order: KitOrder }>(`/payments/kits/${id}`);
+  return data.order;
+}
+
+export async function fetchAdminKitOrders(input?: {
+  page?: number;
+  pageSize?: number;
+  status?: KitFulfillmentStatus;
+  search?: string;
+}) {
+  const params = new URLSearchParams();
+  if (input?.page) params.set("page", String(input.page));
+  if (input?.pageSize) params.set("pageSize", String(input.pageSize));
+  if (input?.status) params.set("status", input.status);
+  if (input?.search) params.set("search", input.search);
+  const query = params.toString();
+  return apiFetch<{ orders: KitOrder[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }>(
+    `/admin/orders${query ? `?${query}` : ""}`
+  );
+}
+
+export async function fetchAdminKitOrder(id: string) {
+  const data = await apiFetch<{ order: KitOrder }>(`/admin/orders/${id}`);
+  return data.order;
+}
+
+export async function updateAdminKitOrder(
+  id: string,
+  input: {
+    status?: KitFulfillmentStatus;
+    carrier?: string | null;
+    trackingNumber?: string | null;
+    estimatedDeliveryAt?: string | null;
+    note?: string | null;
+    location?: string | null;
+  },
+) {
+  const data = await apiFetch<{ order: KitOrder }>(`/admin/orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.order;
+}
+
+export type LiveClass = {
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnail: string | null;
+  courseId: string | null;
+  scheduledAt: string;
+  startTime: string;
+  endTime: string;
+  maxParticipants: number;
+  price: number;
+  currency: string;
+  isPaid: boolean;
+  studentCameraEnabled: boolean;
+  studentMicrophoneEnabled: boolean;
+  chatEnabled: boolean;
+  recordingEnabled: boolean;
+  status: "SCHEDULED" | "LIVE" | "COMPLETED" | "CANCELLED";
+  teacher: { id: string; name: string | null; email: string; avatarUrl: string | null };
+  course: { id: string; title: string } | null;
+  _count: { enrollments: number; attendance: number };
+  isEnrolled?: boolean;
+};
+
+export async function fetchLiveClasses() {
+  const data = await apiFetch<{ classes: LiveClass[] }>("/live-classes");
+  return data.classes;
+}
+
+export async function fetchLiveClass(id: string) {
+  const data = await apiFetch<{ class: LiveClass }>(`/live-classes/${id}`);
+  return data.class;
+}
+
+export async function createLiveClassToken(id: string) {
+  return apiFetch<{
+    token: string;
+    url: string;
+    attendanceId: string;
+    permissions: { camera: boolean; microphone: boolean; chat: boolean };
+  }>(`/live-classes/${id}/token`, { method: "POST", body: JSON.stringify({}) });
+}
+
+export async function leaveLiveClass(id: string, attendanceId: string) {
+  return apiFetch<{ success: boolean }>(`/live-classes/${id}/leave`, {
+    method: "POST",
+    body: JSON.stringify({ attendanceId }),
+  });
+}
+
+export async function createLiveClassPaymentOrder(id: string) {
+  return apiFetch<{
+    free?: boolean;
+    paymentId?: string;
+    orderId?: string;
+    amount?: number;
+    currency?: string;
+    keyId?: string;
+  }>(`/live-classes/${id}/payment/order`, { method: "POST", body: JSON.stringify({}) });
+}
+
+export async function verifyLiveClassPayment(id: string, input: {
+  paymentId: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  return apiFetch<{ success: boolean }>(`/live-classes/${id}/payment/verify`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchAdminLiveClasses() {
+  const data = await apiFetch<{ classes: LiveClass[] }>("/live-classes");
+  return data.classes;
+}
+
+export async function createAdminLiveClass(input: Record<string, unknown>) {
+  const data = await apiFetch<{ class: LiveClass }>("/live-classes", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.class;
+}
+
+export async function updateAdminLiveClass(id: string, input: Record<string, unknown>) {
+  const data = await apiFetch<{ class: LiveClass }>(`/live-classes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.class;
+}
+
+export async function deleteAdminLiveClass(id: string) {
+  return apiFetch<{ success: boolean }>(`/live-classes/${id}`, { method: "DELETE" });
 }
 
 export async function verifyCertificate(certificateNumber: string) {

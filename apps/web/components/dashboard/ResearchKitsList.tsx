@@ -114,7 +114,11 @@ export default function ResearchKitsList({
           {filteredKits.map((kit) => (
             <li key={kit.id}>
               <article className="group flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50">
-                <div className="relative aspect-video w-full bg-slate-100">
+                <Link
+                  href={`/kits/${kit.id}`}
+                  aria-label={`View details for ${kit.title}`}
+                  className="relative block aspect-video w-full bg-slate-100"
+                >
                   {kit.imageUrl ? (
                     <Image
                       src={kit.imageUrl}
@@ -128,7 +132,7 @@ export default function ResearchKitsList({
                       No image
                     </div>
                   )}
-                </div>
+                </Link>
 
                 <div className="flex flex-1 flex-col p-6">
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 w-fit">
@@ -151,11 +155,14 @@ export default function ResearchKitsList({
                     ))}
                   </ul>
 
+                  <p className="mt-5 border-t border-slate-100 pt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    {kit.stock} available
+                  </p>
                   <Link
                     href={`/kits/${kit.id}`}
-                    className="mt-5 border-t border-slate-100 pt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-950"
+                    className="mt-4 inline-flex text-sm font-semibold text-slate-950 underline decoration-slate-300 underline-offset-4 transition-colors hover:decoration-slate-950"
                   >
-                    See details
+                    View kit details
                   </Link>
                 </div>
               </article>

@@ -29,6 +29,8 @@ export default function AdminKitDetailView() {
   const [category, setCategory] = useState<string>(KIT_CATEGORIES[0]);
   const [assaysText, setAssaysText] = useState("");
   const [details, setDetails] = useState("");
+  const [price, setPrice] = useState("0");
+  const [stock, setStock] = useState("0");
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("0");
   const [pendingImage, setPendingImage] = useState<File | null>(null);
@@ -54,6 +56,8 @@ export default function AdminKitDetailView() {
       setCategory(data.category);
       setAssaysText(assaysToText(data.assays));
       setDetails(data.details ?? "");
+      setPrice((data.price / 100).toFixed(2));
+      setStock(String(data.stock));
       setPublished(data.published);
       setSortOrder(String(data.sortOrder));
       setPendingImage(null);
@@ -93,11 +97,13 @@ export default function AdminKitDetailView() {
       category !== kit.category ||
       assaysText.trim() !== assaysToText(kit.assays) ||
       details !== (kit.details ?? "") ||
+      (Math.round(Number(price || 0) * 100) || 0) !== kit.price ||
+      (Number.parseInt(stock, 10) || 0) !== kit.stock ||
       published !== kit.published ||
       (Number.parseInt(sortOrder, 10) || 0) !== kit.sortOrder ||
       pendingImage !== null
     );
-  }, [kit, title, category, assaysText, published, sortOrder, pendingImage]);
+  }, [kit, title, category, assaysText, details, price, stock, published, sortOrder, pendingImage]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -117,7 +123,9 @@ export default function AdminKitDetailView() {
         title: title.trim(),
         category,
         assays,
-        details: details.trim(),
+        details: details.trim() || null,
+        price: Math.round(Number(price || 0) * 100),
+        stock: Number.parseInt(stock, 10) || 0,
         published,
         sortOrder: Number.parseInt(sortOrder, 10) || 0,
         image: pendingImage ?? undefined,
@@ -127,6 +135,8 @@ export default function AdminKitDetailView() {
       setCategory(updated.category);
       setAssaysText(assaysToText(updated.assays));
       setDetails(updated.details ?? "");
+      setPrice((updated.price / 100).toFixed(2));
+      setStock(String(updated.stock));
       setPublished(updated.published);
       setSortOrder(String(updated.sortOrder));
       setPendingImage(null);
@@ -324,6 +334,17 @@ export default function AdminKitDetailView() {
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
                 />
               </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">Price (INR)</span>
+                  <input type="number" min="0" step="0.01" required value={price} onChange={(event) => { setPrice(event.target.value); setSavedAt(null); }} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">Available stock</span>
+                  <input type="number" min="0" step="1" required value={stock} onChange={(event) => { setStock(event.target.value); setSavedAt(null); }} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
+                </label>
+              </div>
 
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">

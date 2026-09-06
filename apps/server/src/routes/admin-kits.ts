@@ -8,6 +8,7 @@ import {
   deleteStoredKitImage,
   isKitCategory,
   parseAssaysInput,
+  parseNonNegativeIntegerInput,
   parsePublishedInput,
   parseSortOrderInput,
   storeKitImage,
@@ -52,6 +53,8 @@ adminKitsRoutes.post("/", async (c) => {
   const details = String(body.details ?? "").trim() || null;
   const published = parsePublishedInput(body.published, true);
   const sortOrder = parseSortOrderInput(body.sortOrder, 0);
+  const price = parseNonNegativeIntegerInput(body.price, 0);
+  const stock = parseNonNegativeIntegerInput(body.stock, 0);
   const image = getSingleUploadedImage(body);
 
   if (!title) {
@@ -92,6 +95,8 @@ adminKitsRoutes.post("/", async (c) => {
         category,
         assays,
         details,
+        price,
+        stock,
         published,
         sortOrder,
         imageStorageKey,
@@ -123,6 +128,14 @@ adminKitsRoutes.patch("/:id", async (c) => {
     body.sortOrder !== undefined
       ? parseSortOrderInput(body.sortOrder, 0)
       : undefined;
+  const price =
+    body.price !== undefined
+      ? parseNonNegativeIntegerInput(body.price, -1)
+      : undefined;
+  const stock =
+    body.stock !== undefined
+      ? parseNonNegativeIntegerInput(body.stock, -1)
+      : undefined;
   const image = getSingleUploadedImage(body);
 
   if (title !== undefined && !title) {
@@ -135,6 +148,10 @@ adminKitsRoutes.patch("/:id", async (c) => {
 
   if (assays !== undefined && assays.length === 0) {
     throw new HTTPException(400, { message: "At least one assay is required" });
+  }
+
+  if (price === -1 || stock === -1) {
+    throw new HTTPException(400, { message: "Price and stock must be non-negative integers" });
   }
 
   const existing = await prisma.researchKit.findUnique({
@@ -173,6 +190,8 @@ adminKitsRoutes.patch("/:id", async (c) => {
         ...(category !== undefined ? { category } : {}),
         ...(assays !== undefined ? { assays } : {}),
         ...(details !== undefined ? { details } : {}),
+        ...(price !== undefined ? { price } : {}),
+        ...(stock !== undefined ? { stock } : {}),
         ...(published !== undefined ? { published } : {}),
         ...(sortOrder !== undefined ? { sortOrder } : {}),
         ...(image ? { imageStorageKey: nextImageStorageKey } : {}),

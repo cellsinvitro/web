@@ -1,0 +1,13 @@
+ALTER TABLE "ResearchKit"
+ADD COLUMN "price" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "stock" INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE "Payment"
+ADD COLUMN "kitId" TEXT;
+
+CREATE INDEX "Payment_kitId_idx" ON "Payment"("kitId");
+
+ALTER TABLE "Payment"
+ADD CONSTRAINT "Payment_kitId_fkey"
+FOREIGN KEY ("kitId") REFERENCES "ResearchKit"("id")
+ON DELETE SET NULL ON UPDATE CASCADE;

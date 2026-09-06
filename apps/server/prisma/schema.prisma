@@ -22,6 +22,10 @@ model User {
   enrollments        Enrollment[]
   moduleProgress     ModuleProgress[]
   payments           Payment[]
+  kitOrderEvents     KitOrderEvent[] @relation("KitOrderEventActor")
+  liveClassesAsTeacher LiveClass[] @relation("LiveClassTeacher")
+  liveClassEnrollments LiveClassEnrollment[]
+  liveClassAttendance  LiveClassAttendance[]
   consultancyBookings ConsultancyBooking[]
   refreshTokens      RefreshToken[]
   cryoSearchState    CryoSearchState?
@@ -82,10 +86,13 @@ model ResearchKit {
   imageStorageKey String?
   assays          String[]
   details         String?
+  price           Int      @default(0)
+  stock           Int      @default(0)
   published       Boolean  @default(true)
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  payments        Payment[]
 }
 
 model Course {
@@ -111,6 +118,7 @@ model Course {
   prerequisiteFor     CoursePrerequisite[] @relation("PrerequisiteCourses")
   enrollments         Enrollment[]
   payments            Payment[]
+  liveClasses         LiveClass[]
 }
 
 model CourseModule {
@@ -202,6 +210,20 @@ model Payment {
   userId            String
   courseId          String?
   packageId         String?
+  kitId             String?
+  quantity          Int             @default(1)
+  customerName      String?
+  customerEmail     String?
+  customerPhone     String?
+  shippingAddress   String?
+  itemTitle         String?
+  unitAmount        Int?
+  fulfillmentStatus KitFulfillmentStatus?
+  carrier           String?
+  trackingNumber    String?
+  estimatedDeliveryAt DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
   amount            Int
   currency          String          @default("INR")
   provider          PaymentProvider @default(RAZORPAY)
@@ -211,12 +233,103 @@ model Payment {
   createdAt         DateTime        @default(now())
   completedAt       DateTime?
   enrollments       Enrollment[]
+  liveClassEnrollments LiveClassEnrollment[]
+  liveClass          LiveClass? @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  liveClassId        String?
   course            Course?         @relation(fields: [courseId], references: [id])
   package           CoursePackage?  @relation(fields: [packageId], references: [id])
+  kit               ResearchKit?    @relation(fields: [kitId], references: [id])
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kitOrderEvents    KitOrderEvent[]
 
   @@index([userId])
   @@index([providerOrderId])
+  @@index([liveClassId])
+  @@index([kitId])
+}
+
+model KitOrderEvent {
+  id        String             @id @default(cuid())
+  paymentId String
+  status    KitFulfillmentStatus
+  note      String?
+  location  String?
+  actorId   String?
+  createdAt DateTime           @default(now())
+  payment   Payment            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  actor     User?              @relation("KitOrderEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId, createdAt])
+  @@index([status])
+}
+
+model LiveClass {
+  id                    String           @id @default(cuid())
+  title                 String
+  description           String?
+  thumbnail             String?
+  courseId              String?
+  teacherId             String
+  roomName              String           @unique
+  scheduledAt           DateTime
+  startTime             String
+  endTime               String
+  maxParticipants       Int              @default(100)
+  price                 Int              @default(0)
+  currency              String           @default("INR")
+  isPaid                Boolean          @default(false)
+  studentCameraEnabled  Boolean          @default(true)
+  studentMicrophoneEnabled Boolean       @default(true)
+  chatEnabled           Boolean          @default(true)
+  recordingEnabled      Boolean          @default(false)
+  status                LiveClassStatus  @default(SCHEDULED)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  course                Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  teacher               User             @relation("LiveClassTeacher", fields: [teacherId], references: [id])
+  enrollments           LiveClassEnrollment[]
+  attendance            LiveClassAttendance[]
+  payments              Payment[]
+
+  @@index([scheduledAt, status])
+  @@index([teacherId])
+  @@index([courseId])
+}
+
+model LiveClassEnrollment {
+  id          String                    @id @default(cuid())
+  userId      String
+  liveClassId String
+  paymentId   String?
+  status      LiveClassEnrollmentStatus @default(ACTIVE)
+  enrolledAt  DateTime                  @default(now())
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  liveClass   LiveClass                 @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  payment     Payment?                  @relation(fields: [paymentId], references: [id])
+
+  @@unique([userId, liveClassId])
+  @@index([liveClassId])
+}
+
+model LiveClassAttendance {
+  id          String           @id @default(cuid())
+  userId      String
+  liveClassId String
+  joinedAt    DateTime         @default(now())
+  leftAt      DateTime?
+  duration    Int              @default(0)
+  status      AttendanceStatus @default(PRESENT)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  liveClass   LiveClass        @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  @@index([userId, liveClassId])
+  @@index([liveClassId, joinedAt])
+}
+
+model LiveClassWebhookEvent {
+  id        String   @id
+  event     String
+  createdAt DateTime @default(now())
 }
 
 model ModuleProgress {
@@ -407,6 +520,17 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum KitFulfillmentStatus {
+  PROCESSING
+  CONFIRMED
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
 enum ConsultancyStatus {
   PENDING
   CONFIRMED
@@ -424,6 +548,23 @@ enum ReminderMode {
   AUTOMATIC
   MANUAL
   OFF
+}
+
+enum LiveClassStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum LiveClassEnrollmentStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LEFT
 }
 
 enum OtpPurpose {

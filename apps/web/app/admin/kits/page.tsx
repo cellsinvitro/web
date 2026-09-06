@@ -31,7 +31,8 @@ export default function AdminKitsPage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(KIT_CATEGORIES[0]);
   const [assaysText, setAssaysText] = useState("");
-  const [details, setDetails] = useState("");
+  const [price, setPrice] = useState("0");
+  const [stock, setStock] = useState("0");
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("0");
   const [image, setImage] = useState<File | null>(null);
@@ -90,7 +91,8 @@ export default function AdminKitsPage() {
         title: title.trim(),
         category,
         assays,
-        details: details.trim(),
+        price: Math.round(Number(price || 0) * 100),
+        stock: Number.parseInt(stock, 10) || 0,
         published,
         sortOrder: Number.parseInt(sortOrder, 10) || 0,
         image,
@@ -99,7 +101,8 @@ export default function AdminKitsPage() {
       setTitle("");
       setCategory(KIT_CATEGORIES[0]);
       setAssaysText("");
-      setDetails("");
+      setPrice("0");
+      setStock("0");
       setPublished(true);
       setSortOrder("0");
       setImage(null);
@@ -260,24 +263,16 @@ export default function AdminKitsPage() {
             </span>
           </label>
 
-          <label className="block">
-            <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-medium text-slate-700">
-              <span>Kit details</span>
-              <span className="text-xs font-normal text-slate-400">
-                {details.length.toLocaleString()} characters
-              </span>
-            </span>
-            <textarea
-              value={details}
-              onChange={(event) => setDetails(event.target.value)}
-              rows={8}
-              className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-6 text-slate-900 outline-none transition-colors focus:border-slate-400"
-              placeholder="Describe the kit principle, applications, sample type, protocol notes, specifications, storage, or any other information. Use blank lines to separate sections."
-            />
-            <span className="mt-1.5 block text-xs text-slate-400">
-              This appears on the kit&apos;s public See details page.
-            </span>
-          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-slate-700">Price (INR)</span>
+              <input type="number" min="0" step="0.01" required value={price} onChange={(event) => setPrice(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-slate-700">Available stock</span>
+              <input type="number" min="0" step="1" required value={stock} onChange={(event) => setStock(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
+            </label>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
@@ -322,6 +317,8 @@ export default function AdminKitsPage() {
                 <th className="px-4 py-3 font-semibold">Kit</th>
                 <th className="px-4 py-3 font-semibold">Category</th>
                 <th className="px-4 py-3 font-semibold">Assays</th>
+                <th className="px-4 py-3 font-semibold">Price</th>
+                <th className="px-4 py-3 font-semibold">Stock</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Updated</th>
                 <th className="px-4 py-3 font-semibold">Actions</th>
@@ -330,7 +327,7 @@ export default function AdminKitsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center">
+                  <td colSpan={8} className="px-4 py-10 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <AdminSpinner size={36} />
                       <span className="text-xs text-slate-400">Loading kits…</span>
@@ -339,13 +336,13 @@ export default function AdminKitsPage() {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-red-600">
+                  <td colSpan={8} className="px-4 py-10 text-center text-red-600">
                     {error}
                   </td>
                 </tr>
               ) : kits.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
                     No kits yet.
                   </td>
                 </tr>
@@ -383,6 +380,8 @@ export default function AdminKitsPage() {
                       <td className="px-4 py-4 text-slate-600">
                         {formatKitAssayCount(kit.assays.length)}
                       </td>
+                      <td className="px-4 py-4 text-slate-600">₹{(kit.price / 100).toFixed(2)}</td>
+                      <td className="px-4 py-4 text-slate-600">{kit.stock}</td>
                       <td className="px-4 py-4">
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-medium ${

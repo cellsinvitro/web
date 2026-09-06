@@ -84,6 +84,8 @@ export function toPublicKit(
     imageStorageKey: string | null;
     assays: string[];
     details: string | null;
+    price: number;
+    stock: number;
     published: boolean;
     sortOrder: number;
     createdAt: Date;
@@ -98,6 +100,10 @@ export function toPublicKit(
     imageUrl: resolveKitImageUrl(kit.imageStorageKey, apiBaseUrl),
     assays: kit.assays,
     details: kit.details,
+    price: kit.price,
+    currency: "INR",
+    stock: kit.stock,
+    available: kit.stock > 0,
     published: kit.published,
     sortOrder: kit.sortOrder,
     createdAt: kit.createdAt.toISOString(),
@@ -157,4 +163,13 @@ export function parseSortOrderInput(value: unknown, fallback = 0) {
 
   const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export function parseNonNegativeIntegerInput(value: unknown, fallback = 0) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }

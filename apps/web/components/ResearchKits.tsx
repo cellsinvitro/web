@@ -139,7 +139,11 @@ export default function ResearchKits({
                 key={kit.id}
                 className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5"
               >
-                <div className="relative mx-4 mt-4 overflow-hidden rounded-2xl bg-slate-100">
+                <Link
+                  href={`/kits/${kit.id}`}
+                  aria-label={`View details for ${kit.title}`}
+                  className="relative mx-4 mt-4 block overflow-hidden rounded-2xl bg-slate-100"
+                >
                   <div className="relative aspect-video w-full">
                     {kit.imageUrl ? (
                       <Image
@@ -156,7 +160,7 @@ export default function ResearchKits({
                       </div>
                     )}
                   </div>
-                </div>
+                </Link>
 
                 <div className="p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -179,20 +183,15 @@ export default function ResearchKits({
                     ))}
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                  <div className="mt-5 border-t border-slate-100 pt-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      {kit.stock} available
+                    </p>
                     <Link
                       href={`/kits/${kit.id}`}
-                      className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-950"
+                      className="mt-4 inline-flex text-sm font-semibold text-slate-950 underline decoration-slate-300 underline-offset-4 transition-colors hover:decoration-slate-950"
                     >
-                      See details
-                    </Link>
-
-                    <Link
-                      href={`/kits/${kit.id}`}
-                      aria-label={`See details for ${kit.title}`}
-                      className="text-slate-400 transition-transform duration-300 hover:translate-x-1"
-                    >
-                      →
+                      View kit details
                     </Link>
                   </div>
                 </div>
@@ -203,7 +202,7 @@ export default function ResearchKits({
 
         <div className="mt-8 text-center">
           <p className="text-xs text-slate-500 sm:text-sm">
-            Research use only. Product availability will be announced soon.
+            Research use only. Purchase availability is subject to stock.
           </p>
         </div>
       </div>

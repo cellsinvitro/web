@@ -16,6 +16,8 @@ import { coursesRoutes, certificateRoutes } from "./routes/courses.js";
 import { consultancyRoutes } from "./routes/consultancy.js";
 import { paymentsRoutes } from "./routes/payments.js";
 import { cryoSearchRoutes } from "./routes/cryosearch.js";
+import { liveClassesRoutes, liveClassWebhookRoutes } from "./routes/live-classes.js";
+import { adminOrdersRoutes } from "./routes/admin-orders.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -49,6 +51,7 @@ app.route("/admin/materials", adminMaterialsRoutes);
 app.route("/admin/kits", adminKitsRoutes);
 app.route("/admin", adminCoursesRoutes);
 app.route("/admin", adminConsultancyRoutes);
+app.route("/admin", adminOrdersRoutes);
 app.route("/admin", adminRoutes);
 app.route("/materials", materialsRoutes);
 app.route("/kits", kitsRoutes);
@@ -57,6 +60,8 @@ app.route("/consultancy", consultancyRoutes);
 app.route("/payments", paymentsRoutes);
 app.route("/certificates", certificateRoutes);
 app.route("/cryosearch", cryoSearchRoutes);
+app.route("/live-classes", liveClassesRoutes);
+app.route("/webhooks", liveClassWebhookRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
