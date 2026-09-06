@@ -28,6 +28,7 @@ export default function AdminKitDetailView() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(KIT_CATEGORIES[0]);
   const [assaysText, setAssaysText] = useState("");
+  const [details, setDetails] = useState("");
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("0");
   const [pendingImage, setPendingImage] = useState<File | null>(null);
@@ -52,6 +53,7 @@ export default function AdminKitDetailView() {
       setTitle(data.title);
       setCategory(data.category);
       setAssaysText(assaysToText(data.assays));
+      setDetails(data.details ?? "");
       setPublished(data.published);
       setSortOrder(String(data.sortOrder));
       setPendingImage(null);
@@ -90,6 +92,7 @@ export default function AdminKitDetailView() {
       title.trim() !== kit.title ||
       category !== kit.category ||
       assaysText.trim() !== assaysToText(kit.assays) ||
+      details !== (kit.details ?? "") ||
       published !== kit.published ||
       (Number.parseInt(sortOrder, 10) || 0) !== kit.sortOrder ||
       pendingImage !== null
@@ -114,6 +117,7 @@ export default function AdminKitDetailView() {
         title: title.trim(),
         category,
         assays,
+        details: details.trim(),
         published,
         sortOrder: Number.parseInt(sortOrder, 10) || 0,
         image: pendingImage ?? undefined,
@@ -122,6 +126,7 @@ export default function AdminKitDetailView() {
       setTitle(updated.title);
       setCategory(updated.category);
       setAssaysText(assaysToText(updated.assays));
+      setDetails(updated.details ?? "");
       setPublished(updated.published);
       setSortOrder(String(updated.sortOrder));
       setPendingImage(null);
@@ -215,7 +220,7 @@ export default function AdminKitDetailView() {
                   </span>
                 </div>
               )}
-              <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-slate-950/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute inset-0 flex items-end justify-center bg-linear-to-t from-slate-950/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <span className="rounded-md bg-white/95 px-2 py-1 text-[11px] font-medium text-slate-900">
                   {previewImageUrl ? "Replace" : "Upload"}
                 </span>
@@ -297,10 +302,10 @@ export default function AdminKitDetailView() {
 
           <form onSubmit={handleSubmit} className="mt-6">
             <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <div>
+              <div className="border-b border-slate-100 pb-5">
                 <h2 className="text-lg font-semibold text-slate-950">Details</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Update the kit title, category, assays, and visibility.
+                  Keep the public kit page complete with scientific context and practical information.
                 </p>
               </div>
 
@@ -354,6 +359,28 @@ export default function AdminKitDetailView() {
                   }}
                   rows={8}
                   className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
+                />
+              </label>
+
+              <label className="block rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+                <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-medium text-slate-700">
+                  <span>Kit details</span>
+                  <span className="text-xs font-normal text-slate-400">
+                    {details.length.toLocaleString()} characters
+                  </span>
+                </span>
+                <span className="mb-3 block max-w-2xl text-xs leading-5 text-slate-500">
+                  Add the principle, applications, sample requirements, protocol notes, specifications, storage, or any other information. Use blank lines to create readable sections.
+                </span>
+                <textarea
+                  value={details}
+                  onChange={(event) => {
+                    setDetails(event.target.value);
+                    setSavedAt(null);
+                  }}
+                  rows={12}
+                  placeholder={"Example:\n\nPrinciple\nDescribe how the assay works...\n\nApplications\nList suitable research applications..."}
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none transition-colors focus:border-slate-400"
                 />
               </label>
 

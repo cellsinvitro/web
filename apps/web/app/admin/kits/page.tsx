@@ -31,6 +31,7 @@ export default function AdminKitsPage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(KIT_CATEGORIES[0]);
   const [assaysText, setAssaysText] = useState("");
+  const [details, setDetails] = useState("");
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("0");
   const [image, setImage] = useState<File | null>(null);
@@ -89,6 +90,7 @@ export default function AdminKitsPage() {
         title: title.trim(),
         category,
         assays,
+        details: details.trim(),
         published,
         sortOrder: Number.parseInt(sortOrder, 10) || 0,
         image,
@@ -97,6 +99,7 @@ export default function AdminKitsPage() {
       setTitle("");
       setCategory(KIT_CATEGORIES[0]);
       setAssaysText("");
+      setDetails("");
       setPublished(true);
       setSortOrder("0");
       setImage(null);
@@ -254,6 +257,25 @@ export default function AdminKitsPage() {
             />
             <span className="mt-1.5 block text-xs text-slate-400">
               Enter one assay name per line.
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-medium text-slate-700">
+              <span>Kit details</span>
+              <span className="text-xs font-normal text-slate-400">
+                {details.length.toLocaleString()} characters
+              </span>
+            </span>
+            <textarea
+              value={details}
+              onChange={(event) => setDetails(event.target.value)}
+              rows={8}
+              className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-6 text-slate-900 outline-none transition-colors focus:border-slate-400"
+              placeholder="Describe the kit principle, applications, sample type, protocol notes, specifications, storage, or any other information. Use blank lines to separate sections."
+            />
+            <span className="mt-1.5 block text-xs text-slate-400">
+              This appears on the kit&apos;s public See details page.
             </span>
           </label>
 

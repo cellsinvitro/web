@@ -81,6 +81,7 @@ model ResearchKit {
   category        String
   imageStorageKey String?
   assays          String[]
+  details         String?
   published       Boolean  @default(true)
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())

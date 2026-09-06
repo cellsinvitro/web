@@ -49,6 +49,7 @@ adminKitsRoutes.post("/", async (c) => {
   const title = String(body.title ?? "").trim();
   const category = String(body.category ?? "").trim();
   const assays = parseAssaysInput(body.assays);
+  const details = String(body.details ?? "").trim() || null;
   const published = parsePublishedInput(body.published, true);
   const sortOrder = parseSortOrderInput(body.sortOrder, 0);
   const image = getSingleUploadedImage(body);
@@ -90,6 +91,7 @@ adminKitsRoutes.post("/", async (c) => {
         title,
         category,
         assays,
+        details,
         published,
         sortOrder,
         imageStorageKey,
@@ -111,6 +113,8 @@ adminKitsRoutes.patch("/:id", async (c) => {
     body.category !== undefined ? String(body.category).trim() : undefined;
   const assays =
     body.assays !== undefined ? parseAssaysInput(body.assays) : undefined;
+  const details =
+    body.details !== undefined ? String(body.details).trim() || null : undefined;
   const published =
     body.published !== undefined
       ? parsePublishedInput(body.published, true)
@@ -168,6 +172,7 @@ adminKitsRoutes.patch("/:id", async (c) => {
         ...(title !== undefined ? { title } : {}),
         ...(category !== undefined ? { category } : {}),
         ...(assays !== undefined ? { assays } : {}),
+        ...(details !== undefined ? { details } : {}),
         ...(published !== undefined ? { published } : {}),
         ...(sortOrder !== undefined ? { sortOrder } : {}),
         ...(image ? { imageStorageKey: nextImageStorageKey } : {}),

@@ -1,0 +1,1 @@
+ALTER TABLE "ResearchKit" ADD COLUMN "details" TEXT;

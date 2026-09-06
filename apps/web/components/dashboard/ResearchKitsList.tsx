@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { fetchKits } from "@/lib/api";
 import type { ResearchKit } from "@/lib/api";
 import { KIT_CATEGORIES } from "@/lib/kits";
@@ -150,9 +151,12 @@ export default function ResearchKitsList({
                     ))}
                   </ul>
 
-                  <p className="mt-5 border-t border-slate-100 pt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Coming soon
-                  </p>
+                  <Link
+                    href={`/kits/${kit.id}`}
+                    className="mt-5 border-t border-slate-100 pt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-950"
+                  >
+                    See details
+                  </Link>
                 </div>
               </article>
             </li>
