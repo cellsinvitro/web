@@ -282,6 +282,56 @@ export async function fetchAdminStats(): Promise<AdminOverviewData> {
   return data;
 }
 
+export type MaintenanceScope = "WEB_PATH" | "API_PATH";
+
+export type MaintenanceRule = {
+  id: string;
+  targetPath: string;
+  scope: MaintenanceScope;
+  enabled: boolean;
+  message: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchAdminMaintenanceRules() {
+  const data = await apiFetch<{ rules: MaintenanceRule[] }>("/admin/maintenance");
+  return data.rules;
+}
+
+export async function saveAdminMaintenanceRule(input: {
+  targetPath: string;
+  scope: MaintenanceScope;
+  enabled: boolean;
+  message?: string;
+}) {
+  const data = await apiFetch<{ rule: MaintenanceRule }>("/admin/maintenance", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.rule;
+}
+
+export async function updateAdminMaintenanceRule(
+  id: string,
+  input: {
+    targetPath: string;
+    scope: MaintenanceScope;
+    enabled: boolean;
+    message?: string;
+  }
+) {
+  const data = await apiFetch<{ rule: MaintenanceRule }>(`/admin/maintenance/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.rule;
+}
+
+export async function deleteAdminMaintenanceRule(id: string) {
+  return apiFetch<{ success: true }>(`/admin/maintenance/${id}`, { method: "DELETE" });
+}
+
 
 export async function fetchAdminUsers() {
   const data = await apiFetch<{ users: AdminUser[] }>("/admin/users");

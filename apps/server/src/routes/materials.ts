@@ -11,11 +11,10 @@ import {
   studyMaterialInclude,
   toPublicStudyMaterial,
 } from "../lib/study-materials.js";
-import { requireAuth, type AuthVariables } from "../middleware/auth.js";
+import { getAccessTokenFromRequest } from "../lib/cookies.js";
+import { verifyAccessToken } from "../lib/jwt.js";
 
-export const materialsRoutes = new Hono<{ Variables: AuthVariables }>();
-
-materialsRoutes.use("*", requireAuth);
+export const materialsRoutes = new Hono();
 
 materialsRoutes.get("/", async (c) => {
   const materials = await prisma.studyMaterial.findMany({
@@ -79,12 +78,20 @@ materialsRoutes.get("/:materialId/files/:fileId/download", async (c) => {
     c.req.param("fileId")
   );
 
-  await prisma.studyMaterialDownload.create({
-    data: {
-      userId: c.get("user").sub,
-      fileId: file.id,
-    },
-  });
+  const token = getAccessTokenFromRequest(c);
+  if (token) {
+    try {
+      const user = await verifyAccessToken(token);
+      await prisma.studyMaterialDownload.create({
+        data: {
+          userId: user.sub,
+          fileId: file.id,
+        },
+      });
+    } catch {
+      // Ignore token verification errors for anonymous download tracking
+    }
+  }
 
   return new Response(fileData, {
     status: 200,

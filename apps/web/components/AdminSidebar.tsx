@@ -68,6 +68,10 @@ function LiveIcon({ className }: IconProps) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5 19.5 8.25v7.5l-3.75-2.25M4.5 6.75h7.5A2.25 2.25 0 0 1 14.25 9v6a2.25 2.25 0 0 1-2.25 2.25H4.5A2.25 2.25 0 0 1 2.25 15V9A2.25 2.25 0 0 1 4.5 6.75Z" /></svg>;
 }
 
+function MaintenanceIcon({ className }: IconProps) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 6.75a4.5 4.5 0 0 0-5.79 5.79L3.75 17.25a2.121 2.121 0 0 0 3 3l4.71-4.71a4.5 4.5 0 0 0 5.79-5.79l-2.25 2.25-2.25-.75-.75-2.25 2.25-2.25Z" /></svg>;
+}
+
 function LogoutIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
@@ -85,6 +89,7 @@ const navItems = [
   { label: "Resources", href: "/admin/resources", icon: ResourcesIcon },
   { label: "Kits", href: "/admin/kits", icon: KitsIcon },
   { label: "Orders", href: "/admin/orders", icon: OrdersIcon },
+  { label: "Maintenance", href: "/admin/maintenance", icon: MaintenanceIcon },
 ];
 
 function NavLink({

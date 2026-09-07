@@ -18,6 +18,8 @@ import { paymentsRoutes } from "./routes/payments.js";
 import { cryoSearchRoutes } from "./routes/cryosearch.js";
 import { liveClassesRoutes, liveClassWebhookRoutes } from "./routes/live-classes.js";
 import { adminOrdersRoutes } from "./routes/admin-orders.js";
+import { adminMaintenanceRoutes, maintenanceRoutes } from "./routes/maintenance.js";
+import { maintenanceMiddleware } from "./middleware/maintenance.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -46,6 +48,8 @@ app.get("/health/db", async (c) => {
   }
 });
 
+app.use("*", maintenanceMiddleware);
+
 app.route("/auth", authRoutes);
 app.route("/admin/materials", adminMaterialsRoutes);
 app.route("/admin/kits", adminKitsRoutes);
@@ -53,6 +57,8 @@ app.route("/admin", adminCoursesRoutes);
 app.route("/admin", adminConsultancyRoutes);
 app.route("/admin", adminOrdersRoutes);
 app.route("/admin", adminRoutes);
+app.route("/admin/maintenance", adminMaintenanceRoutes);
+app.route("/maintenance", maintenanceRoutes);
 app.route("/materials", materialsRoutes);
 app.route("/kits", kitsRoutes);
 app.route("/courses", coursesRoutes);

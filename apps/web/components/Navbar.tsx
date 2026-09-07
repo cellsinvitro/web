@@ -11,7 +11,7 @@ const navItems = [
   { label: "Courses", href: "/courses" },
   { label: "Tools", href: "/tools" },
   { label: "CyroSearch", href: "/cyrosearch" },
-  { label: "Resource Library", href: "/dashboard/resources" },
+  { label: "Resource Library", href: "/resources" },
   { label: "Research Kits", href: "/kits" },
   { label: "Contact", href: "/contact" },
 ];
