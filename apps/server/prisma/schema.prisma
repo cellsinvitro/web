@@ -605,4 +605,5 @@ enum AttendanceStatus {
 enum OtpPurpose {
   REGISTRATION
   PASSWORD_RESET
+  LOGIN
 }

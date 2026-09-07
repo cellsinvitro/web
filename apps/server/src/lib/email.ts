@@ -105,3 +105,38 @@ export async function sendExpiryReminderEmail(input: {
     html
   );
 }
+
+export async function sendOtpEmail(input: {
+  to: string;
+  code: string;
+  purpose?: string;
+}) {
+  const purposeTitle = input.purpose === "REGISTRATION" ? "Account Registration" : "Sign In";
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px;">
+      <div style="margin-bottom: 24px; text-align: center;">
+        <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0;">CellsInVitro</h1>
+        <p style="color: #64748b; font-size: 14px; margin: 0;">Verification Code for ${purposeTitle}</p>
+      </div>
+      <div style="background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+        <p style="color: #475569; font-size: 14px; margin: 0 0 16px 0;">Use the following One-Time Password (OTP) code:</p>
+        <div style="font-family: monospace, Courier, sans-serif; font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #0f172a; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px 24px; display: inline-block;">
+          ${input.code}
+        </div>
+        <p style="color: #94a3b8; font-size: 13px; margin: 16px 0 0 0;">This code is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>
+      </div>
+      <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0;">If you did not request this verification code, please ignore this email.</p>
+    </div>
+  `;
+
+  if (!BREVO_API_KEY) {
+    console.log(`[email dev fallback] BREVO_API_KEY is not set. OTP code for ${input.to} is: ${input.code}`);
+  }
+
+  return sendEmail(
+    input.to,
+    `${input.code} is your CellsInVitro verification code`,
+    html
+  );
+}
+

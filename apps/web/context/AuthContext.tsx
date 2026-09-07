@@ -13,6 +13,8 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  sendOtpApi,
+  verifyOtpApi,
   updateProfile,
 } from "@/lib/api";
 import type { AuthUser, Designation } from "@/lib/auth-storage";
@@ -26,6 +28,8 @@ type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  sendOtp: (email: string, purpose?: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET") => Promise<void>;
+  loginWithOtp: (email: string, code: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (input: ProfileUpdateInput) => Promise<void>;
@@ -58,6 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   }, []);
 
+  const sendOtp = useCallback(
+    async (email: string, purpose: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET" = "LOGIN") => {
+      await sendOtpApi({ email, purpose });
+    },
+    []
+  );
+
+  const loginWithOtp = useCallback(async (email: string, code: string) => {
+    const data = await verifyOtpApi({ email, code, purpose: "LOGIN" });
+    setUser(data.user);
+  }, []);
+
   const register = useCallback(
     async (name: string, email: string, password: string) => {
       const data = await registerUser({ name, email, password });
@@ -82,6 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         login,
+        sendOtp,
+        loginWithOtp,
         register,
         logout,
         updateProfile: updateProfileFields,

@@ -107,6 +107,38 @@ export async function loginUser(input: { email: string; password: string }) {
   return data;
 }
 
+export async function sendOtpApi(input: {
+  email: string;
+  purpose?: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET";
+}) {
+  return apiFetch<{ success: boolean; message: string }>(
+    "/auth/send-otp",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    false
+  );
+}
+
+export async function verifyOtpApi(input: {
+  email: string;
+  code: string;
+  purpose?: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET";
+}) {
+  const data = await apiFetch<AuthResponse>(
+    "/auth/verify-otp",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    false
+  );
+  if (data.accessToken) setAccessToken(data.accessToken);
+  return data;
+}
+
+
 export async function logoutUser() {
   try {
     await apiFetch(

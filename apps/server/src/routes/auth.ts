@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import type { Designation } from "../generated/prisma/client.js";
+import { randomUUID, createHash } from "node:crypto";
+import type { Designation, OtpPurpose } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
 import { hashToken, verifyRefreshToken } from "../lib/jwt.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
@@ -13,6 +14,7 @@ import { issueTokenPair } from "../lib/session.js";
 import { publicUserSelect, toPublicUser, isValidDesignation } from "../lib/user.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { googleAuthRoutes } from "./google.js";
+import { sendOtpEmail } from "../lib/email.js";
 
 type RegisterBody = {
   email?: string;
@@ -203,3 +205,103 @@ authRoutes.patch("/me", requireAuth, async (c) => {
 
   return c.json({ user: toPublicUser(user) });
 });
+
+type SendOtpBody = {
+  email?: string;
+  purpose?: OtpPurpose;
+};
+
+type VerifyOtpBody = {
+  email?: string;
+  code?: string;
+  purpose?: OtpPurpose;
+};
+
+authRoutes.post("/send-otp", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as SendOtpBody;
+  if (!body.email) {
+    throw new HTTPException(400, { message: "Email is required" });
+  }
+
+  const email = normalizeEmail(body.email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new HTTPException(400, { message: "Invalid email address" });
+  }
+
+  const purpose: OtpPurpose = body.purpose || "LOGIN";
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const codeHash = createHash("sha256").update(code).digest("hex");
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  await prisma.otpCode.deleteMany({
+    where: { email, purpose },
+  });
+
+  await prisma.otpCode.create({
+    data: {
+      id: randomUUID(),
+      email,
+      codeHash,
+      purpose,
+      expiresAt,
+    },
+  });
+
+  await sendOtpEmail({ to: email, code, purpose });
+
+  return c.json({ success: true, message: "OTP sent to your email address" });
+});
+
+authRoutes.post("/verify-otp", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as VerifyOtpBody;
+  if (!body.email || !body.code) {
+    throw new HTTPException(400, { message: "Email and OTP code are required" });
+  }
+
+  const email = normalizeEmail(body.email);
+  const code = body.code.trim();
+  const purpose: OtpPurpose = body.purpose || "LOGIN";
+
+  if (!/^\d{6}$/.test(code)) {
+    throw new HTTPException(400, { message: "OTP must be a 6-digit number" });
+  }
+
+  const codeHash = createHash("sha256").update(code).digest("hex");
+
+  const storedOtp = await prisma.otpCode.findFirst({
+    where: {
+      email,
+      purpose,
+      codeHash,
+      expiresAt: { gt: new Date() },
+    },
+  });
+
+  if (!storedOtp) {
+    throw new HTTPException(400, { message: "Invalid or expired OTP code" });
+  }
+
+  await prisma.otpCode.deleteMany({
+    where: { email, purpose },
+  });
+
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email,
+        name: email.split("@")[0],
+      },
+    });
+  }
+
+  const tokens = await issueTokenPair(user);
+  setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
+
+  return c.json({
+    user: tokens.user,
+    expiresIn: tokens.expiresIn,
+    accessToken: tokens.accessToken,
+  });
+});
+
