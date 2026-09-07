@@ -81,6 +81,7 @@ export async function registerUser(input: {
   name: string;
   email: string;
   password: string;
+  code: string;
 }) {
   const data = await apiFetch<AuthResponse>(
     "/auth/register",

@@ -20,6 +20,7 @@ type RegisterBody = {
   email?: string;
   password?: string;
   name?: string;
+  code?: string;
 };
 
 type LoginBody = {
@@ -62,11 +63,34 @@ authRoutes.post("/register", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as RegisterBody;
   const { email, password } = validateCredentials(body.email, body.password);
   const name = body.name?.trim() || null;
+  const code = body.code?.trim();
+
+  if (!code || !/^\d{6}$/.test(code)) {
+    throw new HTTPException(400, { message: "A valid 6-digit OTP code is required for registration" });
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    throw new HTTPException(409, { message: "Email is already registered" });
+    throw new HTTPException(409, { message: "Email is already registered. Please login instead." });
   }
+
+  const codeHash = createHash("sha256").update(code).digest("hex");
+  const storedOtp = await prisma.otpCode.findFirst({
+    where: {
+      email,
+      purpose: "REGISTRATION",
+      codeHash,
+      expiresAt: { gt: new Date() },
+    },
+  });
+
+  if (!storedOtp) {
+    throw new HTTPException(400, { message: "Invalid or expired OTP verification code" });
+  }
+
+  await prisma.otpCode.deleteMany({
+    where: { email, purpose: "REGISTRATION" },
+  });
 
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
@@ -228,7 +252,15 @@ authRoutes.post("/send-otp", async (c) => {
     throw new HTTPException(400, { message: "Invalid email address" });
   }
 
-  const purpose: OtpPurpose = body.purpose || "LOGIN";
+  const purpose: OtpPurpose = body.purpose || "REGISTRATION";
+
+  if (purpose === "REGISTRATION") {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new HTTPException(409, { message: "Email is already registered. Please sign in instead." });
+    }
+  }
+
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const codeHash = createHash("sha256").update(code).digest("hex");
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -249,7 +281,7 @@ authRoutes.post("/send-otp", async (c) => {
 
   await sendOtpEmail({ to: email, code, purpose });
 
-  return c.json({ success: true, message: "OTP sent to your email address" });
+  return c.json({ success: true, message: "Verification OTP code sent to your email address" });
 });
 
 authRoutes.post("/verify-otp", async (c) => {

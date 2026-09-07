@@ -30,7 +30,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   sendOtp: (email: string, purpose?: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET") => Promise<void>;
   loginWithOtp: (email: string, code: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (input: ProfileUpdateInput) => Promise<void>;
 };
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendOtp = useCallback(
-    async (email: string, purpose: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET" = "LOGIN") => {
+    async (email: string, purpose: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET" = "REGISTRATION") => {
       await sendOtpApi({ email, purpose });
     },
     []
@@ -75,8 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      const data = await registerUser({ name, email, password });
+    async (name: string, email: string, password: string, code: string) => {
+      const data = await registerUser({ name, email, password, code });
       setUser(data.user);
     },
     []

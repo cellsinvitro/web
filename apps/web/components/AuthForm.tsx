@@ -12,7 +12,7 @@ const googleErrors: Record<string, string> = {
   google_config: "Google sign-in is not configured yet.",
 };
 
-type AuthTab = "login" | "otp" | "register";
+type AuthTab = "login" | "register";
 
 const inputClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
@@ -22,12 +22,12 @@ export default function AuthForm({
   oauthError,
   redirectTo = "/dashboard",
 }: {
-  initialTab?: "login" | "register";
+  initialTab?: AuthTab;
   oauthError?: string;
   redirectTo?: string;
 }) {
   const router = useRouter();
-  const { login, sendOtp, loginWithOtp, register } = useAuth();
+  const { login, sendOtp, register } = useAuth();
   const [tab, setTab] = useState<AuthTab>(initialTab);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -47,6 +47,8 @@ export default function AuthForm({
     setTab(next);
     setError(null);
     setOtpSuccessMessage(null);
+    setOtpSent(false);
+    setOtpCode("");
   };
 
   const handleSendOtp = async () => {
@@ -54,13 +56,17 @@ export default function AuthForm({
       setError("Please enter a valid email address.");
       return;
     }
+    if (tab === "register" && password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     setSendingOtp(true);
     setError(null);
     setOtpSuccessMessage(null);
     try {
-      await sendOtp(email.trim(), "LOGIN");
+      await sendOtp(email.trim(), "REGISTRATION");
       setOtpSent(true);
-      setOtpSuccessMessage(`Verification code sent to ${email.trim()}`);
+      setOtpSuccessMessage(`Verification OTP sent via Brevo email to ${email.trim()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send OTP code.");
     } finally {
@@ -70,21 +76,25 @@ export default function AuthForm({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (tab === "register" && !otpSent) {
+      await handleSendOtp();
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
     try {
       if (tab === "login") {
         await login(email.trim(), password);
-      } else if (tab === "otp") {
-        if (!otpSent) {
-          await handleSendOtp();
+      } else {
+        if (!otpCode.trim() || !/^\d{6}$/.test(otpCode.trim())) {
+          setError("Please enter the 6-digit OTP code sent to your email.");
           setSubmitting(false);
           return;
         }
-        await loginWithOtp(email.trim(), otpCode.trim());
-      } else {
-        await register(name.trim(), email.trim(), password);
+        await register(name.trim(), email.trim(), password, otpCode.trim());
       }
       router.push(redirectTo);
     } catch (err) {
@@ -93,9 +103,7 @@ export default function AuthForm({
           ? err.message
           : tab === "login"
             ? "Unable to sign in."
-            : tab === "otp"
-              ? "Invalid verification code."
-              : "Unable to create your account."
+            : "Unable to create your account."
       );
     } finally {
       setSubmitting(false);
@@ -107,40 +115,27 @@ export default function AuthForm({
       <div
         role="tablist"
         aria-label="Authentication"
-        className="grid grid-cols-3 rounded-xl border border-slate-200 bg-slate-50 p-1"
+        className="grid grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-1"
       >
         <button
           type="button"
           role="tab"
           aria-selected={tab === "login"}
           onClick={() => switchTab("login")}
-          className={`rounded-lg px-2 py-2 text-xs sm:text-sm font-semibold transition-all ${
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
             tab === "login"
               ? "bg-white text-slate-950 shadow-sm"
               : "text-slate-500 hover:text-slate-800"
           }`}
         >
-          Password
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "otp"}
-          onClick={() => switchTab("otp")}
-          className={`rounded-lg px-2 py-2 text-xs sm:text-sm font-semibold transition-all ${
-            tab === "otp"
-              ? "bg-white text-slate-950 shadow-sm"
-              : "text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          OTP Login
+          Login
         </button>
         <button
           type="button"
           role="tab"
           aria-selected={tab === "register"}
           onClick={() => switchTab("register")}
-          className={`rounded-lg px-2 py-2 text-xs sm:text-sm font-semibold transition-all ${
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
             tab === "register"
               ? "bg-white text-slate-950 shadow-sm"
               : "text-slate-500 hover:text-slate-800"
@@ -199,75 +194,71 @@ export default function AuthForm({
             />
           </label>
 
-          {tab === "login" || tab === "register" ? (
-            <label className="block sm:col-span-2">
-              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Password
-              </span>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  required
-                  minLength={8}
-                  autoComplete={
-                    tab === "login" ? "current-password" : "new-password"
-                  }
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={
-                    tab === "login" ? "Your password" : "At least 8 characters"
-                  }
-                  className={`${inputClassName} pr-11`}
-                />
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Password
+            </span>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                required
+                minLength={8}
+                autoComplete={
+                  tab === "login" ? "current-password" : "new-password"
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={
+                  tab === "login" ? "Your password" : "At least 8 characters"
+                }
+                className={`${inputClassName} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-700"
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
+          </label>
+
+          {tab === "register" && otpSent && (
+            <label className="block sm:col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  6-Digit OTP Code
+                </span>
                 <button
                   type="button"
-                  onClick={() => setShowPassword((visible) => !visible)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  aria-pressed={showPassword}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-700"
+                  disabled={sendingOtp}
+                  onClick={handleSendOtp}
+                  className="text-xs font-medium text-slate-600 hover:text-slate-900 underline disabled:opacity-50"
                 >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  Resend OTP
                 </button>
               </div>
+              <input
+                type="text"
+                name="otpCode"
+                required
+                maxLength={6}
+                pattern="\d{6}"
+                autoComplete="one-time-code"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="Enter 6-digit OTP"
+                className={`${inputClassName} font-mono tracking-widest text-center text-base`}
+              />
             </label>
-          ) : (
-            <div className="sm:col-span-2 space-y-3">
-              {otpSent && (
-                <label className="block">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      6-Digit Verification Code
-                    </span>
-                    <button
-                      type="button"
-                      disabled={sendingOtp}
-                      onClick={handleSendOtp}
-                      className="text-xs font-medium text-slate-600 hover:text-slate-900 underline disabled:opacity-50"
-                    >
-                      Resend OTP
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    name="otpCode"
-                    required
-                    maxLength={6}
-                    pattern="\d{6}"
-                    autoComplete="one-time-code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                    placeholder="e.g. 123456"
-                    className={`${inputClassName} font-mono tracking-widest text-lg text-center`}
-                  />
-                </label>
-              )}
-            </div>
           )}
         </div>
 
         {otpSuccessMessage && (
-          <p className="text-sm font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5" role="status">
+          <p className="text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5" role="status">
             {otpSuccessMessage}
           </p>
         )}
@@ -278,14 +269,14 @@ export default function AuthForm({
           </p>
         )}
 
-        {tab === "otp" && !otpSent ? (
+        {tab === "register" && !otpSent ? (
           <button
             type="button"
             disabled={sendingOtp}
             onClick={handleSendOtp}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {sendingOtp ? "Sending OTP via email…" : "Send OTP via Email"}
+            {sendingOtp ? "Sending OTP via Brevo…" : "Send Verification OTP"}
             {!sendingOtp && <span>→</span>}
           </button>
         ) : (
@@ -297,14 +288,10 @@ export default function AuthForm({
             {submitting
               ? tab === "login"
                 ? "Signing in…"
-                : tab === "otp"
-                  ? "Verifying OTP…"
-                  : "Creating account…"
+                : "Creating account…"
               : tab === "login"
                 ? "Sign in"
-                : tab === "otp"
-                  ? "Verify & Sign in"
-                  : "Create account"}
+                : "Verify OTP & Create Account"}
             {!submitting && <span>→</span>}
           </button>
         )}
