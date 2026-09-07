@@ -105,6 +105,9 @@ export default function KitPurchaseButton({
 
       if (order.free) {
         onSuccess?.();
+        router.push(
+          `/kits/${kitId}/confirmation?orderId=${encodeURIComponent(order.paymentId ?? "")}`
+        );
         setLoading(false);
         return;
       }
@@ -132,11 +135,14 @@ export default function KitPurchaseButton({
           contact: customer.phone,
         },
         theme: { color: "#0f172a" },
-        handler: async (response: RazorpayResponse) => {
-          try {
-            await verifyPayment({ paymentId: order.paymentId!, ...response });
-            onSuccess?.();
-          } catch (err) {
+handler: async (response: RazorpayResponse) => {
+            try {
+              await verifyPayment({ paymentId: order.paymentId!, ...response });
+              onSuccess?.();
+              router.push(
+                `/kits/${kitId}/confirmation?orderId=${encodeURIComponent(order.paymentId!)}`
+              );
+            } catch (err) {
             setError(err instanceof Error ? err.message : "Payment verification failed");
           } finally {
             setLoading(false);

@@ -27,6 +27,7 @@ model User {
   liveClassEnrollments LiveClassEnrollment[]
   liveClassAttendance  LiveClassAttendance[]
   consultancyBookings ConsultancyBooking[]
+  studyMaterialDownloads StudyMaterialDownload[]
   refreshTokens      RefreshToken[]
   cryoSearchState    CryoSearchState?
 }
@@ -75,8 +76,21 @@ model StudyMaterialFile {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
   material   StudyMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  downloads  StudyMaterialDownload[]
 
   @@index([materialId])
+}
+
+model StudyMaterialDownload {
+  id         String            @id @default(cuid())
+  userId     String
+  fileId     String
+  createdAt  DateTime          @default(now())
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file       StudyMaterialFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([fileId, createdAt])
 }
 
 model ResearchKit {

@@ -390,3 +390,126 @@ adminRoutes.delete("/users/:id", async (c) => {
   await prisma.user.delete({ where: { id: userId } });
   return c.json({ success: true });
 });
+
+adminRoutes.get("/users/:id/history", async (c) => {
+  const userId = c.req.param("id");
+
+  const [
+    moduleProgress,
+    liveClassAttendance,
+    certificates,
+    enrollments,
+    kitOrderEvents,
+    consultancyBookings,
+    studyMaterialDownloads,
+  ] = await Promise.all([
+    prisma.moduleProgress.findMany({ where: { userId }, orderBy: { startedAt: "desc" } }),
+    prisma.liveClassAttendance.findMany({ where: { userId }, orderBy: { joinedAt: "desc" } }),
+    prisma.certificate.findMany({ where: { userId }, orderBy: { issuedAt: "desc" } }),
+    prisma.enrollment.findMany({ where: { userId }, orderBy: { purchasedAt: "desc" } }),
+    prisma.kitOrderEvent.findMany({ where: { actorId: userId }, orderBy: { createdAt: "desc" } }),
+    prisma.consultancyBooking.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    prisma.studyMaterialDownload.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { file: { include: { material: true } } },
+    }),
+  ]);
+
+  const formatHistoryItem = (item: any, type: string) => {
+    switch (type) {
+      case "module_progress": {
+        const module = item.module;
+        return {
+          id: item.id,
+          title: `Module: ${module?.title || "Unknown"}`,
+          description: item.completed ? "Completed" : `In progress (${(item.watchProgress || 0)}%)`,
+          timestamp: item.startedAt,
+          type: "info",
+        };
+      }
+      case "live_class_attendance": {
+        const liveClass = item.liveClass;
+        return {
+          id: item.id,
+          title: `Live Class: ${liveClass?.title || "Unknown"}`,
+          description: item.status,
+          timestamp: item.joinedAt,
+          type: "info",
+        };
+      }
+      case "certificate": {
+        const course = item.course;
+        return {
+          id: item.id,
+          title: `Certificate: ${course?.title || "Unknown"}`,
+          description: "Course completed",
+          timestamp: item.issuedAt,
+          type: "success",
+        };
+      }
+      case "enrollment": {
+        const course = item.course;
+        return {
+          id: item.id,
+          title: `Course Enrollment: ${course?.title || "Unknown"}`,
+          description: item.status,
+          timestamp: item.purchasedAt,
+          type: "info",
+        };
+      }
+      case "kit_order_event": {
+        return {
+          id: item.id,
+          title: `Kit Order: ${item.note || "Order"}`,
+          description: item.status,
+          timestamp: item.createdAt,
+          type: "info",
+        };
+      }
+      case "consultancy_booking": {
+        return {
+          id: item.id,
+          title: `Consultancy Booking`,
+          description: item.consultationType,
+          timestamp: item.createdAt,
+          type: "info",
+        };
+      }
+      case "study_material_download": {
+        const file = item.file;
+        return {
+          id: item.id,
+          title: `Resource downloaded: ${file?.material?.title || "Unknown"}`,
+          description: file?.fileName || "Study material",
+          timestamp: item.createdAt,
+          type: "info",
+        };
+      }
+      default:
+        return {
+          id: item.id,
+          title: "Activity",
+          description: "",
+          timestamp: item.createdAt,
+          type: "info",
+        };
+    }
+  };
+
+  const historyItems = [
+    ...moduleProgress.map((item) => formatHistoryItem(item, "module_progress")),
+    ...liveClassAttendance.map((item) => formatHistoryItem(item, "live_class_attendance")),
+    ...certificates.map((item) => formatHistoryItem(item, "certificate")),
+    ...enrollments.map((item) => formatHistoryItem(item, "enrollment")),
+    ...kitOrderEvents.map((item) => formatHistoryItem(item, "kit_order_event")),
+    ...consultancyBookings.map((item) => formatHistoryItem(item, "consultancy_booking")),
+    ...studyMaterialDownloads.map((item) =>
+      formatHistoryItem(item, "study_material_download")
+    ),
+  ];
+
+  historyItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  return c.json({ history: historyItems });
+});

@@ -39,6 +39,15 @@ function KitsIcon({ className }: IconProps) {
   );
 }
 
+function OrdersIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3.75h10.5A2.25 2.25 0 0 1 19.5 6v14.25l-3.75-2.25L12 20.25l-3.75-2.25-3.75 2.25V6a2.25 2.25 0 0 1 2.25-2.25Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 8.25h7.5M8.25 12h7.5" />
+    </svg>
+  );
+}
+
 function DashboardIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
@@ -75,7 +84,7 @@ const navItems = [
   { label: "Consultancy", href: "/admin/consultancy", icon: CoursesIcon },
   { label: "Resources", href: "/admin/resources", icon: ResourcesIcon },
   { label: "Kits", href: "/admin/kits", icon: KitsIcon },
-  { label: "Orders", href: "/admin/orders", icon: KitsIcon },
+  { label: "Orders", href: "/admin/orders", icon: OrdersIcon },
 ];
 
 function NavLink({

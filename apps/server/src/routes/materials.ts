@@ -79,6 +79,13 @@ materialsRoutes.get("/:materialId/files/:fileId/download", async (c) => {
     c.req.param("fileId")
   );
 
+  await prisma.studyMaterialDownload.create({
+    data: {
+      userId: c.get("user").sub,
+      fileId: file.id,
+    },
+  });
+
   return new Response(fileData, {
     status: 200,
     headers: {

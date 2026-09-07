@@ -32,6 +32,15 @@ function KitsIcon({ className }: IconProps) {
   );
 }
 
+function OrdersIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3.75h10.5A2.25 2.25 0 0 1 19.5 6v14.25l-3.75-2.25L12 20.25l-3.75-2.25-3.75 2.25V6a2.25 2.25 0 0 1 2.25-2.25Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 8.25h7.5M8.25 12h7.5" />
+    </svg>
+  );
+}
+
 function CoursesIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
@@ -95,7 +104,7 @@ const navItems = [
   { label: "Consultancy", href: "/dashboard/consultancy", icon: ContactIcon },
   { label: "Resource Library", href: "/dashboard/resources", icon: ResourcesIcon },
   { label: "Research Kits", href: "/dashboard/kits", icon: KitsIcon },
-  { label: "Order History", href: "/dashboard/orders", icon: KitsIcon },
+  { label: "Order History", href: "/dashboard/orders", icon: OrdersIcon },
   { label: "Profile", href: "/dashboard/account", icon: AccountIcon },
 ];
 

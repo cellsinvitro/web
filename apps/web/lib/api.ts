@@ -293,6 +293,17 @@ export async function fetchAdminUser(userId: string) {
   return data.user;
 }
 
+export async function fetchAdminUserHistory(userId: string) {
+  const data = await apiFetch<{ history: Array<{
+    id: string;
+    title: string;
+    description: string;
+    timestamp: string;
+    type: string;
+  }> }>(`/admin/users/${userId}/history`);
+  return data.history;
+}
+
 export async function updateAdminUserRole(userId: string, role: "USER" | "ADMIN") {
   const data = await apiFetch<{ user: AuthUser }>(`/admin/users/${userId}`, {
     method: "PATCH",
