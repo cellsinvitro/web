@@ -316,7 +316,7 @@ model LiveClass {
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   course                Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  teacher               User             @relation("LiveClassTeacher", fields: [teacherId], references: [id])
+  teacher               User             @relation("LiveClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
   enrollments           LiveClassEnrollment[]
   attendance            LiveClassAttendance[]
   payments              Payment[]

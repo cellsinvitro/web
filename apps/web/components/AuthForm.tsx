@@ -33,8 +33,8 @@ export default function AuthForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [otpStep, setOtpStep] = useState<1 | 2>(1);
   const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [otpSuccessMessage, setOtpSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(() => {
@@ -47,7 +47,7 @@ export default function AuthForm({
     setTab(next);
     setError(null);
     setOtpSuccessMessage(null);
-    setOtpSent(false);
+    setOtpStep(1);
     setOtpCode("");
   };
 
@@ -56,7 +56,11 @@ export default function AuthForm({
       setError("Please enter a valid email address.");
       return;
     }
-    if (tab === "register" && password.length < 8) {
+    if (!name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+    if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
     }
@@ -65,8 +69,8 @@ export default function AuthForm({
     setOtpSuccessMessage(null);
     try {
       await sendOtp(email.trim(), "REGISTRATION");
-      setOtpSent(true);
-      setOtpSuccessMessage(`Verification OTP sent via Brevo email to ${email.trim()}`);
+      setOtpStep(2);
+      setOtpSuccessMessage(`Verification code sent to ${email.trim()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send OTP code.");
     } finally {
@@ -77,7 +81,7 @@ export default function AuthForm({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (tab === "register" && !otpSent) {
+    if (tab === "register" && otpStep === 1) {
       await handleSendOtp();
       return;
     }
@@ -156,109 +160,171 @@ export default function AuthForm({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
-        {tab === "register" && (
-          <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Name
-            </span>
-            <input
-              type="text"
-              name="name"
-              required
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your full name"
-              className={inputClassName}
-            />
-          </label>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Email
-            </span>
-            <input
-              type="email"
-              name="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (otpSent) setOtpSent(false);
-              }}
-              placeholder="you@institution.edu"
-              className={inputClassName}
-            />
-          </label>
-
-          <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Password
-            </span>
-            <div className="relative">
+        {tab === "login" ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Email
+              </span>
               <input
-                type={showPassword ? "text" : "password"}
-                name="password"
+                type="email"
+                name="email"
                 required
-                minLength={8}
-                autoComplete={
-                  tab === "login" ? "current-password" : "new-password"
-                }
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  tab === "login" ? "Your password" : "At least 8 characters"
-                }
-                className={`${inputClassName} pr-11`}
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@institution.edu"
+                className={inputClassName}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-700"
-              >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
-            </div>
-          </label>
+            </label>
 
-          {tab === "register" && otpSent && (
-            <label className="block sm:col-span-2 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  6-Digit OTP Code
-                </span>
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Password
+              </span>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  required
+                  minLength={8}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your password"
+                  className={`${inputClassName} pr-11`}
+                />
                 <button
                   type="button"
-                  disabled={sendingOtp}
-                  onClick={handleSendOtp}
-                  className="text-xs font-medium text-slate-600 hover:text-slate-900 underline disabled:opacity-50"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-700"
                 >
-                  Resend OTP
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
+            </label>
+          </div>
+        ) : otpStep === 1 ? (
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Name
+              </span>
+              <input
+                type="text"
+                name="name"
+                required
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your full name"
+                className={inputClassName}
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Email
+              </span>
+              <input
+                type="email"
+                name="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@institution.edu"
+                className={inputClassName}
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Password
+              </span>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className={`${inputClassName} pr-11`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-700"
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
+            </label>
+          </div>
+        ) : (
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setOtpStep(1)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+              >
+                ← Back to details
+              </button>
+              <span className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+                Step 2 of 2
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-900">
+                Enter Verification Code
+              </h3>
+              <p className="text-xs text-slate-500">
+                A 6-digit OTP code was sent to{" "}
+                <span className="font-semibold text-slate-900">{email}</span>
+              </p>
+            </div>
+
+            <label className="block space-y-1.5">
               <input
                 type="text"
                 name="otpCode"
                 required
                 maxLength={6}
                 pattern="\d{6}"
+                autoFocus
                 autoComplete="one-time-code"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="Enter 6-digit OTP"
-                className={`${inputClassName} font-mono tracking-widest text-center text-base`}
+                placeholder="• • • • • •"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-center font-mono text-xl font-bold tracking-[0.4em] text-slate-950 shadow-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-300"
               />
             </label>
-          )}
-        </div>
+
+            <div className="flex items-center justify-between text-xs pt-1">
+              <span className="text-slate-500">Didn&apos;t receive code?</span>
+              <button
+                type="button"
+                disabled={sendingOtp}
+                onClick={handleSendOtp}
+                className="font-semibold text-slate-900 hover:underline disabled:opacity-50"
+              >
+                {sendingOtp ? "Resending…" : "Resend OTP"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {otpSuccessMessage && (
-          <p className="text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5" role="status">
+          <p className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5" role="status">
             {otpSuccessMessage}
           </p>
         )}
@@ -269,7 +335,7 @@ export default function AuthForm({
           </p>
         )}
 
-        {tab === "register" && !otpSent ? (
+        {tab === "register" && otpStep === 1 ? (
           <button
             type="button"
             disabled={sendingOtp}
@@ -291,7 +357,7 @@ export default function AuthForm({
                 : "Creating account…"
               : tab === "login"
                 ? "Sign in"
-                : "Verify OTP & Create Account"}
+                : "Verify OTP & Complete Registration"}
             {!submitting && <span>→</span>}
           </button>
         )}

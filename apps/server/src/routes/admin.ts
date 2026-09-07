@@ -387,7 +387,22 @@ adminRoutes.delete("/users/:id", async (c) => {
     }
   }
 
-  await prisma.user.delete({ where: { id: userId } });
+  // Clean up dependent records explicitly to prevent foreign key constraint violations
+  await prisma.$transaction([
+    prisma.liveClass.deleteMany({ where: { teacherId: userId } }),
+    prisma.otpCode.deleteMany({ where: { email: target.email } }),
+    prisma.refreshToken.deleteMany({ where: { userId } }),
+    prisma.cryoSearchState.deleteMany({ where: { userId } }),
+    prisma.moduleProgress.deleteMany({ where: { userId } }),
+    prisma.certificate.deleteMany({ where: { userId } }),
+    prisma.enrollment.deleteMany({ where: { userId } }),
+    prisma.liveClassEnrollment.deleteMany({ where: { userId } }),
+    prisma.liveClassAttendance.deleteMany({ where: { userId } }),
+    prisma.consultancyBooking.deleteMany({ where: { userId } }),
+    prisma.studyMaterialDownload.deleteMany({ where: { userId } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
+
   return c.json({ success: true });
 });
 
