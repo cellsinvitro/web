@@ -1,4 +1,8 @@
+import type { Context } from "hono";
 import type { MaintenanceScope } from "../generated/prisma/client.js";
+import { isAdminUser } from "./admin.js";
+import { getAccessTokenFromRequest } from "./cookies.js";
+import { verifyAccessToken } from "./jwt.js";
 import { prisma } from "./prisma.js";
 
 export type MaintenanceRuleInput = {
@@ -44,4 +48,19 @@ export async function findMatchingMaintenanceRule(
   });
 
   return rules.find((rule) => matchesMaintenancePath(rule.targetPath, requestPath)) ?? null;
+}
+
+export async function isAdminRequest(c: Context) {
+  const token = getAccessTokenFromRequest(c);
+  if (!token) return false;
+  try {
+    const payload = await verifyAccessToken(token);
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { role: true },
+    });
+    return Boolean(user && isAdminUser(user));
+  } catch {
+    return false;
+  }
 }

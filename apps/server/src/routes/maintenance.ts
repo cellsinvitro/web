@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { MaintenanceScope } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
-import { findMatchingMaintenanceRule, normalizeMaintenancePath } from "../lib/maintenance.js";
+import { findMatchingMaintenanceRule, isAdminRequest, normalizeMaintenancePath } from "../lib/maintenance.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 
@@ -47,8 +47,9 @@ maintenanceRoutes.get("/check", async (c) => {
   const scope = parseScope(c.req.query("scope"));
   const path = c.req.query("path") || "/";
   const rule = await findMatchingMaintenanceRule(scope, path);
+  const blocked = Boolean(rule) && !(await isAdminRequest(c));
   return c.json({
-    blocked: Boolean(rule),
+    blocked,
     message: rule?.message || "This area is temporarily unavailable for maintenance.",
   });
 });
