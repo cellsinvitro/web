@@ -14,7 +14,7 @@ import { issueTokenPair } from "../lib/session.js";
 import { publicUserSelect, toPublicUser, isValidDesignation } from "../lib/user.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { googleAuthRoutes } from "./google.js";
-import { sendOtpEmail } from "../lib/email.js";
+import { sendOtpEmail, isEmailConfigured } from "../lib/email.js";
 
 type RegisterBody = {
   email?: string;
@@ -279,7 +279,12 @@ authRoutes.post("/send-otp", async (c) => {
     },
   });
 
-  await sendOtpEmail({ to: email, code, purpose });
+  const sent = await sendOtpEmail({ to: email, code, purpose });
+  if (!sent && isEmailConfigured()) {
+    throw new HTTPException(500, {
+      message: "Failed to deliver OTP email via Brevo. Please check Brevo credentials and sender domain.",
+    });
+  }
 
   return c.json({ success: true, message: "Verification OTP code sent to your email address" });
 });

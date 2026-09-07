@@ -1,6 +1,6 @@
 const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
 const EMAIL_FROM =
-  process.env.EMAIL_FROM?.trim() || "CellsInVitro <certificates@cellsinvitro.com>";
+  process.env.EMAIL_FROM?.trim() || "CellsInVitro <cellsinvitro.w@gmail.com>";
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:3001";
 
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
@@ -19,34 +19,45 @@ export function isEmailConfigured() {
 
 async function sendEmail(to: string, subject: string, html: string) {
   if (!BREVO_API_KEY) {
-    console.warn("[email] BREVO_API_KEY not set, skipping email to", to);
+    console.warn("[email] BREVO_API_KEY is not configured in .env, skipping email to", to);
     return false;
   }
 
   const sender = parseSender(EMAIL_FROM);
 
-  const response = await fetch(BREVO_API_URL, {
-    method: "POST",
-    headers: {
-      "api-key": BREVO_API_KEY,
-      "Content-Type": "application/json",
-      accept: "application/json",
-    },
-    body: JSON.stringify({
-      sender,
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-    }),
-  });
+  try {
+    const response = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: {
+        "api-key": BREVO_API_KEY,
+        "Content-Type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        sender,
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    console.error("[email] Brevo send failed:", text);
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("[email] Brevo SMTP API send failed:", text);
+      if (response.status === 401) {
+        console.error(
+          "[email] 401 Unauthorized: Please ensure BREVO_API_KEY in apps/server/.env is a Brevo API key (from Brevo Dashboard > SMTP & API > API Keys) and the sender email is verified in Brevo."
+        );
+      }
+      return false;
+    }
+
+    console.log("[email] Brevo email delivered successfully to:", to);
+    return true;
+  } catch (err) {
+    console.error("[email] Brevo request error:", err);
     return false;
   }
-
-  return true;
 }
 
 export async function sendCertificateEmail(input: {
