@@ -12,8 +12,6 @@ const footerLinks = [
       { label: "Features", href: "/#features" },
       { label: "Our Team", href: "/#team" },
       { label: "Contact Us", href: "/contact" },
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms & Conditions", href: "/terms" },
     ],
   },
   {
@@ -22,6 +20,13 @@ const footerLinks = [
       { label: "Anti-Cancer", href: "/kits" },
       { label: "Anti-Oxidant", href: "/kits" },
       { label: "Anti-Diabetic", href: "/kits" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms & Conditions", href: "/terms" },
     ],
   },
 ];
@@ -67,7 +72,7 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Explore */}
+          {/* Explore / Research / Legal */}
           {footerLinks.map((group) => (
             <div key={group.title}>
               <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -121,6 +126,15 @@ export default function Footer() {
           <p className="text-xs text-slate-500">
             © 2026 CellsInVitro. All rights reserved.
           </p>
+
+          <div className="flex items-center gap-6 text-xs text-slate-500">
+            <Link href="/privacy" className="transition-colors hover:text-white">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-white">
+              Terms & Conditions
+            </Link>
+          </div>
 
           <p className="text-xs text-slate-500">
             Research use only.

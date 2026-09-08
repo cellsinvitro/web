@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import localFont from "next/font/local";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfirmProvider } from "@/context/ConfirmContext";
+import BioChemChatbot from "@/components/BioChemChatbot";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -36,7 +37,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AuthProvider>
-          <ConfirmProvider>{children}</ConfirmProvider>
+          <ConfirmProvider>
+            {children}
+            <BioChemChatbot />
+          </ConfirmProvider>
         </AuthProvider>
       </body>
     </html>
