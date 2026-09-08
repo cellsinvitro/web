@@ -10,6 +10,8 @@ import {
   getMaterialTypeSummary,
 } from "@/lib/resources";
 
+import GlobalLoader from "@/components/GlobalLoader";
+
 type ResourceLibraryListProps = {
   basePath?: string;
   showHeader?: boolean;
@@ -60,7 +62,7 @@ export default function ResourceLibraryList({
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-slate-500">Loading resources...</p>
+        <GlobalLoader fullScreen={false} sublabel="Loading resources..." />
       ) : error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}

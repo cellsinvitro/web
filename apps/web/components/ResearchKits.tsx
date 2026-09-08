@@ -6,6 +6,7 @@ import Link from "next/link";
 import { fetchKits } from "@/lib/api";
 import type { ResearchKit } from "@/lib/api";
 import { KIT_CATEGORIES } from "@/lib/kits";
+import GlobalLoader from "@/components/GlobalLoader";
 
 type KitFilter = "All" | (typeof KIT_CATEGORIES)[number];
 
@@ -110,14 +111,7 @@ export default function ResearchKits({
         </div>
 
         {loading ? (
-          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-112 animate-pulse rounded-3xl border border-slate-200/80 bg-white"
-              />
-            ))}
-          </div>
+          <GlobalLoader fullScreen={false} sublabel="Loading research kits..." />
         ) : error ? (
           <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
             {error}

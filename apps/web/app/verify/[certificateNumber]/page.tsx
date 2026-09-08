@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { verifyCertificate } from "@/lib/api";
 import { formatCourseDate } from "@/lib/courses";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import GlobalLoader from "@/components/GlobalLoader";
 
 export default function VerifyCertificatePage({

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchMyEnrollments, type Enrollment } from "@/lib/api";
 import { formatCourseDate } from "@/lib/courses";
+import GlobalLoader from "@/components/GlobalLoader";
 
 export default function EnrolledCoursesList({
   limit,
@@ -32,7 +33,7 @@ export default function EnrolledCoursesList({
     load();
   }, [load]);
 
-  if (loading) return <p className="text-sm text-slate-500">Loading courses…</p>;
+  if (loading) return <GlobalLoader fullScreen={false} sublabel="Loading enrolled courses..." />;
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (enrollments.length === 0) {
     return (

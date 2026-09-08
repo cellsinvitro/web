@@ -6,6 +6,7 @@ import Link from "next/link";
 import { fetchKits } from "@/lib/api";
 import type { ResearchKit } from "@/lib/api";
 import { KIT_CATEGORIES } from "@/lib/kits";
+import GlobalLoader from "@/components/GlobalLoader";
 
 type KitFilter = "All" | (typeof KIT_CATEGORIES)[number];
 
@@ -92,7 +93,7 @@ export default function ResearchKitsList({
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-slate-500">Loading kits...</p>
+        <GlobalLoader fullScreen={false} sublabel="Loading research kits..." />
       ) : error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}

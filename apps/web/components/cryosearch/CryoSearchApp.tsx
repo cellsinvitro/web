@@ -18,6 +18,7 @@ import {
   saveCryoSearchState,
   type CryoSearchState,
 } from "@/lib/api";
+import GlobalLoader from "@/components/GlobalLoader";
 import BoxViewModal from "./BoxViewModal";
 import CreateLabModal from "./modals/CreateLabModal";
 import ConfigureCellLinesModal from "./modals/ConfigureCellLinesModal";
@@ -490,11 +491,7 @@ export default function CryoSearchApp() {
   })();
 
   if (!isLoaded) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-pink-600 border-t-transparent" />
-      </div>
-    );
+    return <GlobalLoader fullScreen={false} sublabel="Loading CryoSearch..." />;
   }
 
   return (
