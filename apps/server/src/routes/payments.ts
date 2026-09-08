@@ -10,6 +10,7 @@ import {
   isRazorpayConfigured,
 } from "../lib/razorpay.js";
 import { resolveKitImageUrl } from "../lib/kits.js";
+import { notifyKitOrderCreated } from "../lib/email.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 
 export const paymentsRoutes = new Hono<{ Variables: AuthVariables }>();
@@ -239,6 +240,10 @@ paymentsRoutes.post("/create-order", async (c) => {
 
     if (!kitId) {
       await createEnrollments(userId, courseId, packageId, payment.id);
+    } else {
+      notifyKitOrderCreated(payment.id).catch((err) =>
+        console.error("[payments] Failed to notify kit order creation:", err)
+      );
     }
     return c.json({ free: true, paymentId: payment.id });
   }
@@ -369,6 +374,10 @@ paymentsRoutes.post("/verify", async (c) => {
 
   if (!payment.kitId) {
     await createEnrollments(userId, payment.courseId, payment.packageId, payment.id);
+  } else {
+    notifyKitOrderCreated(payment.id).catch((err) =>
+      console.error("[payments] Failed to notify kit order creation:", err)
+    );
   }
 
   return c.json({ success: true });

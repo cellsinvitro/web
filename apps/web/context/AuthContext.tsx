@@ -18,6 +18,7 @@ import {
   updateProfile,
 } from "@/lib/api";
 import type { AuthUser, Designation } from "@/lib/auth-storage";
+import GlobalLoader from "@/components/GlobalLoader";
 
 type ProfileUpdateInput = {
   name?: string;
@@ -40,6 +41,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -83,8 +86,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await logoutUser();
-    setUser(null);
+    setIsLoggingOut(true);
+    try {
+      await logoutUser();
+      setUser(null);
+    } finally {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
   }, []);
 
   const updateProfileFields = useCallback(async (input: ProfileUpdateInput) => {
@@ -105,6 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateProfile: updateProfileFields,
       }}
     >
+      {isLoggingOut && (
+        <GlobalLoader
+          fullScreen
+          label="CellsInVitro"
+          sublabel="Logging out..."
+          showProgressBar={false}
+        />
+      )}
       {children}
     </AuthContext.Provider>
   );

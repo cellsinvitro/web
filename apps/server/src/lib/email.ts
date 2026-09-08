@@ -1,7 +1,11 @@
+import { prisma } from "./prisma.js";
+import { generateKitOrderInvoicePdf, type KitOrderInvoiceData } from "./pdf.js";
+
 const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
 const EMAIL_FROM =
   process.env.EMAIL_FROM?.trim() || "CellsInVitro <cellsinvitro.w@gmail.com>";
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:3001";
+const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL?.trim();
 
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
@@ -17,7 +21,17 @@ export function isEmailConfigured() {
   return Boolean(BREVO_API_KEY);
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+export interface EmailAttachment {
+  name: string;
+  content: string; // base64 encoded string
+}
+
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: EmailAttachment[]
+) {
   if (!BREVO_API_KEY) {
     console.warn("[email] BREVO_API_KEY is not configured in .env, skipping email to", to);
     return false;
@@ -26,6 +40,17 @@ async function sendEmail(to: string, subject: string, html: string) {
   const sender = parseSender(EMAIL_FROM);
 
   try {
+    const bodyPayload: Record<string, unknown> = {
+      sender,
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    };
+
+    if (attachments && attachments.length > 0) {
+      bodyPayload.attachment = attachments;
+    }
+
     const response = await fetch(BREVO_API_URL, {
       method: "POST",
       headers: {
@@ -33,12 +58,7 @@ async function sendEmail(to: string, subject: string, html: string) {
         "Content-Type": "application/json",
         accept: "application/json",
       },
-      body: JSON.stringify({
-        sender,
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
-      }),
+      body: JSON.stringify(bodyPayload),
     });
 
     if (!response.ok) {
@@ -151,3 +171,256 @@ export async function sendOtpEmail(input: {
   );
 }
 
+export async function sendKitOrderConfirmationEmail(input: {
+  to: string;
+  customerName: string;
+  orderId: string;
+  itemTitle: string;
+  quantity: number;
+  amount: number;
+  currency: string;
+  shippingAddress: string;
+  pdfBuffer: Buffer;
+}) {
+  const formattedAmount = `${input.currency} ${input.amount.toFixed(2)}`;
+  const orderDetailsUrl = `${FRONTEND_ORIGIN}/dashboard/kits`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background-color: #0f172a; padding: 32px 24px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 24px; font-weight: 800; margin: 0 0 8px 0;">CellsInVitro</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin: 0;">Order Confirmation &amp; Receipt</p>
+      </div>
+
+      <div style="padding: 32px 24px;">
+        <h2 style="color: #0f172a; font-size: 20px; margin-top: 0;">Thank you for your order, ${input.customerName}!</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6;">
+          We have received your kit order and are processing it for shipment. A PDF copy of your tax invoice is attached to this email.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Order Reference:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #0f172a; text-align: right;">${input.orderId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Research Kit:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.itemTitle}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Quantity:</td>
+              <td style="padding: 6px 0; text-align: right;">${input.quantity}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Total Paid:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #2563eb; text-align: right;">${formattedAmount}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+          <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 14px;">Shipping Destination</h4>
+          <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.5; whitespace: pre-line;">${input.shippingAddress}</p>
+        </div>
+
+        <div style="text-align: center; margin: 32px 0 16px 0;">
+          <a href="${orderDetailsUrl}" style="display: inline-block; padding: 12px 28px; background-color: #0f172a; color: #ffffff; font-weight: 600; text-decoration: none; border-radius: 8px; font-size: 14px;">
+            Track Order Status
+          </a>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 20px 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+        <p style="margin: 0;">CellsInVitro &bull; Advancing Cell Culture Education &amp; Research</p>
+      </div>
+    </div>
+  `;
+
+  const pdfBase64 = input.pdfBuffer.toString("base64");
+  const invoiceFileName = `Invoice-${input.orderId.slice(-8).toUpperCase()}.pdf`;
+
+  return sendEmail(
+    input.to,
+    `Order Confirmation: ${input.itemTitle} (#${input.orderId.slice(-8).toUpperCase()})`,
+    html,
+    [{ name: invoiceFileName, content: pdfBase64 }]
+  );
+}
+
+export async function sendKitOrderAdminNotificationEmail(input: {
+  to: string;
+  adminName?: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  orderId: string;
+  itemTitle: string;
+  quantity: number;
+  amount: number;
+  currency: string;
+  provider?: string | null;
+}) {
+  const formattedAmount = `${input.currency} ${input.amount.toFixed(2)}`;
+  const adminDashboardUrl = `${FRONTEND_ORIGIN}/admin/orders`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background-color: #2563eb; padding: 28px 24px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 4px 0;">New Order Notification</h1>
+        <p style="color: #dbeafe; font-size: 14px; margin: 0;">A new kit order requires fulfillment</p>
+      </div>
+
+      <div style="padding: 28px 24px;">
+        <p style="color: #334155; font-size: 15px; margin-top: 0;">
+          Hi ${input.adminName || "Admin"}, a new research kit order has been placed and confirmed.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+          <h3 style="margin: 0 0 12px 0; font-size: 15px; color: #0f172a;">Order Summary</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Order ID:</td>
+              <td style="padding: 4px 0; font-weight: 700; color: #0f172a; text-align: right;">${input.orderId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Kit Purchased:</td>
+              <td style="padding: 4px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.itemTitle}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Quantity:</td>
+              <td style="padding: 4px 0; text-align: right;">${input.quantity}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Amount Paid:</td>
+              <td style="padding: 4px 0; font-weight: 700; color: #16a34a; text-align: right;">${formattedAmount}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Payment Provider:</td>
+              <td style="padding: 4px 0; text-align: right;">${input.provider || "RAZORPAY"}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+          <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #0f172a;">Customer &amp; Delivery Details</h3>
+          <p style="margin: 4px 0; font-size: 14px; color: #1e293b;"><strong>Name:</strong> ${input.customerName}</p>
+          <p style="margin: 4px 0; font-size: 14px; color: #1e293b;"><strong>Email:</strong> ${input.customerEmail}</p>
+          <p style="margin: 4px 0; font-size: 14px; color: #1e293b;"><strong>Phone:</strong> ${input.customerPhone}</p>
+          <p style="margin: 8px 0 0 0; font-size: 14px; color: #1e293b; line-height: 1.5; whitespace: pre-line;"><strong>Shipping Address:</strong><br />${input.shippingAddress}</p>
+        </div>
+
+        <div style="text-align: center; margin: 28px 0 12px 0;">
+          <a href="${adminDashboardUrl}" style="display: inline-block; padding: 12px 28px; background-color: #2563eb; color: #ffffff; font-weight: 600; text-decoration: none; border-radius: 8px; font-size: 14px;">
+            Open Admin Orders Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `[NEW ORDER] ${input.itemTitle} by ${input.customerName} (#${input.orderId.slice(-8).toUpperCase()})`,
+    html
+  );
+}
+
+export async function notifyKitOrderCreated(paymentId: string) {
+  try {
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        kit: true,
+        user: { select: { name: true, email: true } },
+      },
+    });
+
+    if (!payment || !payment.kitId) {
+      console.warn(`[email] notifyKitOrderCreated skipped: payment ${paymentId} is not a valid kit order`);
+      return;
+    }
+
+    const customerName = payment.customerName || payment.user?.name || "Customer";
+    const customerEmail = payment.customerEmail || payment.user?.email;
+    const customerPhone = payment.customerPhone || "N/A";
+    const shippingAddress = payment.shippingAddress || "N/A";
+    const itemTitle = payment.itemTitle || payment.kit?.title || "Research Kit";
+
+    // 1. Generate PDF Invoice
+    const invoiceData: KitOrderInvoiceData = {
+      id: payment.id,
+      createdAt: payment.createdAt,
+      completedAt: payment.completedAt,
+      amount: payment.amount,
+      currency: payment.currency,
+      quantity: payment.quantity,
+      itemTitle,
+      unitAmount: payment.unitAmount,
+      customerName,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      provider: payment.provider,
+      providerPaymentId: payment.providerPaymentId,
+    };
+
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await generateKitOrderInvoicePdf(invoiceData);
+    } catch (pdfErr) {
+      console.error("[email] Failed to generate PDF invoice for order:", paymentId, pdfErr);
+      return;
+    }
+
+    // 2. Send Customer Confirmation Email with PDF Invoice attached
+    if (customerEmail) {
+      await sendKitOrderConfirmationEmail({
+        to: customerEmail,
+        customerName,
+        orderId: payment.id,
+        itemTitle,
+        quantity: payment.quantity,
+        amount: payment.amount,
+        currency: payment.currency,
+        shippingAddress,
+        pdfBuffer,
+      });
+    } else {
+      console.warn("[email] Customer email missing for order notification:", paymentId);
+    }
+
+    // 3. Find and Notify Admins
+    const adminUsers = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { email: true, name: true },
+    });
+
+    const adminEmails = new Set<string>();
+    for (const admin of adminUsers) {
+      if (admin.email) adminEmails.add(admin.email.trim().toLowerCase());
+    }
+    if (ADMIN_NOTIFICATION_EMAIL) {
+      adminEmails.add(ADMIN_NOTIFICATION_EMAIL.toLowerCase());
+    }
+
+    for (const adminEmail of adminEmails) {
+      await sendKitOrderAdminNotificationEmail({
+        to: adminEmail,
+        customerName,
+        customerEmail: customerEmail || "N/A",
+        customerPhone,
+        shippingAddress,
+        orderId: payment.id,
+        itemTitle,
+        quantity: payment.quantity,
+        amount: payment.amount,
+        currency: payment.currency,
+        provider: payment.provider,
+      });
+    }
+  } catch (err) {
+    console.error("[email] Error in notifyKitOrderCreated:", err);
+  }
+}

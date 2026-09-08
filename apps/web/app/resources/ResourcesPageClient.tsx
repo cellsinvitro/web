@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchStudyMaterials } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
+import GlobalLoader from "@/components/GlobalLoader";
 
 import {
   formatResourceDate,
@@ -56,7 +57,7 @@ export default function ResourcesPageClient() {
           </div>
 
           {loading ? (
-            <p className="mt-12 text-sm text-slate-500">Loading resources...</p>
+            <GlobalLoader fullScreen={false} sublabel="Loading resources..." />
           ) : error ? (
             <div className="mt-12 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}

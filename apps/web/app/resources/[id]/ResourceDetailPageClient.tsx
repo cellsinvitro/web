@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import ResourceFileGrid from "@/components/ResourceFileGrid";
 import { fetchStudyMaterial } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
+import GlobalLoader from "@/components/GlobalLoader";
 import {
   getMaterialFileCountLabel,
   getMaterialTypeSummary,
@@ -63,7 +64,7 @@ export default function ResourceDetailPageClient() {
           </Link>
 
           {loading ? (
-            <p className="mt-10 text-sm text-slate-500">Loading resource...</p>
+            <GlobalLoader fullScreen={false} sublabel="Loading resource..." />
           ) : error ? (
             <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}

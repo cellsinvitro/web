@@ -23,6 +23,7 @@
     "hono": "^4.7.0",
     "jose": "^6.2.9",
     "livekit-server-sdk": "^2.18.0",
+    "pdfkit": "^0.20.2",
     "pg": "^8.14.0",
     "prisma": "^7.9.1"
   },
@@ -31,6 +32,7 @@
     "@repo/typescript-config": "*",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.15.3",
+    "@types/pdfkit": "^0.17.6",
     "@types/pg": "^8.11.11",
     "cross-env": "^10.0.1",
     "eslint": "^9.39.1",

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { verifyCertificate } from "@/lib/api";
 import { formatCourseDate } from "@/lib/courses";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import GlobalLoader from "@/components/GlobalLoader";
 
 export default function VerifyCertificatePage({
   params,
@@ -41,7 +41,7 @@ export default function VerifyCertificatePage({
           </h1>
 
           {loading ? (
-            <p className="mt-8 text-sm text-slate-500">Verifying…</p>
+            <GlobalLoader fullScreen={false} sublabel="Verifying certificate..." />
           ) : error ? (
             <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6">
               <p className="font-medium text-red-900">Invalid certificate</p>
