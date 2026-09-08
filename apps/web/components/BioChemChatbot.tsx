@@ -185,9 +185,13 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
   };
 
   // Helper to format text with simple markdown bold, list, and linebreaks
-  const renderFormattedText = (text: string) => {
+  const renderFormattedText = (text: string, isUser: boolean = false) => {
     const cleanedText = sanitizeText(text);
     const lines = cleanedText.split("\n");
+
+    const textStyle = isUser ? "text-white" : "text-slate-800";
+    const boldStyle = isUser ? "text-white font-bold" : "text-slate-950 font-bold";
+    const headerStyle = isUser ? "text-white font-bold border-slate-800" : "text-slate-950 font-bold border-slate-200/60";
 
     return lines.map((line, lineIdx) => {
       if (line.startsWith("```")) {
@@ -199,7 +203,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       if (trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
         const headerText = trimmed.replace(/^#{2,3}\s+/, "");
         return (
-          <h4 key={lineIdx} className="font-semibold text-slate-950 mt-2 mb-1 text-sm border-b border-slate-200/60 pb-0.5">
+          <h4 key={lineIdx} className={`font-semibold mt-2 mb-1 text-sm border-b pb-0.5 ${headerStyle}`}>
             {headerText}
           </h4>
         );
@@ -209,7 +213,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       const formattedLine = parts.map((part, partIdx) => {
         if (part.startsWith("**") && part.endsWith("**")) {
           return (
-            <strong key={partIdx} className="font-semibold text-slate-950">
+            <strong key={partIdx} className={boldStyle}>
               {part.slice(2, -2)}
             </strong>
           );
@@ -219,7 +223,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
 
       if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || /^\d+\.\s/.test(trimmed)) {
         return (
-          <li key={lineIdx} className="ml-4 list-disc my-1 leading-relaxed text-slate-700">
+          <li key={lineIdx} className={`ml-4 list-disc my-1 leading-relaxed ${textStyle}`}>
             {formattedLine}
           </li>
         );
@@ -230,7 +234,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       }
 
       return (
-        <p key={lineIdx} className="my-0.5 leading-relaxed text-slate-700">
+        <p key={lineIdx} className={`my-0.5 leading-relaxed ${textStyle}`}>
           {formattedLine}
         </p>
       );
@@ -388,7 +392,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
                     : "bg-white text-slate-800 border border-slate-200 shadow-sm rounded-tl-none"
                 }`}
               >
-                {renderFormattedText(msg.content)}
+                {renderFormattedText(msg.content, msg.role === "user")}
                 <span
                   className={`text-[10px] block mt-1.5 ${
                     msg.role === "user"
