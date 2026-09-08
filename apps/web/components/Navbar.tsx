@@ -14,6 +14,8 @@ const navItems = [
   { label: "Resource Library", href: "/resources" },
   { label: "Research Kits", href: "/kits" },
   { label: "Contact", href: "/contact" },
+  { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
 ];
 
 const menuLinks = [
