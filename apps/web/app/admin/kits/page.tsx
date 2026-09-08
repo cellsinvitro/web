@@ -6,10 +6,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   createAdminKit,
+  createAdminKitModule,
   deleteAdminKit,
+  deleteAdminKitModule,
   fetchAdminKits,
+  fetchKitTree,
+  updateAdminKitModule,
 } from "@/lib/api";
-import type { ResearchKit } from "@/lib/api";
+import type { KitModuleNode, ResearchKit } from "@/lib/api";
+import KitModuleTree from "@/components/KitModuleTree";
 import {
   KIT_CATEGORIES,
   formatKitAssayCount,
@@ -19,10 +24,18 @@ import {
 import { useConfirm } from "@/context/ConfirmContext";
 import { AdminSpinner } from "@/components/AdminLoader";
 
+function flattenKitModules(modules: KitModuleNode[], prefix = ""): Array<{ id: string; label: string }> {
+  return modules.flatMap((module) => [
+    { id: module.id, label: prefix ? `${prefix} / ${module.title}` : module.title },
+    ...flattenKitModules(module.children, prefix ? `${prefix} / ${module.title}` : module.title),
+  ]);
+}
+
 export default function AdminKitsPage() {
   const router = useRouter();
   const confirm = useConfirm();
   const [kits, setKits] = useState<ResearchKit[]>([]);
+  const [moduleTree, setModuleTree] = useState<KitModuleNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -35,7 +48,10 @@ export default function AdminKitsPage() {
   const [stock, setStock] = useState("0");
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("0");
+  const [moduleId, setModuleId] = useState("");
   const [image, setImage] = useState<File | null>(null);
+  const [moduleEditor, setModuleEditor] = useState<{ id: string | null; parentId: string | null; title: string; description: string; image: File | null } | null>(null);
+  const [moduleSaving, setModuleSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const previewImageUrl = useMemo(() => {
@@ -57,8 +73,9 @@ export default function AdminKitsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAdminKits();
+      const [data, tree] = await Promise.all([fetchAdminKits(), fetchKitTree()]);
       setKits(data);
+      setModuleTree(tree);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load kits");
     } finally {
@@ -95,6 +112,7 @@ export default function AdminKitsPage() {
         stock: Number.parseInt(stock, 10) || 0,
         published,
         sortOrder: Number.parseInt(sortOrder, 10) || 0,
+        moduleId: moduleId || null,
         image,
       });
       setKits((prev) => [...prev, kit].sort((a, b) => a.sortOrder - b.sortOrder));
@@ -105,6 +123,7 @@ export default function AdminKitsPage() {
       setStock("0");
       setPublished(true);
       setSortOrder("0");
+      setModuleId("");
       setImage(null);
       event.currentTarget.reset();
     } catch (err) {
@@ -137,6 +156,36 @@ export default function AdminKitsPage() {
     } finally {
       setPendingId(null);
     }
+  };
+
+  const refreshModules = async () => setModuleTree(await fetchKitTree());
+  const addModule = async (parentId: string | null) => {
+    setModuleEditor({ id: null, parentId, title: "", description: "", image: null });
+  };
+  const editModule = async (module: KitModuleNode) => {
+    setModuleEditor({ id: module.id, parentId: module.parentId, title: module.title, description: module.description ?? "", image: null });
+  };
+  const deleteModule = async (module: KitModuleNode) => {
+    try { await deleteAdminKitModule(module.id); await refreshModules(); } catch (err) { setActionError(err instanceof Error ? err.message : "Failed to delete module"); }
+  };
+  const moveModule = async (module: KitModuleNode, direction: "up" | "down") => {
+    await updateAdminKitModule(module.id, { sortOrder: module.sortOrder + (direction === "up" ? -1 : 1) });
+    await refreshModules();
+  };
+
+  const saveModule = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!moduleEditor?.title.trim()) return;
+    setModuleSaving(true);
+    setActionError(null);
+    try {
+      const input = { title: moduleEditor.title.trim(), description: moduleEditor.description.trim(), parentId: moduleEditor.parentId, image: moduleEditor.image };
+      if (moduleEditor.id) await updateAdminKitModule(moduleEditor.id, input);
+      else await createAdminKitModule(input);
+      setModuleEditor(null);
+      await refreshModules();
+    } catch (err) { setActionError(err instanceof Error ? err.message : "Failed to save module"); }
+    finally { setModuleSaving(false); }
   };
 
   return (
@@ -196,7 +245,7 @@ export default function AdminKitsPage() {
                 </span>
               </div>
             )}
-            <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-slate-950/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute inset-0 flex items-end justify-center bg-linear-to-t from-slate-950/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
               <span className="rounded-md bg-white/95 px-2 py-1 text-[11px] font-medium text-slate-900">
                 {previewImageUrl ? "Replace" : "Upload"}
               </span>
@@ -245,6 +294,8 @@ export default function AdminKitsPage() {
               </select>
             </label>
           </div>
+
+          <label className="block"><span className="mb-1.5 block text-sm font-medium text-slate-700">Place in module</span><select value={moduleId} onChange={(event) => setModuleId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"><option value="">Uncategorized</option>{flattenKitModules(moduleTree).map((module) => <option key={module.id} value={module.id}>{module.label}</option>)}</select></label>
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -308,6 +359,16 @@ export default function AdminKitsPage() {
           </button>
         </form>
       </div>
+
+      <div className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm sm:p-6"><h2 className="text-lg font-semibold text-slate-950">Kit modules</h2><p className="mt-1 mb-5 text-sm text-slate-500">Create unlimited nested modules and arrange kits into the structure your researchers need.</p><KitModuleTree tree={moduleTree} admin onAdd={addModule} onEdit={editModule} onDelete={deleteModule} onMove={moveModule} /></div>
+
+      {moduleEditor ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="module-dialog-title">
+        <form onSubmit={saveModule} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Kit structure</p><h2 id="module-dialog-title" className="mt-1 text-xl font-semibold text-slate-950">{moduleEditor.id ? "Edit module" : "Add module"}</h2></div><button type="button" onClick={() => setModuleEditor(null)} className="text-2xl leading-none text-slate-400 hover:text-slate-950" aria-label="Close">×</button></div>
+          <div className="mt-5 space-y-4"><label className="block"><span className="mb-1.5 block text-sm font-medium text-slate-700">Name</span><input required value={moduleEditor.title} onChange={(event) => setModuleEditor((current) => current ? { ...current, title: event.target.value } : current)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" /></label><label className="block"><span className="mb-1.5 block text-sm font-medium text-slate-700">Description</span><textarea rows={4} value={moduleEditor.description} onChange={(event) => setModuleEditor((current) => current ? { ...current, description: event.target.value } : current)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400" /></label><label className="block"><span className="mb-1.5 block text-sm font-medium text-slate-700">Image (optional)</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setModuleEditor((current) => current ? { ...current, image: event.target.files?.[0] ?? null } : current)} className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white" /></label></div>
+          <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setModuleEditor(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700">Cancel</button><button type="submit" disabled={moduleSaving} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{moduleSaving ? "Saving..." : "Save module"}</button></div>
+        </form>
+      </div> : null}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">

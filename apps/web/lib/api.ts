@@ -612,8 +612,20 @@ export type ResearchKit = {
   available: boolean;
   published: boolean;
   sortOrder: number;
+  moduleId: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type KitModuleNode = {
+  id: string;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  parentId: string | null;
+  sortOrder: number;
+  children: KitModuleNode[];
+  kits: ResearchKit[];
 };
 
 export async function fetchKits() {
@@ -623,6 +635,43 @@ export async function fetchKits() {
   }
   const data = (await response.json()) as { kits: ResearchKit[] };
   return data.kits;
+}
+
+export async function fetchKitTree() {
+  const response = await fetch(`${API_URL}/kits/tree`);
+  if (!response.ok) throw new Error(await parseError(response));
+  return (await response.json() as { tree: KitModuleNode[] }).tree;
+}
+
+export async function fetchAdminKitModules() {
+  const data = await apiFetch<{ modules: KitModuleNode[] }>("/admin/kit-modules");
+  return data.modules;
+}
+
+export async function createAdminKitModule(input: { title: string; description?: string; parentId?: string | null; image?: File | null }) {
+  const formData = new FormData();
+  formData.append("title", input.title);
+  formData.append("description", input.description ?? "");
+  formData.append("parentId", input.parentId ?? "");
+  if (input.image) formData.append("image", input.image);
+  const response = await fetch(`${API_URL}/admin/kit-modules`, { method: "POST", credentials: "include", body: formData });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data = await response.json() as { module: KitModuleNode };
+  return data.module;
+}
+
+export async function updateAdminKitModule(id: string, input: Partial<Pick<KitModuleNode, "title" | "description" | "parentId" | "sortOrder">> & { image?: File | null }) {
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(input)) if (key !== "image" && value !== undefined) formData.append(key, value === null ? "" : String(value));
+  if (input.image) formData.append("image", input.image);
+  const response = await fetch(`${API_URL}/admin/kit-modules/${id}`, { method: "PATCH", credentials: "include", body: formData });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data = await response.json() as { module: KitModuleNode };
+  return data.module;
+}
+
+export async function deleteAdminKitModule(id: string) {
+  return apiFetch<{ success: boolean }>(`/admin/kit-modules/${id}`, { method: "DELETE" });
 }
 
 export async function fetchKit(id: string) {
@@ -649,6 +698,7 @@ export async function createAdminKit(input: {
   published?: boolean;
   sortOrder?: number;
   image: File;
+  moduleId?: string | null;
 }) {
   const formData = new FormData();
   formData.append("title", input.title);
@@ -661,6 +711,7 @@ export async function createAdminKit(input: {
   formData.append("stock", String(input.stock ?? 0));
   formData.append("published", String(input.published ?? true));
   formData.append("sortOrder", String(input.sortOrder ?? 0));
+  if (input.moduleId) formData.append("moduleId", input.moduleId);
   formData.append("image", input.image);
 
   const response = await fetch(`${API_URL}/admin/kits`, {
@@ -696,6 +747,7 @@ export async function updateAdminKit(
     published?: boolean;
     sortOrder?: number;
     image?: File;
+    moduleId?: string | null;
   }
 ) {
   const formData = new FormData();
@@ -726,6 +778,7 @@ export async function updateAdminKit(
   if (input.image) {
     formData.append("image", input.image);
   }
+  if (input.moduleId !== undefined) formData.append("moduleId", input.moduleId ?? "");
 
   const response = await fetch(`${API_URL}/admin/kits/${id}`, {
     method: "PATCH",

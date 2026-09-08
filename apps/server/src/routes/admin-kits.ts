@@ -53,6 +53,7 @@ adminKitsRoutes.post("/", async (c) => {
   const details = String(body.details ?? "").trim() || null;
   const published = parsePublishedInput(body.published, true);
   const sortOrder = parseSortOrderInput(body.sortOrder, 0);
+  const moduleId = String(body.moduleId ?? "").trim() || null;
   const price = parseNonNegativeIntegerInput(body.price, 0);
   const stock = parseNonNegativeIntegerInput(body.stock, 0);
   const image = getSingleUploadedImage(body);
@@ -99,6 +100,7 @@ adminKitsRoutes.post("/", async (c) => {
         stock,
         published,
         sortOrder,
+        moduleId,
         imageStorageKey,
       },
     });
@@ -128,6 +130,7 @@ adminKitsRoutes.patch("/:id", async (c) => {
     body.sortOrder !== undefined
       ? parseSortOrderInput(body.sortOrder, 0)
       : undefined;
+  const moduleId = body.moduleId !== undefined ? String(body.moduleId).trim() || null : undefined;
   const price =
     body.price !== undefined
       ? parseNonNegativeIntegerInput(body.price, -1)
@@ -194,6 +197,7 @@ adminKitsRoutes.patch("/:id", async (c) => {
         ...(stock !== undefined ? { stock } : {}),
         ...(published !== undefined ? { published } : {}),
         ...(sortOrder !== undefined ? { sortOrder } : {}),
+        ...(moduleId !== undefined ? { moduleId } : {}),
         ...(image ? { imageStorageKey: nextImageStorageKey } : {}),
       },
     });

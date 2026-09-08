@@ -120,9 +120,29 @@ model ResearchKit {
   stock           Int      @default(0)
   published       Boolean  @default(true)
   sortOrder       Int      @default(0)
+  moduleId        String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  module          KitModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   payments        Payment[]
+
+  @@index([moduleId, sortOrder])
+}
+
+model KitModule {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  imageStorageKey String?
+  parentId    String?
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  parent      KitModule?  @relation("KitModuleTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    KitModule[] @relation("KitModuleTree")
+  kits        ResearchKit[]
+
+  @@index([parentId, sortOrder])
 }
 
 model Course {

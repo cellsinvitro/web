@@ -76,6 +76,10 @@ export function resolveKitImageUrl(
   return `${base}/kits/images/${encodeURIComponent(imageStorageKey)}`;
 }
 
+export function resolveKitModuleImageUrl(imageStorageKey: string | null, apiBaseUrl = "") {
+  return resolveKitImageUrl(imageStorageKey, apiBaseUrl);
+}
+
 export function toPublicKit(
   kit: {
     id: string;
@@ -88,6 +92,7 @@ export function toPublicKit(
     stock: number;
     published: boolean;
     sortOrder: number;
+    moduleId: string | null;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -106,6 +111,7 @@ export function toPublicKit(
     available: kit.stock > 0,
     published: kit.published,
     sortOrder: kit.sortOrder,
+    moduleId: kit.moduleId,
     createdAt: kit.createdAt.toISOString(),
     updatedAt: kit.updatedAt.toISOString(),
   };

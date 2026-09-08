@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { fetchKits } from "@/lib/api";
+import { fetchKitTree, fetchKits } from "@/lib/api";
+import type { KitModuleNode } from "@/lib/api";
+import KitModuleTree from "@/components/KitModuleTree";
 import type { ResearchKit } from "@/lib/api";
 import { KIT_CATEGORIES } from "@/lib/kits";
 import GlobalLoader from "@/components/GlobalLoader";
@@ -18,6 +18,7 @@ export default function ResearchKits({
   standalone?: boolean;
 }) {
   const [kits, setKits] = useState<ResearchKit[]>([]);
+  const [tree, setTree] = useState<KitModuleNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<KitFilter>("All");
@@ -29,9 +30,10 @@ export default function ResearchKits({
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchKits();
+        const [data, moduleTree] = await Promise.all([fetchKits(), fetchKitTree()]);
         if (!cancelled) {
           setKits(data);
+          setTree(moduleTree);
         }
       } catch (err) {
         if (!cancelled) {
@@ -116,83 +118,11 @@ export default function ResearchKits({
           <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
             {error}
           </div>
-        ) : filteredKits.length === 0 ? (
+        ) : filteredKits.length === 0 && tree.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
             No kits available in this category yet.
           </div>
-        ) : (
-          <div
-            className={`mt-8 grid gap-5 ${
-              filteredKits.length === 1
-                ? "mx-auto max-w-md"
-                : "md:grid-cols-2 lg:grid-cols-3"
-            }`}
-          >
-            {filteredKits.map((kit, index) => (
-              <article
-                key={kit.id}
-                className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5"
-              >
-                <Link
-                  href={`/kits/${kit.id}`}
-                  aria-label={`View details for ${kit.title}`}
-                  className="relative mx-4 mt-4 block overflow-hidden rounded-2xl bg-slate-100"
-                >
-                  <div className="relative aspect-video w-full">
-                    {kit.imageUrl ? (
-                      <Image
-                        src={kit.imageUrl}
-                        alt={kit.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        priority={index === 0 && activeFilter === "All"}
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                        No image
-                      </div>
-                    )}
-                  </div>
-                </Link>
-
-                <div className="p-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    {kit.category}
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
-                    {kit.title}
-                  </h3>
-
-                  <div className="mt-4 space-y-2.5">
-                    {kit.assays.map((assay) => (
-                      <div
-                        key={assay}
-                        className="flex items-start gap-3 text-sm leading-6 text-slate-600"
-                      >
-                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                        <span>{assay}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 border-t border-slate-100 pt-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      {kit.stock} available
-                    </p>
-                    <Link
-                      href={`/kits/${kit.id}`}
-                      className="mt-4 inline-flex text-sm font-semibold text-slate-950 underline decoration-slate-300 underline-offset-4 transition-colors hover:decoration-slate-950"
-                    >
-                      View kit details
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+        ) : <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm sm:p-6"><KitModuleTree tree={tree} ungroupedKits={filteredKits} /></div>}
 
         <div className="mt-8 text-center">
           <p className="text-xs text-slate-500 sm:text-sm">

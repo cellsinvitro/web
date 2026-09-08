@@ -1,0 +1,1 @@
+ALTER TABLE "KitModule" ADD COLUMN "imageStorageKey" TEXT;

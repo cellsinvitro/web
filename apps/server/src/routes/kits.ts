@@ -3,7 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { prisma } from "../lib/prisma.js";
 import { readStudyMaterialFile } from "../lib/study-materials.js";
 import { isCloudinaryStorageKey } from "../lib/cloudinary.js";
-import { toPublicKit } from "../lib/kits.js";
+import { resolveKitModuleImageUrl, toPublicKit } from "../lib/kits.js";
 
 export const kitsRoutes = new Hono();
 
@@ -22,6 +22,28 @@ kitsRoutes.get("/", async (c) => {
   return c.json({
     kits: kits.map((kit) => toPublicKit(kit, apiBaseUrl)),
   });
+});
+
+kitsRoutes.get("/tree", async (c) => {
+  const [modules, kits] = await Promise.all([
+    prisma.kitModule.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+    prisma.researchKit.findMany({ where: { published: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+  ]);
+  const apiBaseUrl = getApiBaseUrl(c);
+  const nodes = new Map(modules.map((module) => [module.id, { ...module, imageUrl: resolveKitModuleImageUrl(module.imageStorageKey, apiBaseUrl), children: [] as unknown[], kits: [] as unknown[] }]));
+  const roots: Array<(typeof nodes extends Map<string, infer Value> ? Value : never)> = [];
+  for (const module of modules) {
+    const node = nodes.get(module.id);
+    const parent = module.parentId ? nodes.get(module.parentId) : undefined;
+    if (node) (parent?.children ?? roots).push(node);
+  }
+  for (const kit of kits) {
+    const node = kit.moduleId ? nodes.get(kit.moduleId) : undefined;
+    if (node) node.kits.push(toPublicKit(kit, apiBaseUrl));
+  }
+  const sort = (items: typeof roots) => { items.sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title)); for (const item of items) sort(item.children as typeof roots); };
+  sort(roots);
+  return c.json({ tree: roots });
 });
 
 kitsRoutes.get("/images/:storageKey", async (c) => {
