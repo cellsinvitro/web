@@ -4,9 +4,11 @@ import { prisma } from "../lib/prisma.js";
 import {
   collectUploadedFiles,
   deleteStoredStudyMaterial,
+  getResourceLibrarySetting,
   storeStudyMaterialFile,
   studyMaterialInclude,
   toPublicStudyMaterial,
+  updateResourceLibrarySetting,
   validateUploadedFile,
 } from "../lib/study-materials.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
@@ -16,6 +18,18 @@ export const adminMaterialsRoutes = new Hono<{ Variables: AuthVariables }>();
 
 adminMaterialsRoutes.use("*", requireAuth, requireAdmin);
 
+adminMaterialsRoutes.get("/settings", async (c) => {
+  const setting = await getResourceLibrarySetting();
+  return c.json({ setting });
+});
+
+adminMaterialsRoutes.put("/settings", async (c) => {
+  const { price } = await c.req.json<{ price: number }>();
+  const parsedPrice = Math.max(0, Math.floor(Number(price) || 0));
+  const setting = await updateResourceLibrarySetting(parsedPrice);
+  return c.json({ setting });
+});
+
 adminMaterialsRoutes.get("/", async (c) => {
   const materials = await prisma.studyMaterial.findMany({
     orderBy: { createdAt: "desc" },
@@ -23,7 +37,7 @@ adminMaterialsRoutes.get("/", async (c) => {
   });
 
   return c.json({
-    materials: materials.map(toPublicStudyMaterial),
+    materials: materials.map((m) => toPublicStudyMaterial(m)),
   });
 });
 
@@ -32,6 +46,7 @@ adminMaterialsRoutes.post("/", async (c) => {
   const title = String(body.title ?? "").trim();
   const description = String(body.description ?? "").trim() || null;
   const category = String(body.category ?? "").trim() || null;
+  const price = Math.max(0, Math.floor(Number(body.price) || 0));
   const uploadedFiles = collectUploadedFiles(body);
 
   if (!title) {
@@ -88,6 +103,7 @@ adminMaterialsRoutes.post("/", async (c) => {
         title,
         description,
         category,
+        price,
         files: {
           create: storedFiles,
         },
@@ -116,6 +132,10 @@ adminMaterialsRoutes.patch("/:id", async (c) => {
     body.category !== undefined
       ? String(body.category).trim() || null
       : undefined;
+  const price =
+    body.price !== undefined
+      ? Math.max(0, Math.floor(Number(body.price) || 0))
+      : undefined;
 
   if (title !== undefined && !title) {
     throw new HTTPException(400, { message: "Title cannot be empty" });
@@ -135,6 +155,7 @@ adminMaterialsRoutes.patch("/:id", async (c) => {
       ...(title !== undefined ? { title } : {}),
       ...(description !== undefined ? { description } : {}),
       ...(category !== undefined ? { category } : {}),
+      ...(price !== undefined ? { price } : {}),
     },
     include: studyMaterialInclude,
   });
@@ -238,6 +259,37 @@ adminMaterialsRoutes.delete("/:id/files/:fileId", async (c) => {
 
   await prisma.studyMaterialFile.delete({ where: { id: fileId } });
   await deleteStoredStudyMaterial(file.storageKey);
+
+  const material = await prisma.studyMaterial.findUnique({
+    where: { id: materialId },
+    include: studyMaterialInclude,
+  });
+
+  if (!material) {
+    throw new HTTPException(404, { message: "Resource not found" });
+  }
+
+  return c.json({ material: toPublicStudyMaterial(material) });
+});
+
+adminMaterialsRoutes.patch("/:id/files/:fileId", async (c) => {
+  const materialId = c.req.param("id");
+  const fileId = c.req.param("fileId");
+  const { price } = await c.req.json<{ price: number }>();
+  const parsedPrice = Math.max(0, Math.floor(Number(price) || 0));
+
+  const file = await prisma.studyMaterialFile.findFirst({
+    where: { id: fileId, materialId },
+  });
+
+  if (!file) {
+    throw new HTTPException(404, { message: "Resource file not found" });
+  }
+
+  await prisma.studyMaterialFile.update({
+    where: { id: fileId },
+    data: { price: parsedPrice },
+  });
 
   const material = await prisma.studyMaterial.findUnique({
     where: { id: materialId },

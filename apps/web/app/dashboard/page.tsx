@@ -159,7 +159,7 @@ export default function DashboardPage() {
   useEffect(() => {
     Promise.all([
       fetchStudyMaterials()
-        .then((materials) => {
+        .then(({ materials }) => {
           setResourceCount(materials.length);
           setRecentMaterials(materials.slice(0, 4));
         })

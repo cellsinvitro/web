@@ -31,6 +31,7 @@ model User {
   refreshTokens      RefreshToken[]
   cryoSearchState    CryoSearchState?
   maintenanceRules   MaintenanceRule[]
+  resourceAccesses   ResourceAccess[]
 }
 
 model MaintenanceRule {
@@ -72,38 +73,71 @@ model CryoSearchState {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model ResourceLibrarySetting {
+  id        String   @id @default("default")
+  price     Int      @default(0)
+  currency  String   @default("INR")
+  updatedAt DateTime @updatedAt
+}
+
 model StudyMaterial {
-  id          String              @id @default(cuid())
-  title       String
-  description String?
-  category    String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  files       StudyMaterialFile[]
+  id               String              @id @default(cuid())
+  title            String
+  description      String?
+  category         String?
+  price            Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  files            StudyMaterialFile[]
+  resourceAccesses ResourceAccess[]
+  payments         Payment[]
 }
 
 model StudyMaterialFile {
-  id         String        @id @default(cuid())
-  materialId String
-  fileName   String
-  mimeType   String
-  fileSize   Int
-  storageKey String        @unique
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  material   StudyMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  downloads  StudyMaterialDownload[]
+  id               String                  @id @default(cuid())
+  materialId       String
+  fileName         String
+  mimeType         String
+  fileSize         Int
+  storageKey       String                  @unique
+  price            Int                     @default(0)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  material         StudyMaterial           @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  downloads        StudyMaterialDownload[]
+  resourceAccesses ResourceAccess[]
+  payments         Payment[]
 
   @@index([materialId])
 }
 
-model StudyMaterialDownload {
-  id         String            @id @default(cuid())
+model ResourceAccess {
+  id         String              @id @default(cuid())
   userId     String
-  fileId     String
-  createdAt  DateTime          @default(now())
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  file       StudyMaterialFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  scope      ResourceAccessScope
+  materialId String?
+  fileId     String?
+  paymentId  String?
+  createdAt  DateTime            @default(now())
+
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  material StudyMaterial?     @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  file     StudyMaterialFile? @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  payment  Payment?           @relation(fields: [paymentId], references: [id])
+
+  @@unique([userId, scope, materialId, fileId])
+  @@index([userId])
+  @@index([materialId])
+  @@index([fileId])
+}
+
+model StudyMaterialDownload {
+  id        String            @id @default(cuid())
+  userId    String
+  fileId    String
+  createdAt DateTime          @default(now())
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file      StudyMaterialFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([fileId, createdAt])
@@ -256,46 +290,54 @@ model Enrollment {
 }
 
 model Payment {
-  id                String          @id @default(cuid())
-  userId            String
-  courseId          String?
-  packageId         String?
-  kitId             String?
-  quantity          Int             @default(1)
-  customerName      String?
-  customerEmail     String?
-  customerPhone     String?
-  shippingAddress   String?
-  itemTitle         String?
-  unitAmount        Int?
-  fulfillmentStatus KitFulfillmentStatus?
-  carrier           String?
-  trackingNumber    String?
+  id                  String               @id @default(cuid())
+  userId              String
+  courseId            String?
+  packageId           String?
+  kitId               String?
+  studyMaterialId     String?
+  studyMaterialFileId String?
+  resourceScope       ResourceAccessScope?
+  quantity            Int                  @default(1)
+  customerName        String?
+  customerEmail       String?
+  customerPhone       String?
+  shippingAddress     String?
+  itemTitle           String?
+  unitAmount          Int?
+  fulfillmentStatus   KitFulfillmentStatus?
+  carrier             String?
+  trackingNumber      String?
   estimatedDeliveryAt DateTime?
-  shippedAt         DateTime?
-  deliveredAt       DateTime?
-  amount            Int
-  currency          String          @default("INR")
-  provider          PaymentProvider @default(RAZORPAY)
-  providerOrderId   String?
-  providerPaymentId String?
-  status            PaymentStatus   @default(PENDING)
-  createdAt         DateTime        @default(now())
-  completedAt       DateTime?
-  enrollments       Enrollment[]
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+  amount              Int
+  currency            String               @default("INR")
+  provider            PaymentProvider      @default(RAZORPAY)
+  providerOrderId     String?
+  providerPaymentId   String?
+  status              PaymentStatus        @default(PENDING)
+  createdAt           DateTime             @default(now())
+  completedAt         DateTime?
+  enrollments         Enrollment[]
   liveClassEnrollments LiveClassEnrollment[]
-  liveClass          LiveClass? @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-  liveClassId        String?
-  course            Course?         @relation(fields: [courseId], references: [id])
-  package           CoursePackage?  @relation(fields: [packageId], references: [id])
-  kit               ResearchKit?    @relation(fields: [kitId], references: [id])
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kitOrderEvents    KitOrderEvent[]
+  liveClass           LiveClass?           @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  liveClassId         String?
+  course              Course?              @relation(fields: [courseId], references: [id])
+  package             CoursePackage?       @relation(fields: [packageId], references: [id])
+  kit                 ResearchKit?         @relation(fields: [kitId], references: [id])
+  studyMaterial       StudyMaterial?       @relation(fields: [studyMaterialId], references: [id])
+  studyMaterialFile   StudyMaterialFile?   @relation(fields: [studyMaterialFileId], references: [id])
+  resourceAccesses    ResourceAccess[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kitOrderEvents      KitOrderEvent[]
 
   @@index([userId])
   @@index([providerOrderId])
   @@index([liveClassId])
   @@index([kitId])
+  @@index([studyMaterialId])
+  @@index([studyMaterialFileId])
 }
 
 model KitOrderEvent {
@@ -626,4 +668,10 @@ enum OtpPurpose {
   REGISTRATION
   PASSWORD_RESET
   LOGIN
+}
+
+enum ResourceAccessScope {
+  FULL_LIBRARY
+  MODULE
+  FILE
 }

@@ -406,6 +406,8 @@ export type StudyMaterialFile = {
   fileName: string;
   mimeType: string;
   fileSize: number;
+  price?: number;
+  hasAccess?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -415,19 +417,41 @@ export type StudyMaterial = {
   title: string;
   description: string | null;
   category: string | null;
+  price?: number;
+  hasAccess?: boolean;
   files: StudyMaterialFile[];
   createdAt: string;
   updatedAt: string;
 };
 
+export type ResourceLibrarySetting = {
+  id: string;
+  price: number;
+  currency: string;
+  updatedAt?: string;
+};
+
+export async function fetchResourceLibrarySetting() {
+  const data = await apiFetch<{ setting: ResourceLibrarySetting }>("/admin/materials/settings");
+  return data.setting;
+}
+
+export async function updateResourceLibrarySetting(price: number) {
+  const data = await apiFetch<{ setting: ResourceLibrarySetting }>("/admin/materials/settings", {
+    method: "PUT",
+    body: JSON.stringify({ price }),
+  });
+  return data.setting;
+}
+
 export async function fetchStudyMaterials() {
-  const data = await apiFetch<{ materials: StudyMaterial[] }>("/materials");
-  return data.materials;
+  const data = await apiFetch<{ materials: StudyMaterial[]; libraryPrice: number }>("/materials");
+  return { materials: data.materials, libraryPrice: data.libraryPrice ?? 0 };
 }
 
 export async function fetchStudyMaterial(id: string) {
-  const data = await apiFetch<{ material: StudyMaterial }>(`/materials/${id}`);
-  return data.material;
+  const data = await apiFetch<{ material: StudyMaterial; libraryPrice: number }>(`/materials/${id}`);
+  return { material: data.material, libraryPrice: data.libraryPrice ?? 0 };
 }
 
 export async function fetchAdminStudyMaterials() {
@@ -439,6 +463,7 @@ export async function uploadAdminStudyMaterial(input: {
   title: string;
   description?: string;
   category?: string;
+  price?: number;
   files: File[];
 }) {
   const formData = new FormData();
@@ -448,6 +473,9 @@ export async function uploadAdminStudyMaterial(input: {
   }
   if (input.category) {
     formData.append("category", input.category);
+  }
+  if (input.price !== undefined) {
+    formData.append("price", String(input.price));
   }
   for (const file of input.files) {
     formData.append("files", file);
@@ -515,12 +543,16 @@ export async function updateAdminStudyMaterial(
     title: string;
     description?: string;
     category?: string;
+    price?: number;
   }
 ) {
   const formData = new FormData();
   formData.append("title", input.title);
   formData.append("description", input.description ?? "");
   formData.append("category", input.category ?? "");
+  if (input.price !== undefined) {
+    formData.append("price", String(input.price));
+  }
 
   const response = await fetch(`${API_URL}/admin/materials/${id}`, {
     method: "PATCH",
@@ -540,6 +572,21 @@ export async function updateAdminStudyMaterial(
   }
 
   const data = (await response.json()) as { material: StudyMaterial };
+  return data.material;
+}
+
+export async function updateAdminStudyMaterialFilePrice(
+  materialId: string,
+  fileId: string,
+  price: number
+) {
+  const data = await apiFetch<{ material: StudyMaterial }>(
+    `/admin/materials/${materialId}/files/${fileId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ price }),
+    }
+  );
   return data.material;
 }
 
@@ -1057,6 +1104,9 @@ export async function createPaymentOrder(input: {
   courseId?: string;
   packageId?: string;
   kitId?: string;
+  resourceScope?: "FULL_LIBRARY" | "MODULE" | "FILE";
+  studyMaterialId?: string;
+  studyMaterialFileId?: string;
   quantity?: number;
   customerName?: string;
   customerEmail?: string;

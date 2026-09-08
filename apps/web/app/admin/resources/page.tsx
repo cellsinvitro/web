@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   deleteAdminStudyMaterial,
   fetchAdminStudyMaterials,
+  fetchResourceLibrarySetting,
+  updateResourceLibrarySetting,
   uploadAdminStudyMaterial,
 } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
@@ -25,14 +27,23 @@ export default function AdminResourcesPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [price, setPrice] = useState("0");
   const [files, setFiles] = useState<FileList | null>(null);
 
-  const loadMaterials = useCallback(async () => {
+  const [libraryPrice, setLibraryPrice] = useState("0");
+  const [savingLibraryPrice, setSavingLibraryPrice] = useState(false);
+  const [libraryPriceSavedMsg, setLibraryPriceSavedMsg] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAdminStudyMaterials();
-      setMaterials(data);
+      const [mats, setting] = await Promise.all([
+        fetchAdminStudyMaterials(),
+        fetchResourceLibrarySetting(),
+      ]);
+      setMaterials(mats);
+      setLibraryPrice(String(setting.price || 0));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resources");
     } finally {
@@ -41,8 +52,25 @@ export default function AdminResourcesPage() {
   }, []);
 
   useEffect(() => {
-    loadMaterials();
-  }, [loadMaterials]);
+    loadData();
+  }, [loadData]);
+
+  const handleSaveLibraryPrice = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingLibraryPrice(true);
+    setLibraryPriceSavedMsg(null);
+    setActionError(null);
+    try {
+      const updated = await updateResourceLibrarySetting(Number(libraryPrice) || 0);
+      setLibraryPrice(String(updated.price));
+      setLibraryPriceSavedMsg("Whole Library Price updated successfully!");
+      setTimeout(() => setLibraryPriceSavedMsg(null), 3000);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to update whole library price");
+    } finally {
+      setSavingLibraryPrice(false);
+    }
+  };
 
   const handleUpload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -60,12 +88,14 @@ export default function AdminResourcesPage() {
         title: title.trim(),
         description: description.trim() || undefined,
         category: category.trim() || undefined,
+        price: Math.max(0, Math.floor(Number(price) || 0)),
         files: Array.from(files),
       });
       setMaterials((prev) => [material, ...prev]);
       setTitle("");
       setDescription("");
       setCategory("");
+      setPrice("0");
       setFiles(null);
       form.reset();
     } catch (err) {
@@ -114,7 +144,7 @@ export default function AdminResourcesPage() {
           Resource Library
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Upload PDFs and images for logged-in users on the dashboard.
+          Manage prices for full library access, modules, and individual file parts.
         </p>
       </div>
 
@@ -124,10 +154,48 @@ export default function AdminResourcesPage() {
         </div>
       ) : null}
 
+      {/* Global Resource Library Price Card */}
+      <div className="mb-8 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 to-slate-950 p-5 text-white shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span className="rounded-full bg-amber-400/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+              Whole Library Pass
+            </span>
+            <h2 className="mt-2 text-xl font-semibold">Full Library Price</h2>
+            <p className="mt-1 text-xs text-slate-300">
+              Setting a price here lets users buy full access to all current and future modules in the Resource Library. Set ₹0 for free access.
+            </p>
+          </div>
+          <form onSubmit={handleSaveLibraryPrice} className="flex items-center gap-3">
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-sm font-semibold text-slate-400">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={libraryPrice}
+                onChange={(e) => setLibraryPrice(e.target.value)}
+                className="w-32 rounded-xl border border-slate-700 bg-slate-800/80 pl-7 pr-3 py-2 text-sm font-medium text-white outline-none focus:border-amber-400"
+                placeholder="0"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingLibraryPrice}
+              className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-300 disabled:opacity-50"
+            >
+              {savingLibraryPrice ? "Saving..." : "Save Library Price"}
+            </button>
+          </form>
+        </div>
+        {libraryPriceSavedMsg ? (
+          <p className="mt-3 text-xs font-medium text-emerald-400">{libraryPriceSavedMsg}</p>
+        ) : null}
+      </div>
+
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-950">Upload material</h2>
+        <h2 className="text-lg font-semibold text-slate-950">Upload material (Module)</h2>
         <form onSubmit={handleUpload} className="mt-5 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-slate-700">
                 Title
@@ -151,6 +219,19 @@ export default function AdminResourcesPage() {
                 onChange={(event) => setCategory(event.target.value)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
                 placeholder="Protocols"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                Module Price (Whole Set ₹)
+              </span>
+              <input
+                type="number"
+                min="0"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
+                placeholder="0 for free"
               />
             </label>
           </div>
@@ -200,7 +281,8 @@ export default function AdminResourcesPage() {
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-slate-100 bg-slate-50/80 text-xs uppercase tracking-[0.14em] text-slate-500">
               <tr>
-                <th className="px-4 py-3 font-semibold">Resource</th>
+                <th className="px-4 py-3 font-semibold">Resource / Module</th>
+                <th className="px-4 py-3 font-semibold">Module Price</th>
                 <th className="px-4 py-3 font-semibold">Type</th>
                 <th className="px-4 py-3 font-semibold">Files</th>
                 <th className="px-4 py-3 font-semibold">Added</th>
@@ -210,7 +292,7 @@ export default function AdminResourcesPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center">
+                  <td colSpan={6} className="px-4 py-10 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <AdminSpinner size={36} />
                       <span className="text-xs text-slate-400">Loading resources…</span>
@@ -219,19 +301,20 @@ export default function AdminResourcesPage() {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-red-600">
+                  <td colSpan={6} className="px-4 py-10 text-center text-red-600">
                     {error}
                   </td>
                 </tr>
               ) : materials.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                     No resources uploaded yet.
                   </td>
                 </tr>
               ) : (
                 materials.map((material) => {
                   const isPending = pendingId === material.id;
+                  const modPrice = material.price ?? 0;
 
                   return (
                     <tr
@@ -248,6 +331,9 @@ export default function AdminResourcesPage() {
                             {material.category}
                           </p>
                         ) : null}
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-slate-900">
+                        {modPrice > 0 ? `₹${modPrice}` : <span className="font-medium text-emerald-600">Free</span>}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
                         {getMaterialTypeSummary(material.files)}
@@ -267,7 +353,7 @@ export default function AdminResourcesPage() {
                             href={`/admin/resources/${material.id}`}
                             className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
                           >
-                            Edit
+                            Edit & Part Prices
                           </Link>
                           <button
                             type="button"

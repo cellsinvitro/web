@@ -91,12 +91,53 @@ paymentsRoutes.get("/kits/:id", async (c) => {
   return c.json({ order: serializeKitOrder(order, `${url.protocol}//${url.host}`) });
 });
 
+import { getResourceLibrarySetting } from "../lib/study-materials.js";
+
+async function grantResourceAccess(
+  userId: string,
+  resourceScope: "FULL_LIBRARY" | "MODULE" | "FILE" | null | undefined,
+  studyMaterialId: string | null | undefined,
+  studyMaterialFileId: string | null | undefined,
+  paymentId: string
+) {
+  if (!resourceScope) return;
+
+  const existing = await prisma.resourceAccess.findFirst({
+    where: {
+      userId,
+      scope: resourceScope,
+      materialId: studyMaterialId || null,
+      fileId: studyMaterialFileId || null,
+    },
+  });
+
+  if (existing) {
+    await prisma.resourceAccess.update({
+      where: { id: existing.id },
+      data: { paymentId },
+    });
+  } else {
+    await prisma.resourceAccess.create({
+      data: {
+        userId,
+        scope: resourceScope,
+        materialId: studyMaterialId || null,
+        fileId: studyMaterialFileId || null,
+        paymentId,
+      },
+    });
+  }
+}
+
 paymentsRoutes.post("/create-order", async (c) => {
   const userId = c.get("user").sub;
   const {
     courseId,
     packageId,
     kitId,
+    resourceScope,
+    studyMaterialId,
+    studyMaterialFileId,
     quantity,
     customerName,
     customerEmail,
@@ -106,6 +147,9 @@ paymentsRoutes.post("/create-order", async (c) => {
     courseId?: string;
     packageId?: string;
     kitId?: string;
+    resourceScope?: "FULL_LIBRARY" | "MODULE" | "FILE";
+    studyMaterialId?: string;
+    studyMaterialFileId?: string;
     quantity?: number;
     customerName?: string;
     customerEmail?: string;
@@ -113,9 +157,9 @@ paymentsRoutes.post("/create-order", async (c) => {
     shippingAddress?: string;
   }>();
 
-  const targetCount = [courseId, packageId, kitId].filter(Boolean).length;
+  const targetCount = [courseId, packageId, kitId, resourceScope].filter(Boolean).length;
   if (targetCount === 0) {
-    throw new HTTPException(400, { message: "courseId, packageId, or kitId required" });
+    throw new HTTPException(400, { message: "courseId, packageId, kitId, or resourceScope required" });
   }
   if (targetCount > 1) {
     throw new HTTPException(400, { message: "Provide only one purchase target" });
@@ -158,6 +202,35 @@ paymentsRoutes.post("/create-order", async (c) => {
     amount = pkg.price;
     currency = pkg.currency;
     title = pkg.title;
+  } else if (resourceScope) {
+    if (resourceScope === "FULL_LIBRARY") {
+      const setting = await getResourceLibrarySetting();
+      amount = setting.price;
+      currency = setting.currency || "INR";
+      title = "Resource Library - Full Access";
+    } else if (resourceScope === "MODULE") {
+      if (!studyMaterialId) {
+        throw new HTTPException(400, { message: "studyMaterialId is required for MODULE scope" });
+      }
+      const material = await prisma.studyMaterial.findUnique({
+        where: { id: studyMaterialId },
+      });
+      if (!material) throw new HTTPException(404, { message: "Resource module not found" });
+      amount = material.price;
+      title = `Resource Module - ${material.title}`;
+    } else if (resourceScope === "FILE") {
+      if (!studyMaterialFileId) {
+        throw new HTTPException(400, { message: "studyMaterialFileId is required for FILE scope" });
+      }
+      const file = await prisma.studyMaterialFile.findUnique({
+        where: { id: studyMaterialFileId },
+      });
+      if (!file) throw new HTTPException(404, { message: "Resource file not found" });
+      amount = file.price;
+      title = `Resource File - ${file.fileName}`;
+    } else {
+      throw new HTTPException(400, { message: "Invalid resourceScope" });
+    }
   } else {
     const kit = await prisma.researchKit.findFirst({
       where: { id: kitId!, published: true },
@@ -206,13 +279,16 @@ paymentsRoutes.post("/create-order", async (c) => {
           courseId: courseId || null,
           packageId: packageId || null,
           kitId: kitId || null,
+          studyMaterialId: studyMaterialId || null,
+          studyMaterialFileId: studyMaterialFileId || null,
+          resourceScope: resourceScope || null,
           quantity: kitQuantity,
           customerName: customerName?.trim() || null,
           customerEmail: customerEmail?.trim().toLowerCase() || null,
           customerPhone: customerPhone?.trim() || null,
           shippingAddress: shippingAddress?.trim() || null,
-          itemTitle: kitId ? title : null,
-          unitAmount: kitId ? amount : null,
+          itemTitle: kitId || resourceScope ? title : null,
+          unitAmount: kitId || resourceScope ? amount : null,
           fulfillmentStatus: kitId ? "PROCESSING" : null,
           amount: 0,
           currency,
@@ -238,7 +314,9 @@ paymentsRoutes.post("/create-order", async (c) => {
       return createdPayment;
     });
 
-    if (!kitId) {
+    if (resourceScope) {
+      await grantResourceAccess(userId, resourceScope, studyMaterialId, studyMaterialFileId, payment.id);
+    } else if (!kitId) {
       await createEnrollments(userId, courseId, packageId, payment.id);
     } else {
       notifyKitOrderCreated(payment.id).catch((err) =>
@@ -258,13 +336,16 @@ paymentsRoutes.post("/create-order", async (c) => {
       courseId: courseId || null,
       packageId: packageId || null,
       kitId: kitId || null,
+      studyMaterialId: studyMaterialId || null,
+      studyMaterialFileId: studyMaterialFileId || null,
+      resourceScope: resourceScope || null,
       quantity: kitQuantity,
       customerName: customerName?.trim() || null,
       customerEmail: customerEmail?.trim().toLowerCase() || null,
       customerPhone: customerPhone?.trim() || null,
       shippingAddress: shippingAddress?.trim() || null,
-      itemTitle: kitId ? title : null,
-      unitAmount: kitId ? kitQuantity > 0 ? amount / kitQuantity : amount : null,
+      itemTitle: kitId || resourceScope ? title : null,
+      unitAmount: kitId || resourceScope ? (kitQuantity > 0 ? amount / kitQuantity : amount) : null,
       fulfillmentStatus: kitId ? "PROCESSING" : null,
       amount,
       currency,
@@ -282,6 +363,7 @@ paymentsRoutes.post("/create-order", async (c) => {
       courseId: courseId || "",
       packageId: packageId || "",
       kitId: kitId || "",
+      resourceScope: resourceScope || "",
       title,
     },
   });
@@ -372,7 +454,9 @@ paymentsRoutes.post("/verify", async (c) => {
     }
   });
 
-  if (!payment.kitId) {
+  if (payment.resourceScope) {
+    await grantResourceAccess(userId, payment.resourceScope, payment.studyMaterialId, payment.studyMaterialFileId, payment.id);
+  } else if (!payment.kitId) {
     await createEnrollments(userId, payment.courseId, payment.packageId, payment.id);
   } else {
     notifyKitOrderCreated(payment.id).catch((err) =>

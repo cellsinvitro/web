@@ -121,49 +121,162 @@ export async function deleteStoredStudyMaterial(storageKey: string) {
   }
 }
 
-export function toPublicStudyMaterialFile(file: {
-  id: string;
-  fileName: string;
-  mimeType: string;
-  fileSize: number;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
+import { prisma } from "./prisma.js";
+
+export type UserAccessInfo = {
+  hasFullLibrary: boolean;
+  accessibleMaterialIds: Set<string>;
+  accessibleFileIds: Set<string>;
+  isAdmin: boolean;
+};
+
+export async function getUserAccessInfo(userId?: string, userRole?: string): Promise<UserAccessInfo> {
+  const isAdmin = userRole === "ADMIN";
+  if (!userId) {
+    return {
+      hasFullLibrary: false,
+      accessibleMaterialIds: new Set(),
+      accessibleFileIds: new Set(),
+      isAdmin,
+    };
+  }
+
+  const accesses = await prisma.resourceAccess.findMany({
+    where: { userId },
+  });
+
+  let hasFullLibrary = false;
+  const accessibleMaterialIds = new Set<string>();
+  const accessibleFileIds = new Set<string>();
+
+  for (const acc of accesses) {
+    if (acc.scope === "FULL_LIBRARY") {
+      hasFullLibrary = true;
+    } else if (acc.scope === "MODULE" && acc.materialId) {
+      accessibleMaterialIds.add(acc.materialId);
+    } else if (acc.scope === "FILE" && acc.fileId) {
+      accessibleFileIds.add(acc.fileId);
+    }
+  }
+
+  return {
+    hasFullLibrary,
+    accessibleMaterialIds,
+    accessibleFileIds,
+    isAdmin,
+  };
+}
+
+export function toPublicStudyMaterialFile(
+  file: {
+    id: string;
+    materialId?: string;
+    fileName: string;
+    mimeType: string;
+    fileSize: number;
+    price?: number;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  materialPrice: number = 0,
+  libraryPrice: number = 0,
+  userAccess?: UserAccessInfo
+) {
+  const filePrice = file.price ?? 0;
+  let hasAccess = false;
+
+  if (userAccess?.isAdmin || userAccess?.hasFullLibrary) {
+    hasAccess = true;
+  } else if (file.materialId && userAccess?.accessibleMaterialIds.has(file.materialId)) {
+    hasAccess = true;
+  } else if (userAccess?.accessibleFileIds.has(file.id)) {
+    hasAccess = true;
+  } else if (libraryPrice === 0 && materialPrice === 0 && filePrice === 0) {
+    hasAccess = true;
+  } else if (materialPrice === 0 && filePrice === 0) {
+    hasAccess = true;
+  } else if (filePrice === 0) {
+    hasAccess = true;
+  }
+
   return {
     id: file.id,
     fileName: file.fileName,
     mimeType: file.mimeType,
     fileSize: file.fileSize,
+    price: filePrice,
+    hasAccess,
     createdAt: file.createdAt.toISOString(),
     updatedAt: file.updatedAt.toISOString(),
   };
 }
 
-export function toPublicStudyMaterial(material: {
-  id: string;
-  title: string;
-  description: string | null;
-  category: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  files: Array<{
+export function toPublicStudyMaterial(
+  material: {
     id: string;
-    fileName: string;
-    mimeType: string;
-    fileSize: number;
+    title: string;
+    description: string | null;
+    category: string | null;
+    price?: number;
     createdAt: Date;
     updatedAt: Date;
-  }>;
-}) {
+    files: Array<{
+      id: string;
+      materialId?: string;
+      fileName: string;
+      mimeType: string;
+      fileSize: number;
+      price?: number;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+  },
+  libraryPrice: number = 0,
+  userAccess?: UserAccessInfo
+) {
+  const modulePrice = material.price ?? 0;
+  const hasModuleAccess =
+    Boolean(userAccess?.isAdmin || userAccess?.hasFullLibrary || userAccess?.accessibleMaterialIds.has(material.id)) ||
+    (libraryPrice === 0 && modulePrice === 0);
+
   return {
     id: material.id,
     title: material.title,
     description: material.description,
     category: material.category,
-    files: material.files.map(toPublicStudyMaterialFile),
+    price: modulePrice,
+    hasAccess: hasModuleAccess,
+    files: material.files.map((file) =>
+      toPublicStudyMaterialFile(
+        { ...file, materialId: material.id },
+        modulePrice,
+        libraryPrice,
+        userAccess
+      )
+    ),
     createdAt: material.createdAt.toISOString(),
     updatedAt: material.updatedAt.toISOString(),
   };
+}
+
+export async function getResourceLibrarySetting() {
+  const setting = await prisma.resourceLibrarySetting.findUnique({
+    where: { id: "default" },
+  });
+  if (!setting) {
+    return await prisma.resourceLibrarySetting.create({
+      data: { id: "default", price: 0, currency: "INR" },
+    });
+  }
+  return setting;
+}
+
+export async function updateResourceLibrarySetting(price: number) {
+  return prisma.resourceLibrarySetting.upsert({
+    where: { id: "default" },
+    create: { id: "default", price, currency: "INR" },
+    update: { price },
+  });
 }
 
 export const studyMaterialInclude = {

@@ -7,33 +7,83 @@ import {
   isCloudinaryStorageKey,
 } from "../lib/cloudinary.js";
 import {
+  getResourceLibrarySetting,
+  getUserAccessInfo,
   readStudyMaterialFile,
   studyMaterialInclude,
   toPublicStudyMaterial,
+  toPublicStudyMaterialFile,
 } from "../lib/study-materials.js";
 import { getAccessTokenFromRequest } from "../lib/cookies.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 
 export const materialsRoutes = new Hono();
 
+async function getRequestUser(c: any) {
+  const token = getAccessTokenFromRequest(c);
+  if (!token) return null;
+  try {
+    const user = await verifyAccessToken(token);
+    return user;
+  } catch {
+    return null;
+  }
+}
+
 materialsRoutes.get("/", async (c) => {
+  const user = await getRequestUser(c);
+  const userAccess = await getUserAccessInfo(user?.sub, (user as any)?.role);
+  const librarySetting = await getResourceLibrarySetting();
+
   const materials = await prisma.studyMaterial.findMany({
     orderBy: { createdAt: "desc" },
     include: studyMaterialInclude,
   });
 
   return c.json({
-    materials: materials.map(toPublicStudyMaterial),
+    libraryPrice: librarySetting.price,
+    materials: materials.map((material) =>
+      toPublicStudyMaterial(material, librarySetting.price, userAccess)
+    ),
   });
 });
 
-async function loadStudyMaterialFileBuffer(materialId: string, fileId: string) {
+async function loadStudyMaterialFileBuffer(
+  c: any,
+  materialId: string,
+  fileId: string,
+  requireAccess: boolean = true
+) {
+  const material = await prisma.studyMaterial.findUnique({
+    where: { id: materialId },
+  });
+  if (!material) {
+    throw new HTTPException(404, { message: "Resource not found" });
+  }
+
   const file = await prisma.studyMaterialFile.findFirst({
     where: { id: fileId, materialId },
   });
 
   if (!file) {
     throw new HTTPException(404, { message: "Resource file not found" });
+  }
+
+  const user = await getRequestUser(c);
+  const userAccess = await getUserAccessInfo(user?.sub, (user as any)?.role);
+  const librarySetting = await getResourceLibrarySetting();
+
+  const filePublic = toPublicStudyMaterialFile(
+    file,
+    material.price,
+    librarySetting.price,
+    userAccess
+  );
+
+  if (requireAccess && !filePublic.hasAccess) {
+    throw new HTTPException(403, {
+      message: "Purchase required to download this resource",
+    });
   }
 
   let fileData: Buffer;
@@ -47,7 +97,7 @@ async function loadStudyMaterialFileBuffer(materialId: string, fileId: string) {
     throw new HTTPException(404, { message: "Resource file not found" });
   }
 
-  return { file, fileData };
+  return { file, fileData, user, hasAccess: filePublic.hasAccess };
 }
 
 function contentDispositionAttachment(fileName: string) {
@@ -57,8 +107,10 @@ function contentDispositionAttachment(fileName: string) {
 
 materialsRoutes.get("/:materialId/files/:fileId/view", async (c) => {
   const { file, fileData } = await loadStudyMaterialFileBuffer(
+    c,
     c.req.param("materialId"),
-    c.req.param("fileId")
+    c.req.param("fileId"),
+    false
   );
 
   return new Response(fileData, {
@@ -73,15 +125,15 @@ materialsRoutes.get("/:materialId/files/:fileId/view", async (c) => {
 });
 
 materialsRoutes.get("/:materialId/files/:fileId/download", async (c) => {
-  const { file, fileData } = await loadStudyMaterialFileBuffer(
+  const { file, fileData, user } = await loadStudyMaterialFileBuffer(
+    c,
     c.req.param("materialId"),
-    c.req.param("fileId")
+    c.req.param("fileId"),
+    true
   );
 
-  const token = getAccessTokenFromRequest(c);
-  if (token) {
+  if (user) {
     try {
-      const user = await verifyAccessToken(token);
       await prisma.studyMaterialDownload.create({
         data: {
           userId: user.sub,
@@ -89,7 +141,7 @@ materialsRoutes.get("/:materialId/files/:fileId/download", async (c) => {
         },
       });
     } catch {
-      // Ignore token verification errors for anonymous download tracking
+      // Ignore download tracking error
     }
   }
 
@@ -105,6 +157,10 @@ materialsRoutes.get("/:materialId/files/:fileId/download", async (c) => {
 });
 
 materialsRoutes.get("/:id", async (c) => {
+  const user = await getRequestUser(c);
+  const userAccess = await getUserAccessInfo(user?.sub, (user as any)?.role);
+  const librarySetting = await getResourceLibrarySetting();
+
   const material = await prisma.studyMaterial.findUnique({
     where: { id: c.req.param("id") },
     include: studyMaterialInclude,
@@ -114,5 +170,8 @@ materialsRoutes.get("/:id", async (c) => {
     throw new HTTPException(404, { message: "Resource not found" });
   }
 
-  return c.json({ material: toPublicStudyMaterial(material) });
+  return c.json({
+    libraryPrice: librarySetting.price,
+    material: toPublicStudyMaterial(material, librarySetting.price, userAccess),
+  });
 });

@@ -10,6 +10,7 @@ import {
   deleteAdminStudyMaterialFile,
   fetchStudyMaterial,
   updateAdminStudyMaterial,
+  updateAdminStudyMaterialFilePrice,
 } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
 import {
@@ -32,6 +33,7 @@ export default function AdminResourceDetailView() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [price, setPrice] = useState("0");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,11 +49,12 @@ export default function AdminResourceDetailView() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchStudyMaterial(materialId);
+      const { material: data } = await fetchStudyMaterial(materialId);
       setMaterial(data);
       setTitle(data.title);
       setDescription(data.description ?? "");
       setCategory(data.category ?? "");
+      setPrice(String(data.price ?? 0));
       setPendingFiles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resource");
@@ -70,9 +73,10 @@ export default function AdminResourceDetailView() {
     return (
       title.trim() !== material.title ||
       description.trim() !== (material.description ?? "") ||
-      category.trim() !== (material.category ?? "")
+      category.trim() !== (material.category ?? "") ||
+      Number(price) !== (material.price ?? 0)
     );
-  }, [material, title, description, category]);
+  }, [material, title, description, category, price]);
 
   const isBusy =
     saving || uploadingFiles || deleting || deletingFileId !== null;
@@ -89,11 +93,13 @@ export default function AdminResourceDetailView() {
         title: title.trim(),
         description: description.trim(),
         category: category.trim(),
+        price: Math.max(0, Math.floor(Number(price) || 0)),
       });
       setMaterial(updated);
       setTitle(updated.title);
       setDescription(updated.description ?? "");
       setCategory(updated.category ?? "");
+      setPrice(String(updated.price ?? 0));
       setSavedAt("Details saved");
     } catch (err) {
       setActionError(
@@ -101,6 +107,16 @@ export default function AdminResourceDetailView() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateFilePrice = async (fileId: string, newPrice: number) => {
+    if (!material) return;
+    try {
+      const updated = await updateAdminStudyMaterialFilePrice(material.id, fileId, newPrice);
+      setMaterial(updated);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to update file price");
     }
   };
 
@@ -305,6 +321,8 @@ export default function AdminResourceDetailView() {
                   showDelete={material.files.length > 1}
                   onDeleteFile={handleDeleteFile}
                   deletingFileId={deletingFileId}
+                  showPriceEditor={true}
+                  onUpdateFilePrice={handleUpdateFilePrice}
                 />
               </div>
 
@@ -465,6 +483,23 @@ export default function AdminResourceDetailView() {
                     }}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
                     placeholder="Protocols"
+                  />
+                </label>
+
+                <label className="mt-4 block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Module Price (Whole Set ₹)
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={price}
+                    onChange={(event) => {
+                      setPrice(event.target.value);
+                      setSavedAt(null);
+                    }}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
+                    placeholder="0 for free"
                   />
                 </label>
 

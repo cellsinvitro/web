@@ -14,6 +14,8 @@ import {
   getMaterialTypeSummary,
 } from "@/lib/resources";
 
+import ResourcePurchaseButton from "@/components/resources/ResourcePurchaseButton";
+
 export default function ResourceDetailPageClient() {
   const params = useParams<{ id: string }>();
   const materialId = params.id;
@@ -25,7 +27,7 @@ export default function ResourceDetailPageClient() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchStudyMaterial(materialId);
+      const { material: data } = await fetchStudyMaterial(materialId);
       setMaterial(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resource");
@@ -37,6 +39,9 @@ export default function ResourceDetailPageClient() {
   useEffect(() => {
     loadMaterial();
   }, [loadMaterial]);
+
+  const modPrice = material?.price ?? 0;
+  const isUnlocked = material?.hasAccess;
 
   return (
     <main>
@@ -71,29 +76,55 @@ export default function ResourceDetailPageClient() {
             </div>
           ) : material ? (
             <>
-              <div className="mt-8 max-w-3xl">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
-                  Resource Library
-                </p>
-                <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                  {material.title}
-                </h1>
-                {material.description ? (
-                  <p className="mt-4 text-base leading-7 text-slate-500">
-                    {material.description}
+              <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-3xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    Resource Module
                   </p>
+                  <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                    {material.title}
+                  </h1>
+                  {material.description ? (
+                    <p className="mt-4 text-base leading-7 text-slate-500">
+                      {material.description}
+                    </p>
+                  ) : null}
+                  <p className="mt-4 text-xs text-slate-400">
+                    {getMaterialTypeSummary(material.files)} ·{" "}
+                    {getMaterialFileCountLabel(material.files.length)}. You can purchase the whole module set or individual parts below.
+                  </p>
+                </div>
+
+                {!isUnlocked && modPrice > 0 ? (
+                  <div className="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center shadow-sm md:w-72">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Whole Module Pass
+                    </span>
+                    <p className="mt-1 text-2xl font-bold text-slate-950">
+                      ₹{modPrice}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Unlocks all {material.files.length} files in this module
+                    </p>
+                    <div className="mt-4">
+                      <ResourcePurchaseButton
+                        resourceScope="MODULE"
+                        studyMaterialId={material.id}
+                        price={modPrice}
+                        label={`Buy Module Set - ₹${modPrice}`}
+                        className="w-full justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800"
+                        onSuccess={loadMaterial}
+                      />
+                    </div>
+                  </div>
                 ) : null}
-                <p className="mt-4 text-xs text-slate-400">
-                  {getMaterialTypeSummary(material.files)} ·{" "}
-                  {getMaterialFileCountLabel(material.files.length)}. View-only
-                  preview. Click a file to open it.
-                </p>
               </div>
 
               <div className="mt-8">
                 <ResourceFileGrid
                   materialId={material.id}
                   files={material.files}
+                  onPurchaseSuccess={loadMaterial}
                 />
               </div>
             </>
