@@ -11,7 +11,6 @@ export type QuizQuestionDraft = {
   explanation?: string;
   subject?: string;
   topic?: string;
-  tags?: string[];
   correctMarks?: number;
   negativeMarks?: number;
 };
@@ -20,7 +19,7 @@ export function emptyQuizQuestion(index: number): QuizQuestionDraft {
   return {
     id: `q${index + 1}-${Math.random().toString(36).slice(2, 8)}`,
     text: "",
-    options: ["", "", "", ""],
+    options: ["", ""],
     correctIndex: 0,
   };
 }
@@ -41,7 +40,7 @@ export function questionsFromContentJson(
     const options =
       Array.isArray(q.options) && q.options.length >= 2
         ? q.options.map((opt) => String(opt ?? ""))
-        : ["", "", "", ""];
+        : ["", ""];
     return {
       id: q.id || `q${i + 1}`,
       text: q.text || "",
@@ -50,7 +49,6 @@ export function questionsFromContentJson(
       ...(q.explanation !== undefined && { explanation: q.explanation }),
       ...(q.subject !== undefined && { subject: q.subject }),
       ...(q.topic !== undefined && { topic: q.topic }),
-      ...(Array.isArray(q.tags) && { tags: q.tags }),
       ...(typeof q.correctMarks === "number" && { correctMarks: q.correctMarks }),
       ...(typeof q.negativeMarks === "number" && { negativeMarks: q.negativeMarks }),
     };
@@ -71,7 +69,6 @@ export function serializeQuizQuestions(questions: QuizQuestionDraft[]): string {
         ...(q.explanation?.trim() && { explanation: q.explanation.trim() }),
         ...(q.subject?.trim() && { subject: q.subject.trim() }),
         ...(q.topic?.trim() && { topic: q.topic.trim() }),
-        ...(Array.isArray(q.tags) && q.tags.length > 0 && { tags: q.tags }),
         ...(typeof q.correctMarks === "number" && { correctMarks: q.correctMarks }),
         ...(typeof q.negativeMarks === "number" && { negativeMarks: q.negativeMarks }),
       };
@@ -80,66 +77,6 @@ export function serializeQuizQuestions(questions: QuizQuestionDraft[]): string {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
-
-function TagInput({
-  tags,
-  onChange,
-}: {
-  tags: string[];
-  onChange: (tags: string[]) => void;
-}) {
-  const [input, setInput] = useState("");
-
-  const addTag = () => {
-    const val = input.trim();
-    if (val && !tags.includes(val)) onChange([...tags, val]);
-    setInput("");
-  };
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-1.5">
-        {tags.map((tag) => (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
-          >
-            {tag}
-            <button
-              type="button"
-              onClick={() => onChange(tags.filter((t) => t !== tag))}
-              className="text-slate-400 hover:text-slate-700"
-              aria-label={`Remove tag ${tag}`}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-1.5">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === ",") {
-              e.preventDefault();
-              addTag();
-            }
-          }}
-          placeholder="Add tag, press Enter"
-          className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
-        />
-        <button
-          type="button"
-          onClick={addTag}
-          className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
-        >
-          Add
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function QuestionCard({
   question,
@@ -160,7 +97,6 @@ function QuestionCard({
       question.explanation ||
       question.subject ||
       question.topic ||
-      (question.tags && question.tags.length > 0) ||
       question.correctMarks !== undefined ||
       question.negativeMarks !== undefined
     )
@@ -334,17 +270,6 @@ function QuestionCard({
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
                 />
               </label>
-            </div>
-
-            {/* Tags */}
-            <div className="block text-xs">
-              <span className="font-medium text-slate-500">Tags</span>
-              <div className="mt-1">
-                <TagInput
-                  tags={question.tags ?? []}
-                  onChange={(tags) => onChange({ tags: tags.length ? tags : undefined })}
-                />
-              </div>
             </div>
 
             {/* Explanation */}

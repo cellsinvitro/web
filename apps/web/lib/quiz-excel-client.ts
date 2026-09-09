@@ -20,19 +20,18 @@
  *   Column B  (1):  S No.            (ignored)
  *   Column C  (2):  SUBJECT
  *   Column D  (3):  TOPIC
- *   Column E  (4):  TAGS             (comma-separated)
- *   Column F  (5):  QUESTION TYPE    (only SINGLECORRECT supported; others warned)
- *   Column G  (6):  QUESTION TEXT
- *   Column H  (7):  OPTION1
- *   Column I  (8):  OPTION2
- *   Column J  (9):  OPTION3          (optional)
- *   Column K (10):  OPTION4          (optional)
- *   Column L (11):  OPTION5          (optional)
- *   Column M (12):  OPTION6          (optional)
- *   Column N (13):  RIGHT ANSWER     — 1-based number or A-F letter
- *   Column O (14):  EXPLANATION
- *   Column P (15):  CORRECT MARKS
- *   Column Q (16):  NEGATIVE MARKS
+ *   Column E  (4):  QUESTION TYPE    (only SINGLECORRECT supported; others warned)
+ *   Column F  (5):  QUESTION TEXT
+ *   Column G  (6):  OPTION1
+ *   Column H  (7):  OPTION2
+ *   Column I  (8):  OPTION3          (optional)
+ *   Column J  (9):  OPTION4          (optional)
+ *   Column K (10):  OPTION5          (optional)
+ *   Column L (11):  OPTION6          (optional)
+ *   Column M (12):  RIGHT ANSWER     — 1-based number or A-F letter
+ *   Column N (13):  EXPLANATION
+ *   Column O (14):  CORRECT MARKS
+ *   Column P (15):  NEGATIVE MARKS
  */
 
 import * as XLSX from "xlsx";
@@ -150,20 +149,20 @@ function parseRichLayout(rows: unknown[][], startRow: number): ParsedExcelResult
     const row = rows[i] ?? [];
     const rowNum = i + 1;
 
-    const questionText = String(row[6] ?? "").trim();
+    const questionText = String(row[5] ?? "").trim();
     if (!questionText) continue;
 
     // Warn on unsupported question types
-    const qType = String(row[5] ?? "").trim().toUpperCase();
+    const qType = String(row[4] ?? "").trim().toUpperCase();
     if (qType && qType !== "SINGLECORRECT") {
       warnings.push(
         `Row ${rowNum}: "${questionText}" — question type "${qType}" is not fully supported; imported as single-correct`
       );
     }
 
-    // Options from cols 7–12
+    // Options from cols 6–11
     const rawOptions: string[] = [];
-    for (let col = 7; col <= 12; col++) {
+    for (let col = 6; col <= 11; col++) {
       const opt = String(row[col] ?? "").trim();
       if (opt) rawOptions.push(opt);
     }
@@ -176,7 +175,7 @@ function parseRichLayout(rows: unknown[][], startRow: number): ParsedExcelResult
     }
 
     const correctIndex = parseCorrectAnswer(
-      String(row[13] ?? "").trim(),
+      String(row[12] ?? "").trim(),
       rawOptions.length,
       rowNum,
       questionText,
@@ -185,14 +184,11 @@ function parseRichLayout(rows: unknown[][], startRow: number): ParsedExcelResult
 
     const subject = String(row[2] ?? "").trim() || undefined;
     const topic = String(row[3] ?? "").trim() || undefined;
-    const tagsRaw = String(row[4] ?? "").trim();
-    const tags = tagsRaw
-      ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
-      : undefined;
-    const explanation = String(row[14] ?? "").trim() || undefined;
-    const correctMarksRaw = String(row[15] ?? "").trim();
+    // col 4 = TAGS — skipped (column index kept for layout compatibility)
+    const explanation = String(row[13] ?? "").trim() || undefined;
+    const correctMarksRaw = String(row[14] ?? "").trim();
     const correctMarks = correctMarksRaw ? Number(correctMarksRaw) : undefined;
-    const negativeMarksRaw = String(row[16] ?? "").trim();
+    const negativeMarksRaw = String(row[15] ?? "").trim();
     const negativeMarks = negativeMarksRaw ? Number(negativeMarksRaw) : undefined;
 
     questions.push({
@@ -202,7 +198,6 @@ function parseRichLayout(rows: unknown[][], startRow: number): ParsedExcelResult
       correctIndex,
       ...(subject !== undefined && { subject }),
       ...(topic !== undefined && { topic }),
-      ...(tags !== undefined && { tags }),
       ...(explanation !== undefined && { explanation }),
       ...(correctMarks !== undefined && !isNaN(correctMarks) && { correctMarks }),
       ...(negativeMarks !== undefined && !isNaN(negativeMarks) && { negativeMarks }),
@@ -211,7 +206,7 @@ function parseRichLayout(rows: unknown[][], startRow: number): ParsedExcelResult
 
   if (questions.length === 0) {
     throw new Error(
-      "No valid questions found. Ensure column G has question text, columns H–M have options, and column N has the correct answer."
+      "No valid questions found. Ensure column F has question text, columns G–L have options, and column M has the correct answer."
     );
   }
 

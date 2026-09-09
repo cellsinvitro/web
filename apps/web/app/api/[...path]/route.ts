@@ -24,6 +24,11 @@ async function proxy(request: NextRequest, path: string[]) {
   if (cookie) {
     headers.set("cookie", cookie);
   }
+  // Forward the Authorization header so Bearer tokens from localStorage reach the server
+  const authorization = request.headers.get("authorization");
+  if (authorization) {
+    headers.set("authorization", authorization);
+  }
   const requestContentType = request.headers.get("content-type");
   if (requestContentType) {
     headers.set("content-type", requestContentType);

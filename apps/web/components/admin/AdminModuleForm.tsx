@@ -18,6 +18,7 @@ import {
   parseTextBody,
 } from "@/lib/courses";
 import { parseQuizExcelFile } from "@/lib/quiz-excel-client";
+import { downloadQuizTemplate } from "@/lib/quiz-excel-template";
 import QuizBuilder, {
   questionsFromContentJson,
   serializeQuizQuestions,
@@ -457,20 +458,35 @@ export default function AdminModuleForm({
 
           {/* Excel import — available for both new and existing modules */}
           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-            <p className="text-sm font-medium text-slate-950">
-              Import questions from Excel
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Upload an Excel file (.xlsx) to populate questions.{" "}
-              <span className="font-medium">
-                Format: A=Question, B–E=Options (min 2), F=Correct answer (1–4 or A–D)
-              </span>
-              {!existing ? (
-                <span className="ml-1 text-blue-600">
-                  · Imported questions are editable before saving.
-                </span>
-              ) : null}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-slate-950">
+                  Import questions from Excel
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Upload an Excel file (.xlsx) to populate questions.{" "}
+                  <span className="font-medium">
+                    Format: A=blank, B=S No., C=Subject, D=Topic, E=Tags, F=Question Type, G=Question Text, H–M=Options, N=Right Answer, O=Explanation, P=Correct Marks, Q=Negative Marks
+                  </span>
+                  {!existing ? (
+                    <span className="ml-1 text-blue-600">
+                      · Imported questions are editable before saving.
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => downloadQuizTemplate()}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                  <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                </svg>
+                Download template
+              </button>
+            </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <input
                 ref={excelInputRef}
