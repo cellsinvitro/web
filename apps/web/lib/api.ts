@@ -108,6 +108,30 @@ export async function loginUser(input: { email: string; password: string }) {
   return data;
 }
 
+export type ToolKey = "chatbot" | "molarity" | "ic50";
+
+export async function consumeToolUse(toolKey: ToolKey) {
+  return apiFetch<{ allowed: true; limit: number | null; used: number }>(
+    `/tools/usage/${toolKey}/consume`,
+    { method: "POST", body: JSON.stringify({}) }
+  );
+}
+
+export type ToolSetting = { toolKey: ToolKey; usageLimit: number | null; updatedAt: string };
+
+export async function fetchAdminToolSettings() {
+  const data = await apiFetch<{ settings: ToolSetting[] }>("/tools/admin");
+  return data.settings;
+}
+
+export async function updateAdminToolSetting(toolKey: ToolKey, usageLimit: number | null) {
+  const data = await apiFetch<{ setting: ToolSetting }>(`/tools/admin/${toolKey}`, {
+    method: "PATCH",
+    body: JSON.stringify({ usageLimit }),
+  });
+  return data.setting;
+}
+
 export async function sendOtpApi(input: {
   email: string;
   purpose?: "LOGIN" | "REGISTRATION" | "PASSWORD_RESET";

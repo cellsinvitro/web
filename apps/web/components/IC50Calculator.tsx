@@ -10,6 +10,7 @@ import {
   generateCurvePoints,
   parseDataInput,
 } from "@/lib/ic50";
+import { consumeToolUse } from "@/lib/api";
 
 const inputClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
@@ -271,8 +272,14 @@ export default function IC50Calculator() {
     }
   }
 
-  function handleCalculate() {
+  async function handleCalculate() {
     if (!processedPoints) return;
+    try {
+      await consumeToolUse("ic50");
+    } catch (error) {
+      setParseErrors([error instanceof Error ? error.message : "Tool usage limit reached"]);
+      return;
+    }
     const result = fitFourPL(processedPoints);
     setFitResult(result);
   }

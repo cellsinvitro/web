@@ -90,6 +90,7 @@ const navItems = [
   { label: "Kits", href: "/admin/kits", icon: KitsIcon },
   { label: "Orders", href: "/admin/orders", icon: OrdersIcon },
   { label: "Maintenance", href: "/admin/maintenance", icon: MaintenanceIcon },
+  { label: "Tool Limits", href: "/admin/tools", icon: MaintenanceIcon },
 ];
 
 function NavLink({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { consumeToolUse } from "@/lib/api";
 
 type Mode = "molarity" | "mass" | "dilution";
 
@@ -126,6 +127,8 @@ export default function MolarityCalculator() {
   const [volume, setVolume] = useState("");
   const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>("mL");
   const [targetMolarity, setTargetMolarity] = useState("");
+  const [calculatedResult, setCalculatedResult] = useState<typeof result>(null);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
   const [c1, setC1] = useState("");
   const [v1, setV1] = useState("");
@@ -246,6 +249,18 @@ export default function MolarityCalculator() {
   ]);
 
   const activeMode = modes.find((item) => item.id === mode)!;
+
+  const handleCalculate = async () => {
+    if (!result) return;
+    setCalculationError(null);
+    try {
+      await consumeToolUse("molarity");
+      setCalculatedResult(result);
+    } catch (error) {
+      setCalculatedResult(null);
+      setCalculationError(error instanceof Error ? error.message : "Tool usage limit reached");
+    }
+  };
 
   const dilutionFilledCount = [c1, v1, c2, v2].filter((v) => v.trim() !== "").length;
   const dilutionLocked =
@@ -403,22 +418,26 @@ export default function MolarityCalculator() {
       )}
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-        {result ? (
+        <button type="button" onClick={handleCalculate} disabled={!result} className="mb-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
+          Calculate
+        </button>
+        {calculationError ? <p className="mb-3 text-sm text-red-600">{calculationError}</p> : null}
+        {calculatedResult ? (
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
               Result
             </p>
             <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              {formatNumber(result.value)}{" "}
-              <span className="text-lg text-slate-500">{result.unit}</span>
+              {formatNumber(calculatedResult.value)}{" "}
+              <span className="text-lg text-slate-500">{calculatedResult.unit}</span>
             </p>
-            {result.alt && (
+            {calculatedResult.alt && (
               <p className="mt-1 text-sm text-slate-500">
-                {result.alt.label}: {formatNumber(result.alt.value)}{" "}
-                {result.alt.unit}
+                {calculatedResult.alt.label}: {formatNumber(calculatedResult.alt.value)}{" "}
+                {calculatedResult.alt.unit}
               </p>
             )}
-            <p className="mt-3 text-sm text-slate-500">{result.formula}</p>
+            <p className="mt-3 text-sm text-slate-500">{calculatedResult.formula}</p>
           </div>
         ) : (
           <div>

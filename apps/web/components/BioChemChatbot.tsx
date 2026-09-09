@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { consumeToolUse } from "@/lib/api";
 
 export interface Message {
   id: string;
@@ -86,6 +87,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
     setConfigError(null);
 
     try {
+      await consumeToolUse("chatbot");
       const apiHistory = newMessages
         .filter((m) => !m.isError && m.id !== "welcome-1")
         .map((m) => ({
@@ -132,7 +134,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Network error. Please check your internet connection or try again.",
+        content: err instanceof Error ? err.message : "Network error. Please check your internet connection or try again.",
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
