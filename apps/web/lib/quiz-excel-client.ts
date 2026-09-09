@@ -1,23 +1,11 @@
-import * as XLSX from "xlsx";
-import { randomBytes } from "node:crypto";
-
-export type ParsedQuestion = {
-  id: string;
-  text: string;
-  options: string[];
-  correctIndex: number;
-  explanation?: string;
-  subject?: string;
-  topic?: string;
-  tags?: string[];
-  correctMarks?: number;
-  negativeMarks?: number;
-};
-
 /**
- * Parse an Excel/CSV buffer into quiz questions.
+ * Client-side Excel/CSV parser for quiz questions.
  *
- * Supports two layouts — detected automatically by inspecting the header row:
+ * Mirrors the logic in apps/server/src/lib/quiz-excel.ts but runs entirely
+ * in the browser — no API call needed, so new (unsaved) quiz modules can
+ * have questions populated before the first save.
+ *
+ * Supports two layouts — auto-detected by the header row:
  *
  * ── Legacy layout (6 columns) ──────────────────────────────────────────────
  *   Column A (0): Question text
@@ -27,7 +15,7 @@ export type ParsedQuestion = {
  *   Column E (4): Option 4  (optional)
  *   Column F (5): Correct answer — 1-4 or A-D
  *
- * ── Rich layout (matches the standard import template) ─────────────────────
+ * ── Rich layout (standard import template) ─────────────────────────────────
  *   Column A  (0):  (blank / row index — ignored)
  *   Column B  (1):  S No.            (ignored)
  *   Column C  (2):  SUBJECT
@@ -45,14 +33,24 @@ export type ParsedQuestion = {
  *   Column O (14):  EXPLANATION
  *   Column P (15):  CORRECT MARKS
  *   Column Q (16):  NEGATIVE MARKS
- *
- * Returns an array of parsed questions and an array of row-level warnings.
  */
-export function parseQuizExcel(buffer: Buffer): {
-  questions: ParsedQuestion[];
+
+import * as XLSX from "xlsx";
+import type { QuizQuestionDraft } from "@/components/admin/QuizBuilder";
+
+export type ParsedExcelResult = {
+  questions: QuizQuestionDraft[];
   warnings: string[];
-} {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+};
+
+function randomId(): string {
+  return `q-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export async function parseQuizExcelFile(file: File): Promise<ParsedExcelResult> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) throw new Error("Excel file has no sheets");
 
@@ -66,28 +64,24 @@ export function parseQuizExcel(buffer: Buffer): {
 
   if (rows.length === 0) throw new Error("Excel sheet is empty");
 
-  // ── Detect layout by inspecting the first non-empty row ──────────────────
-  // If any cell in the first row contains "QUESTION TEXT" (case-insensitive),
-  // it is the rich-layout header row.
+  // Detect layout by inspecting first row for rich-format headers
   const firstRow = (rows[0] ?? []).map((c) => String(c ?? "").trim().toUpperCase());
   const isRichLayout = firstRow.some(
-    (cell) => cell === "QUESTION TEXT" || cell === "QUESTION TYPE" || cell === "RIGHT ANSWER"
+    (cell) =>
+      cell === "QUESTION TEXT" || cell === "QUESTION TYPE" || cell === "RIGHT ANSWER"
   );
 
   return isRichLayout
-    ? parseRichLayout(rows, 1)     // skip header row
+    ? parseRichLayout(rows, 1)
     : parseLegacyLayout(rows);
 }
 
-// ── Legacy layout parser ────────────────────────────────────────────────────
-function parseLegacyLayout(rows: unknown[][]): {
-  questions: ParsedQuestion[];
-  warnings: string[];
-} {
-  const questions: ParsedQuestion[] = [];
+// ── Legacy layout ────────────────────────────────────────────────────────────
+function parseLegacyLayout(rows: unknown[][]): ParsedExcelResult {
+  const questions: QuizQuestionDraft[] = [];
   const warnings: string[] = [];
 
-  // Skip header row if first cell looks like a label
+  // Skip header row if first cell looks like a column label
   let startRow = 0;
   const firstCell = String(rows[0]?.[0] ?? "").trim().toLowerCase();
   if (
@@ -116,7 +110,9 @@ function parseLegacyLayout(rows: unknown[][]): {
     }
 
     if (rawOptions.length < 2) {
-      warnings.push(`Row ${rowNum}: "${questionText}" — needs at least 2 options, skipped`);
+      warnings.push(
+        `Row ${rowNum}: "${questionText}" — needs at least 2 options, skipped`
+      );
       continue;
     }
 
@@ -129,7 +125,7 @@ function parseLegacyLayout(rows: unknown[][]): {
     );
 
     questions.push({
-      id: `q-${randomBytes(4).toString("hex")}`,
+      id: randomId(),
       text: questionText,
       options: rawOptions,
       correctIndex,
@@ -145,31 +141,27 @@ function parseLegacyLayout(rows: unknown[][]): {
   return { questions, warnings };
 }
 
-// ── Rich layout parser ──────────────────────────────────────────────────────
-function parseRichLayout(rows: unknown[][], startRow: number): {
-  questions: ParsedQuestion[];
-  warnings: string[];
-} {
-  const questions: ParsedQuestion[] = [];
+// ── Rich layout ──────────────────────────────────────────────────────────────
+function parseRichLayout(rows: unknown[][], startRow: number): ParsedExcelResult {
+  const questions: QuizQuestionDraft[] = [];
   const warnings: string[] = [];
 
   for (let i = startRow; i < rows.length; i++) {
     const row = rows[i] ?? [];
     const rowNum = i + 1;
 
-    // col 6 = QUESTION TEXT
     const questionText = String(row[6] ?? "").trim();
     if (!questionText) continue;
 
-    // col 5 = QUESTION TYPE — warn on unsupported types but still import
+    // Warn on unsupported question types
     const qType = String(row[5] ?? "").trim().toUpperCase();
-    if (qType && qType !== "SINGLECORRECT" && qType !== "") {
+    if (qType && qType !== "SINGLECORRECT") {
       warnings.push(
         `Row ${rowNum}: "${questionText}" — question type "${qType}" is not fully supported; imported as single-correct`
       );
     }
 
-    // cols 7–12 = OPTION1–OPTION6
+    // Options from cols 7–12
     const rawOptions: string[] = [];
     for (let col = 7; col <= 12; col++) {
       const opt = String(row[col] ?? "").trim();
@@ -177,11 +169,12 @@ function parseRichLayout(rows: unknown[][], startRow: number): {
     }
 
     if (rawOptions.length < 2) {
-      warnings.push(`Row ${rowNum}: "${questionText}" — needs at least 2 options, skipped`);
+      warnings.push(
+        `Row ${rowNum}: "${questionText}" — needs at least 2 options, skipped`
+      );
       continue;
     }
 
-    // col 13 = RIGHT ANSWER
     const correctIndex = parseCorrectAnswer(
       String(row[13] ?? "").trim(),
       rawOptions.length,
@@ -190,27 +183,20 @@ function parseRichLayout(rows: unknown[][], startRow: number): {
       warnings
     );
 
-    // col 2 = SUBJECT
     const subject = String(row[2] ?? "").trim() || undefined;
-    // col 3 = TOPIC
     const topic = String(row[3] ?? "").trim() || undefined;
-    // col 4 = TAGS (comma-separated string or already empty)
     const tagsRaw = String(row[4] ?? "").trim();
-    const tags =
-      tagsRaw
-        ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
-        : undefined;
-    // col 14 = EXPLANATION
+    const tags = tagsRaw
+      ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
+      : undefined;
     const explanation = String(row[14] ?? "").trim() || undefined;
-    // col 15 = CORRECT MARKS
     const correctMarksRaw = String(row[15] ?? "").trim();
     const correctMarks = correctMarksRaw ? Number(correctMarksRaw) : undefined;
-    // col 16 = NEGATIVE MARKS
     const negativeMarksRaw = String(row[16] ?? "").trim();
     const negativeMarks = negativeMarksRaw ? Number(negativeMarksRaw) : undefined;
 
     questions.push({
-      id: `q-${randomBytes(4).toString("hex")}`,
+      id: randomId(),
       text: questionText,
       options: rawOptions,
       correctIndex,
@@ -232,7 +218,7 @@ function parseRichLayout(rows: unknown[][], startRow: number): {
   return { questions, warnings };
 }
 
-// ── Shared helper ───────────────────────────────────────────────────────────
+// ── Shared helper ─────────────────────────────────────────────────────────────
 function parseCorrectAnswer(
   raw: string,
   optionCount: number,

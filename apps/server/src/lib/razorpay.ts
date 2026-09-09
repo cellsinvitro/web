@@ -28,7 +28,7 @@ export async function createRazorpayOrder(input: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amount: Math.round(input.amount * 100),
+      amount: Math.round(input.amount), // already in paise (smallest currency unit)
       currency: input.currency,
       receipt: input.receipt,
       notes: input.notes,

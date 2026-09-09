@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   createAdminModule,
   getAdminVideoUploadSignature,
@@ -17,12 +17,69 @@ import {
   parseAssignmentJson,
   parseTextBody,
 } from "@/lib/courses";
+import { parseQuizExcelFile } from "@/lib/quiz-excel-client";
 import QuizBuilder, {
   questionsFromContentJson,
   serializeQuizQuestions,
   type QuizQuestionDraft,
 } from "@/components/admin/QuizBuilder";
 
+// ---------------------------------------------------------------------------
+// Replace/Append inline dialog
+// ---------------------------------------------------------------------------
+function ReplaceAppendDialog({
+  incoming,
+  existing,
+  onReplace,
+  onAppend,
+  onCancel,
+}: {
+  incoming: number;
+  existing: number;
+  onReplace: () => void;
+  onAppend: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md">
+      <p className="text-sm font-medium text-slate-950">
+        Merge imported questions?
+      </p>
+      <p className="mt-1 text-xs text-slate-500">
+        You already have <strong>{existing}</strong> question
+        {existing !== 1 ? "s" : ""}. The Excel file contains{" "}
+        <strong>{incoming}</strong> new question{incoming !== 1 ? "s" : ""}.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onReplace}
+          className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+        >
+          Replace all
+        </button>
+        <button
+          type="button"
+          onClick={onAppend}
+          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Append ({existing + incoming} total)
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main form
+// ---------------------------------------------------------------------------
 export default function AdminModuleForm({
   courseId,
   existing,
@@ -53,14 +110,16 @@ export default function AdminModuleForm({
   const [questionsPerAttempt, setQuestionsPerAttempt] = useState(
     existing?.questionsPerAttempt != null ? String(existing.questionsPerAttempt) : ""
   );
+
+  // Excel import state
   const [excelFile, setExcelFile] = useState<File | null>(null);
+  const excelInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{
-    imported: number;
-    warnings: string[];
-    message: string;
-  } | null>(null);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  // Pending questions waiting for Replace/Append decision
+  const [pendingQuestions, setPendingQuestions] = useState<QuizQuestionDraft[] | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -69,20 +128,59 @@ export default function AdminModuleForm({
   const totalQuestionsInBank = questions.length;
   const qpaNum = parseInt(questionsPerAttempt, 10);
   const effectiveQpa =
-    !questionsPerAttempt || isNaN(qpaNum) ? totalQuestionsInBank : Math.min(qpaNum, totalQuestionsInBank);
+    !questionsPerAttempt || isNaN(qpaNum)
+      ? totalQuestionsInBank
+      : Math.min(qpaNum, totalQuestionsInBank);
 
-  // Import Excel file — only available when editing an existing QUIZ module
+  // ---------------------------------------------------------------------------
+  // Excel import handler — works for both new and existing modules
+  // ---------------------------------------------------------------------------
   const handleExcelImport = async () => {
-    if (!excelFile || !existing) return;
+    if (!excelFile) return;
     setImporting(true);
     setImportError(null);
-    setImportResult(null);
+    setImportMessage(null);
+    setImportWarnings([]);
+    setPendingQuestions(null);
+
     try {
-      const result = await importQuizFromExcel(courseId, existing.id, excelFile);
-      setImportResult(result);
-      setExcelFile(null);
-      // Reload questions from the response count (parent will refetch on save)
-      onSaved();
+      let parsed: QuizQuestionDraft[];
+      let warnings: string[];
+
+      if (existing) {
+        // For existing modules: hit the server API (persists immediately),
+        // then also parse client-side to get the draft objects for QuizBuilder.
+        const [serverResult, clientResult] = await Promise.all([
+          importQuizFromExcel(courseId, existing.id, excelFile),
+          parseQuizExcelFile(excelFile),
+        ]);
+        warnings = serverResult.warnings;
+        setImportMessage(serverResult.message);
+        parsed = clientResult.questions;
+      } else {
+        // For new modules: parse entirely client-side, no API call yet.
+        const clientResult = await parseQuizExcelFile(excelFile);
+        warnings = clientResult.warnings;
+        parsed = clientResult.questions;
+        setImportMessage(
+          `Parsed ${parsed.length} question${parsed.length !== 1 ? "s" : ""} — they'll be saved with the module.`
+        );
+      }
+
+      setImportWarnings(warnings);
+
+      // If there are already non-empty questions, ask Replace or Append.
+      const hasExistingQuestions =
+        questions.length > 0 &&
+        questions.some((q) => q.text.trim() !== "");
+
+      if (hasExistingQuestions) {
+        setPendingQuestions(parsed);
+      } else {
+        // Nothing meaningful to preserve — replace directly.
+        setQuestions(parsed);
+        resetExcelInput();
+      }
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Import failed");
     } finally {
@@ -90,13 +188,46 @@ export default function AdminModuleForm({
     }
   };
 
+  const resetExcelInput = () => {
+    setExcelFile(null);
+    if (excelInputRef.current) excelInputRef.current.value = "";
+  };
+
+  const handleReplace = () => {
+    if (!pendingQuestions) return;
+    setQuestions(pendingQuestions);
+    setPendingQuestions(null);
+    resetExcelInput();
+  };
+
+  const handleAppend = () => {
+    if (!pendingQuestions) return;
+    setQuestions((prev) => [...prev, ...pendingQuestions]);
+    setPendingQuestions(null);
+    resetExcelInput();
+  };
+
+  const handleMergeCancel = () => {
+    setPendingQuestions(null);
+    resetExcelInput();
+    setImportMessage(null);
+    setImportWarnings([]);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Form submit
+  // ---------------------------------------------------------------------------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Module title is required");
       return;
     }
-    if (moduleAcceptsFile(contentType) && !file && (!existing || existing.contentType !== contentType)) {
+    if (
+      moduleAcceptsFile(contentType) &&
+      !file &&
+      (!existing || existing.contentType !== contentType)
+    ) {
       setError("Please choose a file to upload");
       return;
     }
@@ -113,6 +244,7 @@ export default function AdminModuleForm({
       form.append("description", description.trim());
       form.append("contentType", contentType);
       if (durationMinutes) form.append("durationMinutes", durationMinutes);
+
       if (file && contentType === "VIDEO") {
         setUploadProgress(0);
         const signature = await getAdminVideoUploadSignature(courseId);
@@ -124,6 +256,7 @@ export default function AdminModuleForm({
       } else if (file && moduleAcceptsFile(contentType)) {
         form.append("file", file);
       }
+
       if (contentType === "TEXT") {
         form.append("contentJson", JSON.stringify({ body: textBody }));
       }
@@ -146,6 +279,7 @@ export default function AdminModuleForm({
         savedModule = res.module;
       } else {
         savedModule = await createAdminModule(courseId, form);
+        // Reset form for next module creation
         setTitle("");
         setDescription("");
         setDurationMinutes("");
@@ -155,12 +289,21 @@ export default function AdminModuleForm({
         setMinWords("50");
         setQuestions(questionsFromContentJson(null));
         setQuestionsPerAttempt("");
+        setImportMessage(null);
+        setImportWarnings([]);
       }
 
-      // Persist questionsPerAttempt separately if this is a quiz module
+      // Persist questionsPerAttempt separately for quiz modules
       if (contentType === "QUIZ" && savedModule?.id) {
-        const qpa = questionsPerAttempt.trim() === "" ? null : parseInt(questionsPerAttempt, 10);
-        await updateQuizSettings(courseId, savedModule.id, isNaN(qpa as number) ? null : qpa);
+        const qpa =
+          questionsPerAttempt.trim() === ""
+            ? null
+            : parseInt(questionsPerAttempt, 10);
+        await updateQuizSettings(
+          courseId,
+          savedModule.id,
+          isNaN(qpa as number) ? null : qpa
+        );
       }
 
       onSaved();
@@ -172,9 +315,13 @@ export default function AdminModuleForm({
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           value={title}
@@ -275,7 +422,7 @@ export default function AdminModuleForm({
 
       {contentType === "QUIZ" ? (
         <div className="space-y-5">
-          {/* Questions per attempt setting */}
+          {/* Quiz settings */}
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-medium text-slate-950">Quiz settings</p>
             <div className="mt-3 flex items-end gap-3">
@@ -308,60 +455,87 @@ export default function AdminModuleForm({
             </div>
           </div>
 
-          {/* Excel import — only for existing modules */}
-          {existing ? (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="text-sm font-medium text-slate-950">Import questions from Excel</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Upload an Excel file (.xlsx) to replace all questions.{" "}
-                <span className="font-medium">
-                  Format: A=Question, B-E=Options (min 2), F=Correct answer (1-4 or A-D)
-                </span>
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <input
-                  type="file"
-                  accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  onChange={(e) => {
-                    setExcelFile(e.target.files?.[0] ?? null);
-                    setImportResult(null);
-                    setImportError(null);
-                  }}
-                  className="text-sm"
-                  id="excel-upload"
-                />
-                <button
-                  type="button"
-                  onClick={handleExcelImport}
-                  disabled={!excelFile || importing}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {importing ? "Importing…" : "Import"}
-                </button>
-              </div>
-              {importError ? (
-                <p className="mt-2 text-sm text-red-600">{importError}</p>
-              ) : null}
-              {importResult ? (
-                <div className="mt-2 space-y-1">
-                  <p className="text-sm font-medium text-green-700">{importResult.message}</p>
-                  {importResult.warnings.length > 0 ? (
-                    <ul className="list-inside list-disc space-y-0.5 text-xs text-amber-700">
-                      {importResult.warnings.map((w, i) => (
-                        <li key={i}>{w}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-700">
-              Save the module first, then come back to import questions from Excel.
+          {/* Excel import — available for both new and existing modules */}
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-sm font-medium text-slate-950">
+              Import questions from Excel
             </p>
-          )}
+            <p className="mt-1 text-xs text-slate-500">
+              Upload an Excel file (.xlsx) to populate questions.{" "}
+              <span className="font-medium">
+                Format: A=Question, B–E=Options (min 2), F=Correct answer (1–4 or A–D)
+              </span>
+              {!existing ? (
+                <span className="ml-1 text-blue-600">
+                  · Imported questions are editable before saving.
+                </span>
+              ) : null}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={(e) => {
+                  setExcelFile(e.target.files?.[0] ?? null);
+                  setImportMessage(null);
+                  setImportWarnings([]);
+                  setImportError(null);
+                  setPendingQuestions(null);
+                }}
+                className="text-sm"
+                id="excel-upload"
+              />
+              <button
+                type="button"
+                onClick={handleExcelImport}
+                disabled={!excelFile || importing}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {importing ? "Importing…" : "Import"}
+              </button>
+            </div>
 
-          {/* Manual quiz builder */}
+            {importError ? (
+              <p className="mt-2 text-sm text-red-600">{importError}</p>
+            ) : null}
+
+            {importMessage && !pendingQuestions ? (
+              <p className="mt-2 text-sm font-medium text-green-700">
+                {importMessage}
+              </p>
+            ) : null}
+
+            {importWarnings.length > 0 && !pendingQuestions ? (
+              <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-amber-700">
+                {importWarnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            ) : null}
+
+            {/* Replace / Append decision */}
+            {pendingQuestions ? (
+              <div className="mt-3">
+                <ReplaceAppendDialog
+                  incoming={pendingQuestions.length}
+                  existing={questions.length}
+                  onReplace={handleReplace}
+                  onAppend={handleAppend}
+                  onCancel={handleMergeCancel}
+                />
+                {importWarnings.length > 0 ? (
+                  <ul className="mt-2 list-inside list-disc space-y-0.5 text-xs text-amber-700">
+                    {importWarnings.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Manual quiz builder — always visible so imported questions are editable */}
           <QuizBuilder questions={questions} onChange={setQuestions} />
         </div>
       ) : null}

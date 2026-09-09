@@ -11,13 +11,6 @@ export const metadata: Metadata = {
 
 const tools = [
   {
-    href: "/chatbot",
-    title: "BioChem AI Assistant",
-    description:
-      "Interactive AI dedicated exclusively to answering Chemistry and Biology queries, calculations, and concepts.",
-    tag: "AI Science Assistant",
-  },
-  {
     href: "/tools/molarity",
     title: "Molarity calculator",
     description:
