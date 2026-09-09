@@ -167,15 +167,15 @@ handler: async (response: RazorpayResponse) => {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
               Price
             </p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              <DiscountedPrice price={price} originalPrice={originalPrice} currency={currency} />
+            {/* TODO: Replace with actual price display once pricing is set.
+                Example: <DiscountedPrice price={price} originalPrice={originalPrice} currency={currency} /> */}
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-500 italic">
+              Coming soon
             </p>
           </div>
-          <p className="text-right text-xs font-medium text-slate-500">
-            {stock > 0 ? `${stock} available` : "Out of stock"}
-          </p>
         </div>
 
+        {/* TODO: Uncomment quantity selector and order total once pricing is active.
         <div className="mt-5 grid grid-cols-[7rem_1fr] items-center gap-3">
           <label htmlFor={`${kitId}-quantity`} className="text-sm font-medium text-slate-700">
             Quantity
@@ -194,12 +194,13 @@ handler: async (response: RazorpayResponse) => {
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-950 outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10 disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
-
         <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-sm">
           <span className="text-slate-500">Order total</span>
           <span className="font-semibold text-slate-950">{formatPrice(total, currency)}</span>
         </div>
+        */}
 
+        {/* TODO: Replace with actual Buy / Out of stock button once pricing is active.
         <button
           type="button"
           onClick={openCheckout}
@@ -208,6 +209,10 @@ handler: async (response: RazorpayResponse) => {
         >
           {unavailable ? "Out of stock" : "Buy this kit"}
         </button>
+        */}
+        <p className="mt-5 text-sm text-slate-500">
+          Pricing will be available soon. Contact us for early access or enquiries.
+        </p>
       </div> : null}
 
       {checkoutPage ? (
@@ -267,12 +272,14 @@ handler: async (response: RazorpayResponse) => {
                     <p className="font-semibold text-slate-950">{title}</p>
                     <p className="mt-1 text-sm text-slate-500">Research kit</p>
                   </div>
-                  <p className="font-semibold text-slate-950">{formatPrice(total, currency)}</p>
+                  {/* TODO: Replace with formatPrice(total, currency) once pricing is set */}
+                  <p className="font-semibold italic text-slate-500">Coming soon</p>
                 </div>
                 <dl className="mt-5 space-y-3 border-t border-slate-200 pt-5 text-sm">
                   <div className="flex justify-between gap-4 text-slate-500">
                     <dt>Unit price</dt>
-                    <dd>{formatPrice(price, currency)}</dd>
+                    {/* TODO: Replace with formatPrice(price, currency) once pricing is set */}
+                    <dd className="italic">Coming soon</dd>
                   </div>
                   <div className="flex justify-between gap-4 text-slate-500">
                     <dt>Quantity</dt>
@@ -280,7 +287,8 @@ handler: async (response: RazorpayResponse) => {
                   </div>
                   <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 font-semibold text-slate-950">
                     <dt>Total</dt>
-                    <dd>{formatPrice(total, currency)}</dd>
+                    {/* TODO: Replace with formatPrice(total, currency) once pricing is set */}
+                    <dd className="italic text-slate-500">Coming soon</dd>
                   </div>
                 </dl>
               </aside>

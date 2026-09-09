@@ -102,10 +102,10 @@ export default function Footer() {
 
             <div className="mt-5 space-y-3 text-sm">
               <a
-                href="mailto:info@cellsinvitro.com"
+                href="mailto:cellsinvitro@gmail.com"
                 className="block text-slate-400 transition-colors hover:text-white"
               >
-                info@cellsinvitro.com
+                cellsinvitro@gmail.com
               </a>
 
               <a
