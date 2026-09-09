@@ -20,6 +20,7 @@ import {
   calculateCourseProgress,
   getExpiryDate,
 } from "../lib/courses.js";
+import { parseQuizExcel } from "../lib/quiz-excel.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 
@@ -388,6 +389,87 @@ adminCoursesRoutes.post("/courses/:courseId/modules/reorder", async (c) => {
     orderBy: { sortOrder: "asc" },
   });
   return c.json({ modules });
+});
+
+// --- Quiz Excel import ---
+
+adminCoursesRoutes.post("/courses/:courseId/modules/:moduleId/quiz-import", async (c) => {
+  const { courseId, moduleId } = c.req.param();
+
+  const module = await prisma.courseModule.findFirst({
+    where: { id: moduleId, courseId, contentType: "QUIZ" },
+  });
+  if (!module) throw new HTTPException(404, { message: "Quiz module not found" });
+
+  const body = await c.req.parseBody();
+  const file = body["file"];
+
+  if (!file || !(file instanceof File)) {
+    throw new HTTPException(400, { message: "Please upload an Excel file (.xlsx or .xls)" });
+  }
+
+  const allowedTypes = [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "application/octet-stream",
+  ];
+  const isXlsx =
+    allowedTypes.includes(file.type) ||
+    file.name.endsWith(".xlsx") ||
+    file.name.endsWith(".xls") ||
+    file.name.endsWith(".csv");
+
+  if (!isXlsx) {
+    throw new HTTPException(400, { message: "Only Excel (.xlsx, .xls) or CSV files are supported" });
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  let questions: ReturnType<typeof parseQuizExcel>["questions"];
+  let warnings: string[];
+  try {
+    ({ questions, warnings } = parseQuizExcel(buffer));
+  } catch (err) {
+    throw new HTTPException(400, {
+      message: err instanceof Error ? err.message : "Failed to parse Excel file",
+    });
+  }
+
+  const contentJson = { questions };
+
+  await prisma.courseModule.update({
+    where: { id: moduleId },
+    data: { contentJson },
+  });
+
+  return c.json({
+    imported: questions.length,
+    warnings,
+    message: `Successfully imported ${questions.length} question${questions.length === 1 ? "" : "s"}`,
+  });
+});
+
+// --- Quiz settings (questionsPerAttempt) ---
+
+adminCoursesRoutes.patch("/courses/:courseId/modules/:moduleId/quiz-settings", async (c) => {
+  const { courseId, moduleId } = c.req.param();
+
+  const module = await prisma.courseModule.findFirst({
+    where: { id: moduleId, courseId, contentType: "QUIZ" },
+  });
+  if (!module) throw new HTTPException(404, { message: "Quiz module not found" });
+
+  const body = await c.req.json<{ questionsPerAttempt?: number | null }>();
+  const qpa = body.questionsPerAttempt;
+  const questionsPerAttempt =
+    qpa === null || qpa === undefined ? null : Math.max(1, Math.floor(Number(qpa)));
+
+  const updated = await prisma.courseModule.update({
+    where: { id: moduleId },
+    data: { questionsPerAttempt },
+  });
+
+  return c.json({ module: toAdminModule(updated) });
 });
 
 // --- Prerequisites ---

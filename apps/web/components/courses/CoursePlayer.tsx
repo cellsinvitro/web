@@ -13,7 +13,6 @@ import {
 import {
   getModuleTypeLabel,
   parseAssignmentJson,
-  parseQuizQuestionsJson,
   parseTextBody,
 } from "@/lib/courses";
 
@@ -149,7 +148,11 @@ function QuizTaker({
   module: CourseModule;
   onComplete: () => void;
 }) {
-  const questions = parseQuizQuestionsJson(module.contentJson);
+  const [questions, setQuestions] = useState<
+    Array<{ id: string; text: string; options: string[] }>
+  >([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [result, setResult] = useState<{
     score: number;
@@ -158,6 +161,34 @@ function QuizTaker({
     total: number;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Fetch shuffled+sliced questions from the content endpoint each attempt
+  useEffect(() => {
+    setLoadingQuestions(true);
+    setLoadError(null);
+    setAnswers({});
+    setResult(null);
+    fetch(getModuleContentUrl(courseId, module.id), { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load quiz");
+        const data = await res.json() as { contentJson?: { questions?: unknown[] } };
+        const qs = data?.contentJson?.questions;
+        if (Array.isArray(qs)) {
+          setQuestions(
+            qs.map((q) => {
+              const item = q as { id?: string; text?: string; options?: string[] };
+              return {
+                id: String(item.id ?? ""),
+                text: String(item.text ?? ""),
+                options: Array.isArray(item.options) ? item.options.map(String) : [],
+              };
+            })
+          );
+        }
+      })
+      .catch((err) => setLoadError(err instanceof Error ? err.message : "Failed to load quiz"))
+      .finally(() => setLoadingQuestions(false));
+  }, [courseId, module.id]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -170,8 +201,46 @@ function QuizTaker({
     }
   };
 
+  const handleRetry = () => {
+    // Re-fetch to get a fresh shuffled set
+    setLoadingQuestions(true);
+    setLoadError(null);
+    setAnswers({});
+    setResult(null);
+    fetch(getModuleContentUrl(courseId, module.id), { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load quiz");
+        const data = await res.json() as { contentJson?: { questions?: unknown[] } };
+        const qs = data?.contentJson?.questions;
+        if (Array.isArray(qs)) {
+          setQuestions(
+            qs.map((q) => {
+              const item = q as { id?: string; text?: string; options?: string[] };
+              return {
+                id: String(item.id ?? ""),
+                text: String(item.text ?? ""),
+                options: Array.isArray(item.options) ? item.options.map(String) : [],
+              };
+            })
+          );
+        }
+      })
+      .catch((err) => setLoadError(err instanceof Error ? err.message : "Failed to load quiz"))
+      .finally(() => setLoadingQuestions(false));
+  };
+
+  if (loadingQuestions) {
+    return <p className="text-sm text-slate-500">Loading quiz…</p>;
+  }
+  if (loadError) {
+    return <p className="text-sm text-red-600">{loadError}</p>;
+  }
+
   return (
     <div className="space-y-6">
+      {questions.length === 0 ? (
+        <p className="text-sm text-slate-500">No questions available for this quiz.</p>
+      ) : null}
       {questions.map((q, qi) => (
         <div key={q.id} className="rounded-xl border border-slate-200 p-4">
           <p className="font-medium text-slate-950">
@@ -211,8 +280,17 @@ function QuizTaker({
             Score: {result.score.toFixed(0)}% ({result.correct}/{result.total})
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            {result.passed ? "Passed!" : "Not passed — review and try again."}
+            {result.passed ? "Passed! 🎉" : "Not passed — review and try again."}
           </p>
+          {!result.passed ? (
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="mt-3 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Try again
+            </button>
+          ) : null}
         </div>
       )}
     </div>

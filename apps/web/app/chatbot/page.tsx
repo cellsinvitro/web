@@ -6,7 +6,7 @@ import BioChemChatbot from "@/components/BioChemChatbot";
 export const metadata: Metadata = {
   title: "BioChem AI Chatbot | CellsInVitro",
   description:
-    "Ask any question related to Chemistry and Biology. Powered by Groq AI for fast, accurate scientific answers.",
+    "Ask any question related to Chemistry and Biology.",
 };
 
 const TOPICS = [
@@ -106,10 +106,10 @@ export default function ChatbotPage() {
             <div className="bg-slate-950 text-white p-6 rounded-[2rem] shadow-sm border border-slate-800">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-emerald-400 text-sm">⚡</span>
-                <h3 className="font-semibold text-sm text-white">Groq AI Engine</h3>
+                <h3 className="font-semibold text-sm text-white">LLM</h3>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Leverages ultra-fast Groq Llama-3 models for instant, high-speed scientific answers and lab calculations.
+                Leverages ultra-fast models for instant, high-speed scientific answers and lab calculations.
               </p>
             </div>
           </div>

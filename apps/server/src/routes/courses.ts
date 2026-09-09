@@ -15,6 +15,7 @@ import {
   toPublicPackage,
   parseQuizQuestions,
   scoreQuiz,
+  selectQuestionsForAttempt,
   calculateCourseProgress,
   generateCertificateNumber,
   generateVerificationHash,
@@ -122,10 +123,10 @@ coursesRoutes.get("/my/enrollments", requireAuth, async (c) => {
         totalModules: enrollment.course.modules.length,
         certificate: certificate
           ? {
-              id: certificate.id,
-              certificateNumber: certificate.certificateNumber,
-              issuedAt: certificate.issuedAt.toISOString(),
-            }
+            id: certificate.id,
+            certificateNumber: certificate.certificateNumber,
+            issuedAt: certificate.issuedAt.toISOString(),
+          }
           : null,
       };
     })
@@ -211,9 +212,9 @@ coursesRoutes.get("/my/:courseId", requireAuth, async (c) => {
     }),
     certificate: certificate
       ? {
-          certificateNumber: certificate.certificateNumber,
-          issuedAt: certificate.issuedAt.toISOString(),
-        }
+        certificateNumber: certificate.certificateNumber,
+        issuedAt: certificate.issuedAt.toISOString(),
+      }
       : null,
   });
 });
@@ -302,12 +303,19 @@ coursesRoutes.get("/my/:courseId/modules/:moduleId/content", requireAuth, async 
   }
 
   if (module.contentType === "QUIZ") {
-    const questions = parseQuizQuestions(module.contentJson).map((question) => ({
+    const allQuestions = parseQuizQuestions(module.contentJson);
+    const selected = selectQuestionsForAttempt(allQuestions, module.questionsPerAttempt);
+    const questions = selected.map((question) => ({
       id: question.id,
       text: question.text,
       options: question.options,
     }));
-    return c.json({ type: "quiz", contentJson: { questions } });
+    return c.json({
+      type: "quiz",
+      contentJson: { questions },
+      totalInBank: allQuestions.length,
+      questionsPerAttempt: module.questionsPerAttempt,
+    });
   }
 
   if (module.contentType === "ASSIGNMENT") {
@@ -376,8 +384,15 @@ coursesRoutes.post("/my/:courseId/modules/:moduleId/quiz", requireAuth, async (c
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) throw new HTTPException(404, { message: "Course not found" });
 
-  const questions = parseQuizQuestions(module.contentJson);
-  const { score, correct, total } = scoreQuiz(questions, answers ?? {});
+  const allQuestions = parseQuizQuestions(module.contentJson);
+  // Only score questions that were actually served to the user (present as keys in answers).
+  // This handles the case where questionsPerAttempt < total bank size.
+  const answeredIds = new Set(Object.keys(answers ?? {}));
+  const servedQuestions =
+    answeredIds.size > 0
+      ? allQuestions.filter((q) => answeredIds.has(q.id))
+      : allQuestions;
+  const { score, correct, total } = scoreQuiz(servedQuestions, answers ?? {});
   const passed = score >= course.passingPercentage;
 
   await prisma.moduleProgress.upsert({

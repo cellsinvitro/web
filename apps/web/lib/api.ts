@@ -870,6 +870,7 @@ export type CourseModule = {
   mimeType: string | null;
   fileSize: number | null;
   videoWatchThreshold: number;
+  questionsPerAttempt: number | null;
   contentJson?: unknown;
   storageKey?: string | null;
   createdAt: string;
@@ -1642,6 +1643,39 @@ export async function reorderAdminModules(courseId: string, moduleIds: string[])
   return apiFetch<{ modules: CourseModule[] }>(
     `/admin/courses/${courseId}/modules/reorder`,
     { method: "POST", body: JSON.stringify({ moduleIds }) }
+  );
+}
+
+export async function importQuizFromExcel(
+  courseId: string,
+  moduleId: string,
+  file: File
+): Promise<{ imported: number; warnings: string[]; message: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(
+    `${UPLOAD_API_URL}/admin/courses/${courseId}/modules/${moduleId}/quiz-import`,
+    { method: "POST", credentials: "include", headers: getUploadHeaders(), body: form }
+  );
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return importQuizFromExcel(courseId, moduleId, file);
+  }
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json() as Promise<{ imported: number; warnings: string[]; message: string }>;
+}
+
+export async function updateQuizSettings(
+  courseId: string,
+  moduleId: string,
+  questionsPerAttempt: number | null
+) {
+  return apiFetch<{ module: CourseModule }>(
+    `/admin/courses/${courseId}/modules/${moduleId}/quiz-settings`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ questionsPerAttempt }),
+    }
   );
 }
 

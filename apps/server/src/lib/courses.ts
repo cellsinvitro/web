@@ -46,6 +46,7 @@ export function toPublicModule(module: {
   fileSize: number | null;
   contentJson: unknown;
   videoWatchThreshold: number;
+  questionsPerAttempt: number | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -63,6 +64,7 @@ export function toPublicModule(module: {
     mimeType: module.mimeType,
     fileSize: module.fileSize,
     videoWatchThreshold: module.videoWatchThreshold,
+    questionsPerAttempt: module.questionsPerAttempt,
     createdAt: module.createdAt.toISOString(),
     updatedAt: module.updatedAt.toISOString(),
   };
@@ -98,6 +100,7 @@ export function toAdminModule(module: {
   fileSize: number | null;
   contentJson: unknown;
   videoWatchThreshold: number;
+  questionsPerAttempt: number | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -314,6 +317,34 @@ export function scoreQuiz(
   }
   const score = (correct / questions.length) * 100;
   return { score, correct, total: questions.length };
+}
+
+/**
+ * Fisher-Yates shuffle — returns a new shuffled array.
+ */
+export function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j]!, result[i]!];
+  }
+  return result;
+}
+
+/**
+ * Given the full question bank and an optional per-attempt limit,
+ * returns a shuffled subset. If questionsPerAttempt is null/undefined
+ * or larger than the bank, all questions are returned (shuffled).
+ */
+export function selectQuestionsForAttempt(
+  questions: QuizQuestion[],
+  questionsPerAttempt: number | null | undefined
+): QuizQuestion[] {
+  const shuffled = shuffleArray(questions);
+  if (!questionsPerAttempt || questionsPerAttempt >= shuffled.length) {
+    return shuffled;
+  }
+  return shuffled.slice(0, questionsPerAttempt);
 }
 
 export async function checkPrerequisitesMet(

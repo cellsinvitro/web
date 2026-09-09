@@ -278,7 +278,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              CellsInVitro Assistant • Groq Powered
+              CellsInVitro Assistant
             </p>
           </div>
         </div>
