@@ -32,6 +32,7 @@ export default function AdminCoursesPage() {
   const [pkgCourseIds, setPkgCourseIds] = useState<string[]>([]);
   const [editingPkgId, setEditingPkgId] = useState<string | null>(null);
   const [reminderResult, setReminderResult] = useState<string | null>(null);
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -230,6 +231,7 @@ export default function AdminCoursesPage() {
                         </Link>
                         <button
                           type="button"
+                          disabled={deletingCourseId === course.id}
                           onClick={async () => {
                             const confirmed = await confirm({
                               title: "Delete course",
@@ -238,12 +240,24 @@ export default function AdminCoursesPage() {
                               variant: "danger",
                             });
                             if (!confirmed) return;
-                            await deleteAdminCourse(course.id);
-                            load();
+                            setDeletingCourseId(course.id);
+                            try {
+                              await deleteAdminCourse(course.id);
+                              load();
+                            } finally {
+                              setDeletingCourseId(null);
+                            }
                           }}
-                          className="text-red-600 hover:underline"
+                          className="flex items-center gap-1.5 text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Delete
+                          {deletingCourseId === course.id ? (
+                            <>
+                              <AdminSpinner size={12} />
+                              Deleting…
+                            </>
+                          ) : (
+                            "Delete"
+                          )}
                         </button>
                       </div>
                     </td>
