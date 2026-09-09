@@ -18,6 +18,7 @@ import { consultancyRoutes } from "./routes/consultancy.js";
 import { paymentsRoutes } from "./routes/payments.js";
 import { cryoSearchRoutes } from "./routes/cryosearch.js";
 import { liveClassesRoutes, liveClassWebhookRoutes } from "./routes/live-classes.js";
+import { toolsRoutes } from "./routes/tools.js";
 import { adminOrdersRoutes } from "./routes/admin-orders.js";
 import { adminMaintenanceRoutes, maintenanceRoutes } from "./routes/maintenance.js";
 import { maintenanceMiddleware } from "./middleware/maintenance.js";
@@ -69,6 +70,7 @@ app.route("/payments", paymentsRoutes);
 app.route("/certificates", certificateRoutes);
 app.route("/cryosearch", cryoSearchRoutes);
 app.route("/live-classes", liveClassesRoutes);
+app.route("/tools", toolsRoutes);
 app.route("/webhooks", liveClassWebhookRoutes);
 
 app.onError((err, c) => {
