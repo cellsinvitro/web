@@ -106,7 +106,9 @@ export default function ResourceFileGrid({
                       <img
                         src={viewUrl}
                         alt={file.fileName}
-                        className="h-full w-full object-cover"
+                        className={`h-full w-full object-cover select-none${isLocked ? " blur-lg brightness-50 pointer-events-none" : ""}`}
+                        draggable={false}
+                        onContextMenu={(e) => isLocked && e.preventDefault()}
                       />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-slate-500">
@@ -134,19 +136,35 @@ export default function ResourceFileGrid({
                     )}
 
                     {isLocked ? (
-                      <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-medium text-amber-300 backdrop-blur-sm shadow-md">
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                          <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
-                        </svg>
-                        Preview Mode
-                      </div>
+                      <>
+                        {/* Lock badge */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-medium text-amber-300 backdrop-blur-sm shadow-md">
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                            <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                          </svg>
+                          Preview Mode
+                        </div>
+                        {/* Centred lock icon overlay on blurred image thumbnails */}
+                        {isImage ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 pointer-events-none select-none">
+                            <div className="rounded-full bg-white/10 p-3 backdrop-blur-sm">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" className="h-7 w-7 drop-shadow-lg">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                              </svg>
+                            </div>
+                            <span className="text-[10px] font-semibold text-white/80 uppercase tracking-wider drop-shadow">Purchase to view</span>
+                          </div>
+                        ) : null}
+                      </>
                     ) : null}
 
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 opacity-0 transition-opacity group-hover:opacity-100">
-                      <span className="rounded-xl bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-sm backdrop-blur-sm">
-                        Click to Preview
-                      </span>
-                    </div>
+                    {!isLocked ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 opacity-0 transition-opacity group-hover:opacity-100">
+                        <span className="rounded-xl bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-sm backdrop-blur-sm">
+                          Click to Preview
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
                 </button>
               </div>

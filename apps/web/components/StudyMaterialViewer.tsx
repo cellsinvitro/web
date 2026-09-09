@@ -207,7 +207,7 @@ export default function StudyMaterialViewer({
         ) : null}
 
         {isPdf ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
             {pdfLoading ? (
               <p className="px-6 py-16 text-center text-sm text-slate-500">
                 Loading PDF preview...
@@ -217,25 +217,90 @@ export default function StudyMaterialViewer({
                 {pdfError}
               </p>
             ) : pdfBlobUrl ? (
-              <iframe
-                key={materialId}
-                src={`${pdfBlobUrl}#toolbar=0&navpanes=0`}
-                title={title}
-                className="h-[75vh] w-full bg-white"
-              />
+              <>
+                <iframe
+                  key={materialId}
+                  src={`${pdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH`}
+                  title={title}
+                  className="h-[75vh] w-full bg-white"
+                  style={
+                    isProtected
+                      ? {
+                          filter: "blur(3px) brightness(0.85)",
+                          userSelect: "none",
+                          pointerEvents: "none",
+                          WebkitUserSelect: "none",
+                        }
+                      : undefined
+                  }
+                />
+                {/* Interaction-blocking overlay for locked PDFs.
+                    Sits above the iframe so clicks, scroll, and text-select
+                    inside the iframe are completely blocked. */}
+                {isProtected ? (
+                  <div
+                    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 select-none"
+                    style={{ cursor: "not-allowed" }}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
+                    {/* Frosted centre card */}
+                    <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/20 bg-slate-950/70 px-8 py-7 text-center shadow-2xl backdrop-blur-sm max-w-xs">
+                      <div className="rounded-full bg-amber-400/15 p-3">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.5" className="h-8 w-8">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">Preview Only</p>
+                        <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+                          Purchase this resource to unlock the full document and enable downloads.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </>
             ) : null}
           </div>
         ) : null}
 
         {isImage ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={viewUrl}
               alt={title}
               draggable={!isProtected}
+              onContextMenu={(e) => isProtected && e.preventDefault()}
               className="mx-auto max-h-[75vh] w-full object-contain"
+              style={
+                isProtected
+                  ? { filter: "blur(12px) brightness(0.6)", userSelect: "none", pointerEvents: "none" }
+                  : undefined
+              }
             />
+            {/* Same lock overlay for locked images in the full viewer */}
+            {isProtected ? (
+              <div
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 select-none"
+                style={{ cursor: "not-allowed" }}
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/20 bg-slate-950/70 px-8 py-7 text-center shadow-2xl backdrop-blur-sm max-w-xs">
+                  <div className="rounded-full bg-amber-400/15 p-3">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.5" className="h-8 w-8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Preview Only</p>
+                    <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+                      Purchase this resource to view and download the full image.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
