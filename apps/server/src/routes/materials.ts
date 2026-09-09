@@ -42,6 +42,7 @@ materialsRoutes.get("/", async (c) => {
 
   return c.json({
     libraryPrice: librarySetting.price,
+    libraryOriginalPrice: librarySetting.originalPrice,
     materials: materials.map((material) =>
       toPublicStudyMaterial(material, librarySetting.price, userAccess)
     ),

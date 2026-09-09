@@ -34,6 +34,13 @@ function getSingleUploadedImage(body: Record<string, unknown>) {
   return files[0] ?? null;
 }
 
+function parseOriginalPrice(value: unknown, price: number) {
+  if (value === undefined || String(value).trim() === "") return null;
+  const originalPrice = parseNonNegativeIntegerInput(value, 0);
+  if (originalPrice < price) throw new HTTPException(400, { message: "Original price must be at least the payable price" });
+  return originalPrice === price ? null : originalPrice;
+}
+
 adminKitsRoutes.get("/", async (c) => {
   const kits = await prisma.researchKit.findMany({
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -55,6 +62,7 @@ adminKitsRoutes.post("/", async (c) => {
   const sortOrder = parseSortOrderInput(body.sortOrder, 0);
   const moduleId = String(body.moduleId ?? "").trim() || null;
   const price = parseNonNegativeIntegerInput(body.price, 0);
+  const originalPrice = parseOriginalPrice(body.originalPrice, price);
   const stock = parseNonNegativeIntegerInput(body.stock, 0);
   const image = getSingleUploadedImage(body);
 
@@ -97,6 +105,7 @@ adminKitsRoutes.post("/", async (c) => {
         assays,
         details,
         price,
+        originalPrice,
         stock,
         published,
         sortOrder,
@@ -135,6 +144,9 @@ adminKitsRoutes.patch("/:id", async (c) => {
     body.price !== undefined
       ? parseNonNegativeIntegerInput(body.price, -1)
       : undefined;
+  const originalPrice = body.originalPrice !== undefined || price !== undefined
+    ? parseOriginalPrice(body.originalPrice, price ?? 0)
+    : undefined;
   const stock =
     body.stock !== undefined
       ? parseNonNegativeIntegerInput(body.stock, -1)
@@ -194,6 +206,7 @@ adminKitsRoutes.patch("/:id", async (c) => {
         ...(assays !== undefined ? { assays } : {}),
         ...(details !== undefined ? { details } : {}),
         ...(price !== undefined ? { price } : {}),
+        ...(originalPrice !== undefined ? { originalPrice } : {}),
         ...(stock !== undefined ? { stock } : {}),
         ...(published !== undefined ? { published } : {}),
         ...(sortOrder !== undefined ? { sortOrder } : {}),

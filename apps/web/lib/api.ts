@@ -407,6 +407,7 @@ export type StudyMaterialFile = {
   mimeType: string;
   fileSize: number;
   price?: number;
+  originalPrice?: number | null;
   hasAccess?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -418,6 +419,7 @@ export type StudyMaterial = {
   description: string | null;
   category: string | null;
   price?: number;
+  originalPrice?: number | null;
   hasAccess?: boolean;
   files: StudyMaterialFile[];
   createdAt: string;
@@ -427,6 +429,7 @@ export type StudyMaterial = {
 export type ResourceLibrarySetting = {
   id: string;
   price: number;
+  originalPrice: number | null;
   currency: string;
   updatedAt?: string;
 };
@@ -436,17 +439,17 @@ export async function fetchResourceLibrarySetting() {
   return data.setting;
 }
 
-export async function updateResourceLibrarySetting(price: number) {
+export async function updateResourceLibrarySetting(price: number, originalPrice?: number | null) {
   const data = await apiFetch<{ setting: ResourceLibrarySetting }>("/admin/materials/settings", {
     method: "PUT",
-    body: JSON.stringify({ price }),
+    body: JSON.stringify({ price, originalPrice }),
   });
   return data.setting;
 }
 
 export async function fetchStudyMaterials() {
-  const data = await apiFetch<{ materials: StudyMaterial[]; libraryPrice: number }>("/materials");
-  return { materials: data.materials, libraryPrice: data.libraryPrice ?? 0 };
+  const data = await apiFetch<{ materials: StudyMaterial[]; libraryPrice: number; libraryOriginalPrice: number | null }>("/materials");
+  return { materials: data.materials, libraryPrice: data.libraryPrice ?? 0, libraryOriginalPrice: data.libraryOriginalPrice ?? null };
 }
 
 export async function fetchStudyMaterial(id: string) {
@@ -464,6 +467,7 @@ export async function uploadAdminStudyMaterial(input: {
   description?: string;
   category?: string;
   price?: number;
+  originalPrice?: number | null;
   files: File[];
 }) {
   const formData = new FormData();
@@ -477,6 +481,7 @@ export async function uploadAdminStudyMaterial(input: {
   if (input.price !== undefined) {
     formData.append("price", String(input.price));
   }
+  if (input.originalPrice !== undefined) formData.append("originalPrice", String(input.originalPrice ?? ""));
   for (const file of input.files) {
     formData.append("files", file);
   }
@@ -544,6 +549,7 @@ export async function updateAdminStudyMaterial(
     description?: string;
     category?: string;
     price?: number;
+    originalPrice?: number | null;
   }
 ) {
   const formData = new FormData();
@@ -553,6 +559,7 @@ export async function updateAdminStudyMaterial(
   if (input.price !== undefined) {
     formData.append("price", String(input.price));
   }
+  if (input.originalPrice !== undefined) formData.append("originalPrice", String(input.originalPrice ?? ""));
 
   const response = await fetch(`${API_URL}/admin/materials/${id}`, {
     method: "PATCH",
@@ -654,6 +661,7 @@ export type ResearchKit = {
   assays: string[];
   details: string | null;
   price: number;
+  originalPrice: number | null;
   currency: string;
   stock: number;
   available: boolean;
@@ -741,6 +749,7 @@ export async function createAdminKit(input: {
   assays: string[];
   details?: string | null;
   price?: number;
+  originalPrice?: number | null;
   stock?: number;
   published?: boolean;
   sortOrder?: number;
@@ -755,6 +764,7 @@ export async function createAdminKit(input: {
     formData.append("details", input.details ?? "");
   }
   formData.append("price", String(input.price ?? 0));
+  formData.append("originalPrice", String(input.originalPrice ?? ""));
   formData.append("stock", String(input.stock ?? 0));
   formData.append("published", String(input.published ?? true));
   formData.append("sortOrder", String(input.sortOrder ?? 0));
@@ -790,6 +800,7 @@ export async function updateAdminKit(
     assays?: string[];
     details?: string | null;
     price?: number;
+    originalPrice?: number | null;
     stock?: number;
     published?: boolean;
     sortOrder?: number;
@@ -813,6 +824,7 @@ export async function updateAdminKit(
   if (input.price !== undefined) {
     formData.append("price", String(input.price));
   }
+  if (input.originalPrice !== undefined) formData.append("originalPrice", String(input.originalPrice ?? ""));
   if (input.stock !== undefined) {
     formData.append("stock", String(input.stock));
   }
@@ -884,6 +896,7 @@ export type Course = {
   category: string | null;
   thumbnailUrl: string | null;
   price: number;
+  originalPrice: number | null;
   currency: string;
   accessDurationDays: number;
   passingPercentage: number;
@@ -903,6 +916,7 @@ export type CoursePackage = {
   title: string;
   description: string | null;
   price: number;
+  originalPrice: number | null;
   currency: string;
   accessDurationDays: number;
   published: boolean;
@@ -1243,6 +1257,7 @@ export type LiveClass = {
   duration: number;
   maxParticipants: number;
   price: number;
+  originalPrice: number | null;
   currency: string;
   isPaid: boolean;
   studentCameraEnabled: boolean;
@@ -1702,6 +1717,7 @@ export async function createAdminPackage(input: {
   title: string;
   description?: string;
   price: number;
+  originalPrice?: number | null;
   currency?: string;
   accessDurationDays?: number;
   published?: boolean;
@@ -1721,6 +1737,7 @@ export async function updateAdminPackage(
     title: string;
     description: string;
     price: number;
+    originalPrice?: number | null;
     currency: string;
     accessDurationDays: number;
     published: boolean;

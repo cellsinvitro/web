@@ -7,14 +7,14 @@ export default function AdminLiveClassesPage() {
   const [classes, setClasses] = useState<LiveClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", description: "", scheduledAt: "", startTime: "", duration: "60", price: "0", maxParticipants: "100" });
+  const [form, setForm] = useState({ title: "", description: "", scheduledAt: "", startTime: "", duration: "60", price: "0", originalPrice: "", maxParticipants: "100" });
 
   const load = () => { setLoading(true); fetchAdminLiveClasses().then(setClasses).catch((err) => setError(err instanceof Error ? err.message : "Unable to load classes")).finally(() => setLoading(false)); };
   useEffect(load, []);
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault(); setError(null);
-    try { await createAdminLiveClass({ ...form, price: Math.round(Number(form.price) * 100), maxParticipants: Number(form.maxParticipants), scheduledAt: new Date(form.scheduledAt).toISOString() }); setForm({ title: "", description: "", scheduledAt: "", startTime: "", duration: "60", price: "0", maxParticipants: "100" }); load(); } catch (err) { setError(err instanceof Error ? err.message : "Unable to create class"); }
+    try { await createAdminLiveClass({ ...form, price: Math.round(Number(form.price) * 100), originalPrice: form.originalPrice.trim() ? Math.round(Number(form.originalPrice) * 100) : null, maxParticipants: Number(form.maxParticipants), scheduledAt: new Date(form.scheduledAt).toISOString() }); setForm({ title: "", description: "", scheduledAt: "", startTime: "", duration: "60", price: "0", originalPrice: "", maxParticipants: "100" }); load(); } catch (err) { setError(err instanceof Error ? err.message : "Unable to create class"); }
   };
 
   const transition = async (item: LiveClass, status: "LIVE" | "COMPLETED" | "CANCELLED") => { try { await updateAdminLiveClass(item.id, { status }); load(); } catch (err) { setError(err instanceof Error ? err.message : "Unable to update class"); } };

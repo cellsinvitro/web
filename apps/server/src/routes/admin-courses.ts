@@ -28,6 +28,13 @@ export const adminCoursesRoutes = new Hono<{ Variables: AuthVariables }>();
 
 adminCoursesRoutes.use("*", requireAuth, requireAdmin);
 
+function parseOriginalPrice(value: unknown, price: number) {
+  if (value === undefined || String(value).trim() === "") return null;
+  const originalPrice = Math.max(0, Math.floor(Number(value) || 0));
+  if (originalPrice < price) throw new HTTPException(400, { message: "Original price must be at least the payable price" });
+  return originalPrice === price ? null : originalPrice;
+}
+
 // --- Courses CRUD ---
 
 adminCoursesRoutes.get("/courses", async (c) => {
@@ -42,6 +49,7 @@ adminCoursesRoutes.post("/courses", async (c) => {
   const body = await c.req.parseBody();
   const title = String(body.title ?? "").trim();
   if (!title) throw new HTTPException(400, { message: "Title is required" });
+  const price = Math.max(0, Math.floor(Number(body.price) || 0));
 
   const thumbnailFile = collectUploadedFile(body, "thumbnail");
   let thumbnailStorageKey: string | null = null;
@@ -60,7 +68,8 @@ adminCoursesRoutes.post("/courses", async (c) => {
       description: String(body.description ?? "").trim() || null,
       category: String(body.category ?? "").trim() || null,
       thumbnailStorageKey,
-      price: Number(body.price) || 0,
+      price,
+      originalPrice: parseOriginalPrice(body.originalPrice, price),
       currency: String(body.currency ?? "INR"),
       accessDurationDays: Number(body.accessDurationDays) || 90,
       passingPercentage: Number(body.passingPercentage) || 75,
@@ -117,7 +126,10 @@ adminCoursesRoutes.patch("/courses/:id", async (c) => {
       ...(body.category !== undefined
         ? { category: String(body.category).trim() || null }
         : {}),
-      ...(body.price !== undefined ? { price: Number(body.price) } : {}),
+      ...(body.price !== undefined ? { price: Math.max(0, Math.floor(Number(body.price) || 0)) } : {}),
+      ...(body.originalPrice !== undefined || body.price !== undefined
+        ? { originalPrice: parseOriginalPrice(body.originalPrice, body.price !== undefined ? Math.max(0, Math.floor(Number(body.price) || 0)) : existing.price) }
+        : {}),
       ...(body.currency !== undefined ? { currency: String(body.currency) } : {}),
       ...(body.accessDurationDays !== undefined
         ? { accessDurationDays: Number(body.accessDurationDays) }
@@ -518,12 +530,14 @@ adminCoursesRoutes.post("/packages", async (c) => {
   const body = await c.req.json();
   const title = String(body.title ?? "").trim();
   if (!title) throw new HTTPException(400, { message: "Title is required" });
+  const price = Math.max(0, Math.floor(Number(body.price) || 0));
 
   const pkg = await prisma.coursePackage.create({
     data: {
       title,
       description: body.description?.trim() || null,
-      price: Number(body.price) || 0,
+      price,
+      originalPrice: parseOriginalPrice(body.originalPrice, price),
       currency: body.currency || "INR",
       accessDurationDays: Number(body.accessDurationDays) || 90,
       published: Boolean(body.published),
@@ -561,7 +575,10 @@ adminCoursesRoutes.patch("/packages/:id", async (c) => {
       ...(body.description !== undefined
         ? { description: body.description?.trim() || null }
         : {}),
-      ...(body.price !== undefined ? { price: Number(body.price) } : {}),
+      ...(body.price !== undefined ? { price: Math.max(0, Math.floor(Number(body.price) || 0)) } : {}),
+      ...(body.originalPrice !== undefined || body.price !== undefined
+        ? { originalPrice: parseOriginalPrice(body.originalPrice, body.price !== undefined ? Math.max(0, Math.floor(Number(body.price) || 0)) : existing.price) }
+        : {}),
       ...(body.currency !== undefined ? { currency: body.currency } : {}),
       ...(body.accessDurationDays !== undefined
         ? { accessDurationDays: Number(body.accessDurationDays) }

@@ -30,6 +30,7 @@ export default function AdminKitDetailView() {
   const [assaysText, setAssaysText] = useState("");
   const [details, setDetails] = useState("");
   const [price, setPrice] = useState("0");
+  const [originalPrice, setOriginalPrice] = useState("");
   const [stock, setStock] = useState("0");
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("0");
@@ -57,6 +58,7 @@ export default function AdminKitDetailView() {
       setAssaysText(assaysToText(data.assays));
       setDetails(data.details ?? "");
       setPrice((data.price / 100).toFixed(2));
+      setOriginalPrice(data.originalPrice ? (data.originalPrice / 100).toFixed(2) : "");
       setStock(String(data.stock));
       setPublished(data.published);
       setSortOrder(String(data.sortOrder));
@@ -98,12 +100,13 @@ export default function AdminKitDetailView() {
       assaysText.trim() !== assaysToText(kit.assays) ||
       details !== (kit.details ?? "") ||
       (Math.round(Number(price || 0) * 100) || 0) !== kit.price ||
+      (Math.round(Number(originalPrice || 0) * 100) || 0) !== (kit.originalPrice ?? 0) ||
       (Number.parseInt(stock, 10) || 0) !== kit.stock ||
       published !== kit.published ||
       (Number.parseInt(sortOrder, 10) || 0) !== kit.sortOrder ||
       pendingImage !== null
     );
-  }, [kit, title, category, assaysText, details, price, stock, published, sortOrder, pendingImage]);
+  }, [kit, title, category, assaysText, details, price, originalPrice, stock, published, sortOrder, pendingImage]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -125,6 +128,7 @@ export default function AdminKitDetailView() {
         assays,
         details: details.trim() || null,
         price: Math.round(Number(price || 0) * 100),
+        originalPrice: originalPrice.trim() ? Math.round(Number(originalPrice) * 100) : null,
         stock: Number.parseInt(stock, 10) || 0,
         published,
         sortOrder: Number.parseInt(sortOrder, 10) || 0,
@@ -136,6 +140,7 @@ export default function AdminKitDetailView() {
       setAssaysText(assaysToText(updated.assays));
       setDetails(updated.details ?? "");
       setPrice((updated.price / 100).toFixed(2));
+      setOriginalPrice(updated.originalPrice ? (updated.originalPrice / 100).toFixed(2) : "");
       setStock(String(updated.stock));
       setPublished(updated.published);
       setSortOrder(String(updated.sortOrder));
@@ -339,6 +344,10 @@ export default function AdminKitDetailView() {
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium text-slate-700">Price (INR)</span>
                   <input type="number" min="0" step="0.01" required value={price} onChange={(event) => { setPrice(event.target.value); setSavedAt(null); }} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">Original price (INR)</span>
+                  <input type="number" min="0" step="0.01" value={originalPrice} onChange={(event) => { setOriginalPrice(event.target.value); setSavedAt(null); }} placeholder="Optional discount price" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
                 </label>
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium text-slate-700">Available stock</span>

@@ -45,6 +45,7 @@ export default function AdminKitsPage() {
   const [category, setCategory] = useState<string>(KIT_CATEGORIES[0]);
   const [assaysText, setAssaysText] = useState("");
   const [price, setPrice] = useState("0");
+  const [originalPrice, setOriginalPrice] = useState("");
   const [stock, setStock] = useState("0");
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("0");
@@ -109,6 +110,7 @@ export default function AdminKitsPage() {
         category,
         assays,
         price: Math.round(Number(price || 0) * 100),
+        originalPrice: originalPrice.trim() ? Math.round(Number(originalPrice) * 100) : null,
         stock: Number.parseInt(stock, 10) || 0,
         published,
         sortOrder: Number.parseInt(sortOrder, 10) || 0,
@@ -120,6 +122,7 @@ export default function AdminKitsPage() {
       setCategory(KIT_CATEGORIES[0]);
       setAssaysText("");
       setPrice("0");
+      setOriginalPrice("");
       setStock("0");
       setPublished(true);
       setSortOrder("0");
@@ -318,6 +321,7 @@ export default function AdminKitsPage() {
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-slate-700">Price (INR)</span>
               <input type="number" min="0" step="0.01" required value={price} onChange={(event) => setPrice(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
+              <input type="number" min="0" step="0.01" value={originalPrice} onChange={(event) => setOriginalPrice(event.target.value)} placeholder="Original price (optional)" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400" />
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-slate-700">Available stock</span>

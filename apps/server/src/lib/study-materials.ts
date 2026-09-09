@@ -175,6 +175,7 @@ export function toPublicStudyMaterialFile(
     mimeType: string;
     fileSize: number;
     price?: number;
+    originalPrice?: number | null;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -205,6 +206,7 @@ export function toPublicStudyMaterialFile(
     mimeType: file.mimeType,
     fileSize: file.fileSize,
     price: filePrice,
+    originalPrice: file.originalPrice ?? null,
     hasAccess,
     createdAt: file.createdAt.toISOString(),
     updatedAt: file.updatedAt.toISOString(),
@@ -218,6 +220,7 @@ export function toPublicStudyMaterial(
     description: string | null;
     category: string | null;
     price?: number;
+    originalPrice?: number | null;
     createdAt: Date;
     updatedAt: Date;
     files: Array<{
@@ -245,6 +248,7 @@ export function toPublicStudyMaterial(
     description: material.description,
     category: material.category,
     price: modulePrice,
+    originalPrice: material.originalPrice ?? null,
     hasAccess: hasModuleAccess,
     files: material.files.map((file) =>
       toPublicStudyMaterialFile(
@@ -271,11 +275,11 @@ export async function getResourceLibrarySetting() {
   return setting;
 }
 
-export async function updateResourceLibrarySetting(price: number) {
+export async function updateResourceLibrarySetting(price: number, originalPrice: number | null = null) {
   return prisma.resourceLibrarySetting.upsert({
     where: { id: "default" },
-    create: { id: "default", price, currency: "INR" },
-    update: { price },
+    create: { id: "default", price, originalPrice, currency: "INR" },
+    update: { price, originalPrice },
   });
 }
 

@@ -28,6 +28,7 @@ const classSelect = {
   duration: true,
   maxParticipants: true,
   price: true,
+  originalPrice: true,
   currency: true,
   isPaid: true,
   studentCameraEnabled: true,
@@ -91,6 +92,8 @@ liveClassesRoutes.post("/", requireAdmin, async (c) => {
   const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
   if (!teacher) throw new HTTPException(400, { message: "Teacher not found" });
   const price = Math.max(0, Math.round(Number(body.price) || 0));
+  const originalPrice = body.originalPrice === undefined || String(body.originalPrice).trim() === "" ? null : Math.max(0, Math.round(Number(body.originalPrice) || 0));
+  if (originalPrice !== null && originalPrice < price) throw new HTTPException(400, { message: "Original price must be at least the payable price" });
   const liveClass = await prisma.liveClass.create({
     data: {
       title,
@@ -104,6 +107,7 @@ liveClassesRoutes.post("/", requireAdmin, async (c) => {
       duration: Number(body.duration ?? 60),
       maxParticipants: Math.max(1, Math.round(Number(body.maxParticipants) || 100)),
       price,
+      originalPrice: originalPrice === price ? null : originalPrice,
       currency: String(body.currency ?? "INR"),
       isPaid: price > 0,
       studentCameraEnabled: body.studentCameraEnabled !== false,
@@ -121,6 +125,8 @@ liveClassesRoutes.patch("/:id", requireAdmin, async (c) => {
   const existing = await prisma.liveClass.findUnique({ where: { id: c.req.param("id") } });
   if (!existing) throw new HTTPException(404, { message: "Live class not found" });
   const price = body.price === undefined ? existing.price : Math.max(0, Math.round(Number(body.price) || 0));
+  const originalPrice = body.originalPrice === undefined && body.price === undefined ? existing.originalPrice : (String(body.originalPrice ?? "").trim() === "" ? null : Math.max(0, Math.round(Number(body.originalPrice) || 0)));
+  if (originalPrice !== null && originalPrice < price) throw new HTTPException(400, { message: "Original price must be at least the payable price" });
   const updated = await prisma.liveClass.update({
     where: { id: existing.id },
     data: {
@@ -132,6 +138,7 @@ liveClassesRoutes.patch("/:id", requireAdmin, async (c) => {
       ...(body.duration !== undefined ? { duration: Number(body.duration) } : {}),
       ...(body.maxParticipants !== undefined ? { maxParticipants: Math.max(1, Number(body.maxParticipants)) } : {}),
       ...(body.price !== undefined ? { price, isPaid: price > 0 } : {}),
+      ...(body.originalPrice !== undefined || body.price !== undefined ? { originalPrice: originalPrice === price ? null : originalPrice } : {}),
       ...(body.status !== undefined ? { status: String(body.status) as "SCHEDULED" | "LIVE" | "COMPLETED" | "CANCELLED" } : {}),
       ...(body.studentCameraEnabled !== undefined ? { studentCameraEnabled: Boolean(body.studentCameraEnabled) } : {}),
       ...(body.studentMicrophoneEnabled !== undefined ? { studentMicrophoneEnabled: Boolean(body.studentMicrophoneEnabled) } : {}),

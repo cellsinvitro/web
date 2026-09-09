@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPaymentOrder, verifyPayment } from "@/lib/api";
+import DiscountedPrice from "@/components/DiscountedPrice";
 
 type RazorpayResponse = {
   razorpay_order_id: string;
@@ -49,6 +50,7 @@ export default function KitPurchaseButton({
   kitId,
   title,
   price,
+  originalPrice,
   currency = "INR",
   stock,
   checkoutPage = false,
@@ -58,6 +60,7 @@ export default function KitPurchaseButton({
   kitId: string;
   title: string;
   price: number;
+  originalPrice?: number | null;
   currency?: string;
   stock: number;
   checkoutPage?: boolean;
@@ -165,7 +168,7 @@ handler: async (response: RazorpayResponse) => {
               Price
             </p>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              {formatPrice(price, currency)}
+              <DiscountedPrice price={price} originalPrice={originalPrice} currency={currency} />
             </p>
           </div>
           <p className="text-right text-xs font-medium text-slate-500">

@@ -8,7 +8,7 @@ import Footer from "@/components/Footer";
 import PurchaseButton from "@/components/courses/PurchaseButton";
 import { useAuth } from "@/context/AuthContext";
 import { fetchPublicPackage, type CoursePackage } from "@/lib/api";
-import { formatPrice } from "@/lib/courses";
+import DiscountedPrice from "@/components/DiscountedPrice";
 
 export default function PackageDetailPage() {
   const params = useParams();
@@ -60,7 +60,7 @@ export default function PackageDetailPage() {
           </h1>
           <p className="mt-3 text-slate-600">{pkg.description}</p>
           <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-            <span>{formatPrice(pkg.price, pkg.currency)}</span>
+            <DiscountedPrice price={pkg.price} originalPrice={pkg.originalPrice} currency={pkg.currency} />
             <span>{pkg.accessDurationDays} days access</span>
             <span>{pkg.courseCount} courses</span>
           </div>

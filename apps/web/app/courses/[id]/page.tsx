@@ -13,7 +13,8 @@ import {
   fetchPublicCourse,
   type Course,
 } from "@/lib/api";
-import { formatPrice, getModuleTypeLabel } from "@/lib/courses";
+import { getModuleTypeLabel } from "@/lib/courses";
+import DiscountedPrice from "@/components/DiscountedPrice";
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -96,7 +97,7 @@ export default function CourseDetailPage() {
             <p className="mt-3 text-slate-600">{course.description}</p>
 
             <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-500">
-              <span>{formatPrice(course.price, course.currency)}</span>
+              <DiscountedPrice price={course.price} originalPrice={course.originalPrice} currency={course.currency} />
               <span>{course.accessDurationDays} days access</span>
               <span>Pass: {course.passingPercentage}%</span>
               <span>{course.modules?.length ?? course.moduleCount} modules</span>

@@ -84,6 +84,8 @@ export default function AdminCourseDetailPage({ courseId }: { courseId: string }
     const form = new FormData(e.currentTarget);
     const priceDisplay = String(form.get("priceDisplay") ?? "0");
     form.set("price", String(Math.round(Number(priceDisplay) * 100)));
+    const originalPriceDisplay = String(form.get("originalPriceDisplay") ?? "");
+    form.set("originalPrice", originalPriceDisplay.trim() ? String(Math.round(Number(originalPriceDisplay) * 100)) : "");
     if (!e.currentTarget.querySelector<HTMLInputElement>('input[name="published"]')?.checked) {
       form.set("published", "false");
     }
@@ -322,6 +324,17 @@ export default function AdminCourseDetailPage({ courseId }: { courseId: string }
                       min="0"
                       step="0.01"
                       defaultValue={(course.price / 100).toFixed(2)}
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="font-medium text-slate-700">Original price (INR)</span>
+                    <input
+                      name="originalPriceDisplay"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={course.originalPrice ? (course.originalPrice / 100).toFixed(2) : ""}
                       className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
                     />
                   </label>
