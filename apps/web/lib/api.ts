@@ -220,6 +220,60 @@ export async function saveCryoSearchState(state: CryoSearchState) {
   });
 }
 
+// ─────────────────────────────────────────────
+// CryoSearch Invite API
+// ─────────────────────────────────────────────
+
+export type CryoInvitePreview = {
+  ownerName: string;
+  itemId: string;
+  itemType: string;
+  itemPath: string[];
+  inviteeEmail: string;
+  expired: boolean;
+  used: boolean;
+};
+
+/**
+ * Lab owner: send an email invite to a collaborator.
+ * POST /cryosearch/invite
+ */
+export async function sendCryoInvite(email: string, itemId: string) {
+  return apiFetch<{ success: boolean }>("/cryosearch/invite", {
+    method: "POST",
+    body: JSON.stringify({ email, itemId }),
+  });
+}
+
+/**
+ * Public (no auth): preview invite metadata before showing accept screen.
+ * GET /cryosearch/invite/:token
+ */
+export async function getCryoInvitePreview(token: string) {
+  // Bypass the auth header — this is a public endpoint.
+  // We use a raw fetch so no Authorization header is injected.
+  const API_BASE =
+    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL?.replace(/\/$/, "")) ||
+    "/api";
+  const response = await fetch(`${API_BASE}/cryosearch/invite/${token}`);
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error || "Invite not found");
+  }
+  return response.json() as Promise<CryoInvitePreview>;
+}
+
+/**
+ * Logged-in invitee: accept the invite.
+ * POST /cryosearch/invite/:token/accept
+ */
+export async function acceptCryoInvite(token: string) {
+  return apiFetch<{ success: boolean; itemType: string; itemPath: string[] }>(
+    `/cryosearch/invite/${token}/accept`,
+    { method: "POST" }
+  );
+}
+
 export type AdminStats = {
   totalUsers: number;
   emailUsers: number;

@@ -327,6 +327,61 @@ export async function sendKitOrderAdminNotificationEmail(input: {
   );
 }
 
+export async function sendCryoInviteEmail(input: {
+  to: string;
+  ownerName: string;
+  itemPath: string[];
+  itemType: string;
+  acceptUrl: string;
+}) {
+  const breadcrumb = input.itemPath.join(" &rsaquo; ");
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #db2777 0%, #9d174d 100%); padding: 32px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 6px 0; letter-spacing: -0.3px;">CryoSearch Invitation</h1>
+        <p style="color: #fce7f3; font-size: 14px; margin: 0;">You have been invited to access a shared repository item</p>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: 32px 28px;">
+        <p style="color: #1e293b; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+          <strong>${input.ownerName}</strong> has invited you to access their CryoSearch repository.
+        </p>
+
+        <!-- Item card -->
+        <div style="background-color: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 12px; padding: 18px 20px; margin-bottom: 28px;">
+          <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; color: #9d174d; text-transform: uppercase; letter-spacing: 0.6px;">${input.itemType}</p>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #1e293b;">${breadcrumb}</p>
+        </div>
+
+        <!-- CTA -->
+        <div style="text-align: center; margin: 28px 0 24px 0;">
+          <a href="${input.acceptUrl}"
+             style="display: inline-block; padding: 14px 36px; background-color: #db2777; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px; letter-spacing: -0.2px;">
+            Accept Access &rarr;
+          </a>
+        </div>
+
+        <p style="color: #64748b; font-size: 12px; text-align: center; line-height: 1.5; margin: 0;">
+          This invite link expires in <strong>72 hours</strong>. If you were not expecting this invitation, you can safely ignore this email.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+        CellsInVitro &bull; CryoSearch Repository &bull; Advancing Cell Culture Research
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `${input.ownerName} invited you to access a CryoSearch repository item`,
+    html
+  );
+}
+
 export async function notifyKitOrderCreated(paymentId: string) {
   try {
     const payment = await prisma.payment.findUnique({

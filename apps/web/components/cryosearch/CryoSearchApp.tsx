@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   LabModel,
   ContainerModel,
@@ -16,6 +17,10 @@ import {
 import {
   fetchCryoSearchState,
   saveCryoSearchState,
+  sendCryoInvite,
+  getCryoInvitePreview,
+  acceptCryoInvite,
+  type CryoInvitePreview,
   type CryoSearchState,
 } from "@/lib/api";
 import GlobalLoader from "@/components/GlobalLoader";
@@ -107,6 +112,76 @@ export default function CryoSearchApp() {
   const [isSendRequestOpen, setIsSendRequestOpen] = useState(false);
   const [isAllowedUsersOpen, setIsAllowedUsersOpen] = useState(false);
   const [accessSubTab, setAccessSubTab] = useState<"received" | "sent">("received");
+
+  // ── Invite acceptance ──
+  const searchParams = useSearchParams();
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [invitePreview, setInvitePreview] = useState<CryoInvitePreview | null>(null);
+  const [inviteState, setInviteState] = useState<
+    "idle" | "loading" | "ready" | "accepting" | "accepted" | "error"
+  >("idle");
+  const [inviteError, setInviteError] = useState<string>("");
+
+  // Persist token across login redirect via sessionStorage
+  useEffect(() => {
+    const paramToken = searchParams.get("invite");
+    const storedToken =
+      typeof window !== "undefined" ? sessionStorage.getItem("cryoInviteToken") : null;
+    const token = paramToken || storedToken;
+    if (!token) return;
+
+    if (paramToken) {
+      sessionStorage.setItem("cryoInviteToken", paramToken);
+      // Remove the param from the URL without a full navigation
+      const url = new URL(window.location.href);
+      url.searchParams.delete("invite");
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    setInviteToken(token);
+    setInviteState("loading");
+    setActiveTab("access");
+
+    getCryoInvitePreview(token)
+      .then((preview) => {
+        setInvitePreview(preview);
+        setInviteState("ready");
+      })
+      .catch((err: unknown) => {
+        setInviteError(err instanceof Error ? err.message : "Invalid invite link");
+        setInviteState("error");
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAcceptInvite = useCallback(async () => {
+    if (!inviteToken) return;
+    setInviteState("accepting");
+    setInviteError("");
+    try {
+      await acceptCryoInvite(inviteToken);
+      sessionStorage.removeItem("cryoInviteToken");
+      setInviteState("accepted");
+      // Refresh state so the accepted item shows in the user's shared repo
+      const fresh = await fetchCryoSearchState();
+      setLabs(fresh.labs);
+      setActivities(fresh.activities);
+      setReceivedRequests(fresh.receivedRequests);
+      setSentRequests(fresh.sentRequests);
+      setAllowedUsers(fresh.allowedUsers);
+    } catch (err: unknown) {
+      setInviteError(err instanceof Error ? err.message : "Failed to accept invite");
+      setInviteState("error");
+    }
+  }, [inviteToken]);
+
+  const handleDismissInvite = useCallback(() => {
+    sessionStorage.removeItem("cryoInviteToken");
+    setInviteToken(null);
+    setInvitePreview(null);
+    setInviteState("idle");
+    setInviteError("");
+  }, []);
 
   // Load from storage on mount
   useEffect(() => {
@@ -438,6 +513,11 @@ export default function CryoSearchApp() {
     alert(`Access request sent for ID: ${itemId}`);
   };
 
+  const handleSendEmailInvite = async (email: string, itemId: string) => {
+    await sendCryoInvite(email, itemId);
+    // No local state change needed — the invite lives server-side.
+  };
+
   const handleRevokeAccess = (userId: string, allowedItem: string) => {
     const updated = allowedUsers.filter(
       (u) => !(u.userId === userId && u.allowedItem === allowedItem)
@@ -510,6 +590,157 @@ export default function CryoSearchApp() {
             Create Lab
           </button>
         </div>
+
+        {/* ── Invite acceptance banner ── */}
+        {inviteState !== "idle" && (
+          <div className="mb-5">
+            {/* Loading */}
+            {inviteState === "loading" && (
+              <div className="flex items-center gap-3 rounded-2xl border border-pink-200 bg-pink-50 px-5 py-4">
+                <svg className="h-5 w-5 animate-spin text-pink-600" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                </svg>
+                <span className="text-xs font-semibold text-pink-700">Loading invite…</span>
+              </div>
+            )}
+
+            {/* Ready — show accept card */}
+            {inviteState === "ready" && invitePreview && (
+              <div className="overflow-hidden rounded-2xl border border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50 shadow-sm">
+                {/* Coloured top strip */}
+                <div className="h-1 bg-gradient-to-r from-pink-500 to-rose-500" />
+                <div className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {/* Icon */}
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-600 text-white shadow">
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                          <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
+                          <path d="m19 8.839-7.77 3.885a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">
+                          You&apos;ve been invited to access a shared repository item
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          From <span className="font-semibold text-slate-700">{invitePreview.ownerName}</span>
+                        </p>
+                        {/* Item breadcrumb */}
+                        <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[11px] shadow-xs border border-pink-200">
+                          <span className="font-bold text-pink-700 uppercase tracking-wide text-[10px]">
+                            {invitePreview.itemType}
+                          </span>
+                          <span className="text-slate-300 mx-0.5">·</span>
+                          <span className="font-medium text-slate-700">
+                            {invitePreview.itemPath.join(" › ")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDismissInvite}
+                      className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-600"
+                      title="Dismiss"
+                    >
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAcceptInvite}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-pink-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-pink-500"
+                    >
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                      </svg>
+                      Accept Access
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDismissInvite}
+                      className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Accepting spinner */}
+            {inviteState === "accepting" && (
+              <div className="flex items-center gap-3 rounded-2xl border border-pink-200 bg-pink-50 px-5 py-4">
+                <svg className="h-5 w-5 animate-spin text-pink-600" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                </svg>
+                <span className="text-xs font-semibold text-pink-700">Accepting invite…</span>
+              </div>
+            )}
+
+            {/* Success */}
+            {inviteState === "accepted" && invitePreview && (
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-900">Access granted!</p>
+                    <p className="text-[11px] text-emerald-700">
+                      You now have access to{" "}
+                      <span className="font-semibold">{invitePreview.itemPath.join(" › ")}</span>{" "}
+                      from <span className="font-semibold">{invitePreview.ownerName}</span>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDismissInvite}
+                  className="shrink-0 rounded-lg p-1 text-emerald-500 hover:bg-emerald-100"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Error (expired, used, wrong email, etc.) */}
+            {inviteState === "error" && (
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-300 bg-red-50 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-red-900">Invite could not be processed</p>
+                    <p className="text-[11px] text-red-700">{inviteError || "This invite link is invalid, expired, or has already been used."}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDismissInvite}
+                  className="shrink-0 rounded-lg p-1 text-red-400 hover:bg-red-100"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Navigation Tabs matching the 5 mobile icons */}
         <div className="mb-6 flex overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm scrollbar-none">
@@ -1464,6 +1695,7 @@ export default function CryoSearchApp() {
         isOpen={isSendRequestOpen}
         onClose={() => setIsSendRequestOpen(false)}
         onSendRequest={handleSendAccessRequest}
+        onSendEmailInvite={handleSendEmailInvite}
       />
 
       <AllowedUsersModal
