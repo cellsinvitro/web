@@ -121,11 +121,14 @@ function nelderMead(
 ): number[] {
   const n = start.length;
   const simplex: number[][] = [start.slice()];
-  const step = 0.05;
+  // Use a fixed step of 0.5 in the (log-transformed) parameter space.
+  // The original 5% relative step was far too small and produced a nearly
+  // degenerate initial simplex, causing the optimizer to stall near the start.
+  const step = 0.5;
 
   for (let i = 0; i < n; i++) {
     const point = start.slice();
-    point[i] = point[i]! + (point[i]! === 0 ? step : point[i]! * step);
+    point[i] = point[i]! + step;
     simplex.push(point);
   }
 
@@ -149,8 +152,10 @@ function nelderMead(
     const range = Math.max(...values) - Math.min(...values);
     if (range < tol) break;
 
+    // Centroid of all vertices except the worst.
+    // The simplex has n+1 vertices (indices 0..n), so iterate the full range.
     const centroid = new Array(n).fill(0);
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i <= n; i++) {
       if (i === worst) continue;
       for (let j = 0; j < n; j++) {
         centroid[j]! += simplex[i]![j]!;
@@ -161,7 +166,8 @@ function nelderMead(
     const reflected = centroid.map((c, j) => c + alpha * (c - simplex[worst]![j]!));
     const fReflected = fn(reflected);
 
-    if (fReflected < values[best]! && fReflected < values[secondWorst]!) {
+    if (fReflected < values[best]!) {
+      // Reflected is best so far — try expanding further.
       const expanded = centroid.map((c, j) => c + gamma * (reflected[j]! - c));
       const fExpanded = fn(expanded);
       if (fExpanded < fReflected) {
@@ -171,16 +177,19 @@ function nelderMead(
         simplex[worst] = reflected;
         values[worst] = fReflected;
       }
-    } else if (fReflected < values[secondWorst]!) {
+    } else if (fReflected < values[worst]!) {
+      // Reflected is not the best but still better than the worst — accept it.
       simplex[worst] = reflected;
       values[worst] = fReflected;
     } else {
+      // Reflected is no improvement — contract toward the centroid.
       const contracted = centroid.map((c, j) => c + rho * (simplex[worst]![j]! - c));
       const fContracted = fn(contracted);
       if (fContracted < values[worst]!) {
         simplex[worst] = contracted;
         values[worst] = fContracted;
       } else {
+        // Shrink the entire simplex toward the best vertex.
         for (let i = 0; i <= n; i++) {
           if (i === best) continue;
           simplex[i] = simplex[best]!.map((b, j) => b + sigma * (simplex[i]![j]! - b));
