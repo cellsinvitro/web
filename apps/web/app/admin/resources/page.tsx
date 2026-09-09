@@ -28,9 +28,11 @@ export default function AdminResourcesPage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("0");
+  const [originalPrice, setOriginalPrice] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
 
   const [libraryPrice, setLibraryPrice] = useState("0");
+  const [libraryOriginalPrice, setLibraryOriginalPrice] = useState("");
   const [savingLibraryPrice, setSavingLibraryPrice] = useState(false);
   const [libraryPriceSavedMsg, setLibraryPriceSavedMsg] = useState<string | null>(null);
 
@@ -44,6 +46,7 @@ export default function AdminResourcesPage() {
       ]);
       setMaterials(mats);
       setLibraryPrice(String(setting.price || 0));
+      setLibraryOriginalPrice(String(setting.originalPrice ?? ""));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resources");
     } finally {
@@ -61,8 +64,9 @@ export default function AdminResourcesPage() {
     setLibraryPriceSavedMsg(null);
     setActionError(null);
     try {
-      const updated = await updateResourceLibrarySetting(Number(libraryPrice) || 0);
+      const updated = await updateResourceLibrarySetting(Number(libraryPrice) || 0, libraryOriginalPrice.trim() ? Number(libraryOriginalPrice) : null);
       setLibraryPrice(String(updated.price));
+      setLibraryOriginalPrice(String(updated.originalPrice ?? ""));
       setLibraryPriceSavedMsg("Whole Library Price updated successfully!");
       setTimeout(() => setLibraryPriceSavedMsg(null), 3000);
     } catch (err) {
@@ -89,6 +93,7 @@ export default function AdminResourcesPage() {
         description: description.trim() || undefined,
         category: category.trim() || undefined,
         price: Math.max(0, Math.floor(Number(price) || 0)),
+        originalPrice: originalPrice.trim() ? Math.max(0, Math.floor(Number(originalPrice) || 0)) : null,
         files: Array.from(files),
       });
       setMaterials((prev) => [material, ...prev]);
@@ -96,6 +101,7 @@ export default function AdminResourcesPage() {
       setDescription("");
       setCategory("");
       setPrice("0");
+      setOriginalPrice("");
       setFiles(null);
       form.reset();
     } catch (err) {
@@ -177,6 +183,14 @@ export default function AdminResourcesPage() {
                 className="w-32 rounded-xl border border-slate-700 bg-slate-800/80 pl-7 pr-3 py-2 text-sm font-medium text-white outline-none focus:border-amber-400"
                 placeholder="0"
               />
+              <input
+                type="number"
+                min="0"
+                value={libraryOriginalPrice}
+                onChange={(e) => setLibraryOriginalPrice(e.target.value)}
+                className="mt-2 w-32 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-medium text-white outline-none focus:border-amber-400"
+                placeholder="Original"
+              />
             </div>
             <button
               type="submit"
@@ -232,6 +246,14 @@ export default function AdminResourcesPage() {
                 onChange={(event) => setPrice(event.target.value)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
                 placeholder="0 for free"
+              />
+              <input
+                type="number"
+                min="0"
+                value={originalPrice}
+                onChange={(event) => setOriginalPrice(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
+                placeholder="Original price (optional)"
               />
             </label>
           </div>

@@ -18,15 +18,23 @@ export const adminMaterialsRoutes = new Hono<{ Variables: AuthVariables }>();
 
 adminMaterialsRoutes.use("*", requireAuth, requireAdmin);
 
+function parseOriginalPrice(value: unknown, price: number) {
+  if (value === undefined || String(value).trim() === "") return null;
+  const originalPrice = Math.max(0, Math.floor(Number(value) || 0));
+  if (originalPrice < price) throw new HTTPException(400, { message: "Original price must be at least the payable price" });
+  return originalPrice === price ? null : originalPrice;
+}
+
 adminMaterialsRoutes.get("/settings", async (c) => {
   const setting = await getResourceLibrarySetting();
   return c.json({ setting });
 });
 
 adminMaterialsRoutes.put("/settings", async (c) => {
-  const { price } = await c.req.json<{ price: number }>();
+  const { price, originalPrice } = await c.req.json<{ price: number; originalPrice?: number }>();
   const parsedPrice = Math.max(0, Math.floor(Number(price) || 0));
-  const setting = await updateResourceLibrarySetting(parsedPrice);
+  const parsedOriginalPrice = parseOriginalPrice(originalPrice, parsedPrice);
+  const setting = await updateResourceLibrarySetting(parsedPrice, parsedOriginalPrice);
   return c.json({ setting });
 });
 
@@ -47,6 +55,7 @@ adminMaterialsRoutes.post("/", async (c) => {
   const description = String(body.description ?? "").trim() || null;
   const category = String(body.category ?? "").trim() || null;
   const price = Math.max(0, Math.floor(Number(body.price) || 0));
+  const originalPrice = parseOriginalPrice(body.originalPrice, price);
   const uploadedFiles = collectUploadedFiles(body);
 
   if (!title) {
@@ -104,6 +113,7 @@ adminMaterialsRoutes.post("/", async (c) => {
         description,
         category,
         price,
+        originalPrice,
         files: {
           create: storedFiles,
         },
@@ -136,6 +146,9 @@ adminMaterialsRoutes.patch("/:id", async (c) => {
     body.price !== undefined
       ? Math.max(0, Math.floor(Number(body.price) || 0))
       : undefined;
+  const originalPrice = body.originalPrice !== undefined || price !== undefined
+    ? parseOriginalPrice(body.originalPrice, price ?? 0)
+    : undefined;
 
   if (title !== undefined && !title) {
     throw new HTTPException(400, { message: "Title cannot be empty" });
@@ -156,6 +169,7 @@ adminMaterialsRoutes.patch("/:id", async (c) => {
       ...(description !== undefined ? { description } : {}),
       ...(category !== undefined ? { category } : {}),
       ...(price !== undefined ? { price } : {}),
+      ...(originalPrice !== undefined ? { originalPrice } : {}),
     },
     include: studyMaterialInclude,
   });

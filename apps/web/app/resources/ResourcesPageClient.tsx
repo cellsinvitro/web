@@ -5,6 +5,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ResourcePurchaseButton from "@/components/resources/ResourcePurchaseButton";
+import DiscountedPrice from "@/components/DiscountedPrice";
 import { fetchStudyMaterials } from "@/lib/api";
 import type { StudyMaterial } from "@/lib/api";
 import GlobalLoader from "@/components/GlobalLoader";
@@ -18,6 +19,7 @@ import {
 export default function ResourcesPageClient() {
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [libraryPrice, setLibraryPrice] = useState<number>(0);
+  const [libraryOriginalPrice, setLibraryOriginalPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,9 +27,10 @@ export default function ResourcesPageClient() {
     setLoading(true);
     setError(null);
     try {
-      const { materials: data, libraryPrice: lPrice } = await fetchStudyMaterials();
+      const { materials: data, libraryPrice: lPrice, libraryOriginalPrice: lOriginalPrice } = await fetchStudyMaterials();
       setMaterials(data);
       setLibraryPrice(lPrice);
+      setLibraryOriginalPrice(lOriginalPrice);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resources");
     } finally {
@@ -78,6 +81,7 @@ export default function ResourcesPageClient() {
                   <ResourcePurchaseButton
                     resourceScope="FULL_LIBRARY"
                     price={libraryPrice}
+                    originalPrice={libraryOriginalPrice}
                     label={`Buy Full Library Pass - ₹${libraryPrice}`}
                     className="w-full justify-center rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-sm transition-all hover:bg-amber-400"
                     onSuccess={loadMaterials}
@@ -129,7 +133,7 @@ export default function ResourcesPageClient() {
                           </span>
                         ) : modPrice > 0 ? (
                           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-900">
-                            Module Set: ₹{modPrice}
+                            <><span>Module Set: </span><DiscountedPrice price={modPrice} originalPrice={material.originalPrice} /></>
                           </span>
                         ) : (
                           <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">

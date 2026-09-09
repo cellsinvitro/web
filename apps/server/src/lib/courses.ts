@@ -116,6 +116,7 @@ export function toPublicCourse(
     category: string | null;
     thumbnailStorageKey: string | null;
     price: number;
+    originalPrice: number | null;
     currency: string;
     accessDurationDays: number;
     passingPercentage: number;
@@ -141,6 +142,7 @@ export function toPublicCourse(
     category: course.category,
     thumbnailUrl: getThumbnailUrl(course.thumbnailStorageKey),
     price: course.price,
+    originalPrice: course.originalPrice,
     currency: course.currency,
     accessDurationDays: course.accessDurationDays,
     passingPercentage: course.passingPercentage,
@@ -174,6 +176,7 @@ export function toAdminCourse(
     category: string | null;
     thumbnailStorageKey: string | null;
     price: number;
+    originalPrice: number | null;
     currency: string;
     accessDurationDays: number;
     passingPercentage: number;
@@ -204,6 +207,7 @@ export function toPublicPackage(pkg: {
   title: string;
   description: string | null;
   price: number;
+  originalPrice: number | null;
   currency: string;
   accessDurationDays: number;
   published: boolean;
@@ -221,6 +225,7 @@ export function toPublicPackage(pkg: {
     title: pkg.title,
     description: pkg.description,
     price: pkg.price,
+    originalPrice: pkg.originalPrice,
     currency: pkg.currency,
     accessDurationDays: pkg.accessDurationDays,
     published: pkg.published,
@@ -242,6 +247,7 @@ export function toAdminPackage(
     title: string;
     description: string | null;
     price: number;
+    originalPrice: number | null;
     currency: string;
     accessDurationDays: number;
     published: boolean;

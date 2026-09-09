@@ -18,6 +18,7 @@ export default function AdminCourseWizard({
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("0");
+  const [originalPrice, setOriginalPrice] = useState("");
   const [accessDurationDays, setAccessDurationDays] = useState("90");
   const [passingPercentage, setPassingPercentage] = useState("75");
   const [thumbnail, setThumbnail] = useState<File | null>(null);
@@ -38,6 +39,7 @@ export default function AdminCourseWizard({
       form.append("description", description.trim());
       form.append("category", category.trim());
       form.append("price", String(Math.round(Number(price) * 100)));
+      if (originalPrice.trim()) form.append("originalPrice", String(Math.round(Number(originalPrice) * 100)));
       form.append("accessDurationDays", accessDurationDays);
       form.append("passingPercentage", passingPercentage);
       form.append("published", "false");
@@ -109,6 +111,15 @@ export default function AdminCourseWizard({
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="Price (INR)"
+            type="number"
+            min="0"
+            step="0.01"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+          />
+          <input
+            value={originalPrice}
+            onChange={(e) => setOriginalPrice(e.target.value)}
+            placeholder="Original price before discount (optional)"
             type="number"
             min="0"
             step="0.01"

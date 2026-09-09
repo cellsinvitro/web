@@ -76,6 +76,7 @@ model CryoSearchState {
 model ResourceLibrarySetting {
   id        String   @id @default("default")
   price     Int      @default(0)
+  originalPrice Int?
   currency  String   @default("INR")
   updatedAt DateTime @updatedAt
 }
@@ -86,6 +87,7 @@ model StudyMaterial {
   description      String?
   category         String?
   price            Int                 @default(0)
+  originalPrice    Int?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   files            StudyMaterialFile[]
@@ -101,6 +103,7 @@ model StudyMaterialFile {
   fileSize         Int
   storageKey       String                  @unique
   price            Int                     @default(0)
+  originalPrice    Int?
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
   material         StudyMaterial           @relation(fields: [materialId], references: [id], onDelete: Cascade)
@@ -151,6 +154,7 @@ model ResearchKit {
   assays          String[]
   details         String?
   price           Int      @default(0)
+  originalPrice   Int?
   stock           Int      @default(0)
   published       Boolean  @default(true)
   sortOrder       Int      @default(0)
@@ -186,6 +190,7 @@ model Course {
   category            String?
   thumbnailStorageKey String?
   price               Int                  @default(0)
+  originalPrice       Int?
   currency            String               @default("INR")
   accessDurationDays  Int                  @default(90)
   passingPercentage   Int                  @default(75)
@@ -245,6 +250,7 @@ model CoursePackage {
   title              String
   description        String?
   price              Int                 @default(0)
+  originalPrice      Int?
   currency           String              @default("INR")
   accessDurationDays Int                 @default(90)
   published          Boolean             @default(false)
@@ -368,6 +374,7 @@ model LiveClass {
   duration              Int
   maxParticipants       Int              @default(100)
   price                 Int              @default(0)
+  originalPrice         Int?
   currency              String           @default("INR")
   isPaid                Boolean          @default(false)
   studentCameraEnabled  Boolean          @default(true)

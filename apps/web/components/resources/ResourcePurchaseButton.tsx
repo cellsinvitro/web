@@ -38,6 +38,7 @@ export default function ResourcePurchaseButton({
   studyMaterialId,
   studyMaterialFileId,
   price,
+  originalPrice,
   label,
   className,
   onSuccess,
@@ -46,6 +47,7 @@ export default function ResourcePurchaseButton({
   studyMaterialId?: string;
   studyMaterialFileId?: string;
   price: number;
+  originalPrice?: number | null;
   label?: string;
   className?: string;
   onSuccess?: () => void;

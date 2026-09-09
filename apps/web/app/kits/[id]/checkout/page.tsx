@@ -66,6 +66,7 @@ export default function KitCheckoutPage() {
                 kitId={kit.id}
                 title={kit.title}
                 price={kit.price}
+                originalPrice={kit.originalPrice}
                 currency={kit.currency}
                 stock={kit.stock}
                 checkoutPage

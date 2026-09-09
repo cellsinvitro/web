@@ -6,6 +6,7 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import { fetchCourseCatalog, type Course, type CoursePackage } from "@/lib/api";
 import { formatPrice } from "@/lib/courses";
+import DiscountedPrice from "@/components/DiscountedPrice";
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -56,7 +57,7 @@ export default function CoursesPage() {
                           {pkg.description || `${pkg.courseCount} courses bundled`}
                         </p>
                         <p className="mt-3 text-sm font-semibold text-slate-950">
-                          {formatPrice(pkg.price, pkg.currency)}
+                          <DiscountedPrice price={pkg.price} originalPrice={pkg.originalPrice} currency={pkg.currency} />
                         </p>
                       </Link>
                     ))}
@@ -98,7 +99,7 @@ export default function CoursesPage() {
                         </p>
                         <div className="mt-3 flex items-center justify-between text-sm">
                           <span className="font-semibold text-slate-950">
-                            {formatPrice(course.price, course.currency)}
+                            <DiscountedPrice price={course.price} originalPrice={course.originalPrice} currency={course.currency} />
                           </span>
                           <span className="text-slate-500">
                             {course.moduleCount} modules · {course.accessDurationDays}d access

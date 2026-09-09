@@ -89,6 +89,7 @@ export function toPublicKit(
     assays: string[];
     details: string | null;
     price: number;
+    originalPrice: number | null;
     stock: number;
     published: boolean;
     sortOrder: number;
@@ -106,6 +107,7 @@ export function toPublicKit(
     assays: kit.assays,
     details: kit.details,
     price: kit.price,
+    originalPrice: kit.originalPrice,
     currency: "INR",
     stock: kit.stock,
     available: kit.stock > 0,

@@ -14,6 +14,7 @@ import {
   type CoursePackage,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/courses";
+import DiscountedPrice from "@/components/DiscountedPrice";
 import { useConfirm } from "@/context/ConfirmContext";
 import AdminCourseWizard from "@/components/admin/AdminCourseWizard";
 import { AdminSpinner } from "@/components/AdminLoader";
@@ -26,6 +27,7 @@ export default function AdminCoursesPage() {
   const [error, setError] = useState<string | null>(null);
   const [pkgTitle, setPkgTitle] = useState("");
   const [pkgPrice, setPkgPrice] = useState("0");
+    const [pkgOriginalPrice, setPkgOriginalPrice] = useState("");
   const [pkgAccessDays, setPkgAccessDays] = useState("90");
   const [pkgCourseIds, setPkgCourseIds] = useState<string[]>([]);
   const [editingPkgId, setEditingPkgId] = useState<string | null>(null);
@@ -55,12 +57,14 @@ export default function AdminCoursesPage() {
       await createAdminPackage({
         title: pkgTitle.trim(),
         price: Math.round(Number(pkgPrice) * 100),
+          originalPrice: pkgOriginalPrice.trim() ? Math.round(Number(pkgOriginalPrice) * 100) : null,
         accessDurationDays: Number(pkgAccessDays) || 90,
         published: false,
         courseIds: pkgCourseIds,
       });
       setPkgTitle("");
       setPkgPrice("0");
+        setPkgOriginalPrice("");
       setPkgAccessDays("90");
       setPkgCourseIds([]);
       load();
@@ -142,6 +146,15 @@ export default function AdminCoursesPage() {
               min="1"
               className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
             />
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pkgOriginalPrice}
+                          onChange={(e) => setPkgOriginalPrice(e.target.value)}
+                          placeholder="Original price (optional)"
+                          className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+                        />
           </div>
           <div>
             <p className="text-sm text-slate-500">Include courses</p>
@@ -254,7 +267,7 @@ export default function AdminCoursesPage() {
                 <div>
                   <p className="font-medium text-slate-950">{pkg.title}</p>
                   <p className="text-xs text-slate-500">
-                    {formatPrice(pkg.price, pkg.currency)} · {pkg.courseCount} courses ·{" "}
+                    <DiscountedPrice price={pkg.price} originalPrice={pkg.originalPrice} currency={pkg.currency} /> · {pkg.courseCount} courses ·{" "}
                     {pkg.accessDurationDays} days
                   </p>
                 </div>

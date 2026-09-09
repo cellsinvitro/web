@@ -34,6 +34,7 @@ export default function AdminResourceDetailView() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("0");
+  const [originalPrice, setOriginalPrice] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,6 +56,7 @@ export default function AdminResourceDetailView() {
       setDescription(data.description ?? "");
       setCategory(data.category ?? "");
       setPrice(String(data.price ?? 0));
+      setOriginalPrice(String(data.originalPrice ?? ""));
       setPendingFiles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resource");
@@ -75,8 +77,9 @@ export default function AdminResourceDetailView() {
       description.trim() !== (material.description ?? "") ||
       category.trim() !== (material.category ?? "") ||
       Number(price) !== (material.price ?? 0)
+      || Number(originalPrice || 0) !== (material.originalPrice ?? 0)
     );
-  }, [material, title, description, category, price]);
+  }, [material, title, description, category, price, originalPrice]);
 
   const isBusy =
     saving || uploadingFiles || deleting || deletingFileId !== null;
@@ -94,12 +97,14 @@ export default function AdminResourceDetailView() {
         description: description.trim(),
         category: category.trim(),
         price: Math.max(0, Math.floor(Number(price) || 0)),
+        originalPrice: originalPrice.trim() ? Math.max(0, Math.floor(Number(originalPrice) || 0)) : null,
       });
       setMaterial(updated);
       setTitle(updated.title);
       setDescription(updated.description ?? "");
       setCategory(updated.category ?? "");
       setPrice(String(updated.price ?? 0));
+      setOriginalPrice(String(updated.originalPrice ?? ""));
       setSavedAt("Details saved");
     } catch (err) {
       setActionError(
@@ -500,6 +505,20 @@ export default function AdminResourceDetailView() {
                     }}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
                     placeholder="0 for free"
+                  />
+                </label>
+                <label className="mt-4 block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">Original price (₹)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={originalPrice}
+                    onChange={(event) => {
+                      setOriginalPrice(event.target.value);
+                      setSavedAt(null);
+                    }}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
+                    placeholder="Optional discount price"
                   />
                 </label>
 
