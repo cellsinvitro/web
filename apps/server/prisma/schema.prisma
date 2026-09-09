@@ -34,6 +34,8 @@ model User {
   maintenanceRules   MaintenanceRule[]
   resourceAccesses   ResourceAccess[]
   toolUsages         ToolUsage[]
+  budgets            Budget[]
+  budgetSubmissions  BudgetSubmission[]
 }
 
 model MaintenanceRule {
@@ -718,4 +720,85 @@ enum ResourceAccessScope {
   FULL_LIBRARY
   MODULE
   FILE
+}
+
+// ─── Budget Management ────────────────────────────────────────────────────────
+
+/// A budget created by any user. They set the initial allocation.
+model Budget {
+  id              String             @id @default(cuid())
+  ownerId         String
+  name            String
+  description     String?
+  startDate       DateTime?
+  endDate         DateTime?
+  allocatedAmount Int                // paise (rupees × 100)
+  currency        String             @default("INR")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  owner           User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  fields          BudgetFormField[]
+  submissions     BudgetSubmission[]
+
+  @@index([ownerId, createdAt])
+}
+
+/// Per-budget form field — configured by the budget owner.
+model BudgetFormField {
+  id           String               @id @default(cuid())
+  budgetId     String
+  label        String
+  fieldType    BudgetFieldType      // TEXT | NUMBER | DATE
+  direction    BudgetFieldDirection @default(NONE) // only meaningful for NUMBER fields
+  defaultValue String?              // pre-filled value shown in the submission form
+  sortOrder    Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  budget       Budget               @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  values       BudgetSubmissionValue[]
+
+  @@index([budgetId, sortOrder])
+}
+
+/// One form submission against a budget.
+model BudgetSubmission {
+  id          String                 @id @default(cuid())
+  budgetId    String
+  userId      String
+  submittedAt DateTime               @default(now())
+  /// Net paise applied to budget: positive = net expense, negative = net addition
+  netEffect   Int                    @default(0)
+  note        String?                // free-text note shown in submission history
+  budget      Budget                 @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  values      BudgetSubmissionValue[]
+
+  @@index([budgetId, submittedAt])
+  @@index([userId])
+}
+
+/// One field value within a submission.
+model BudgetSubmissionValue {
+  id           String           @id @default(cuid())
+  submissionId String
+  fieldId      String
+  value        String           // stored as text; numbers parsed on read
+  submission   BudgetSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field        BudgetFormField  @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, fieldId])
+  @@index([submissionId])
+  @@index([fieldId])
+}
+
+enum BudgetFieldType {
+  TEXT
+  NUMBER
+  DATE
+}
+
+enum BudgetFieldDirection {
+  EXPENSE   // subtracts from remaining balance
+  ADDITION  // adds to remaining balance
+  NONE      // informational only (TEXT / DATE fields)
 }

@@ -88,7 +88,7 @@ export default function KitPurchaseButton({
 
   const openCheckout = () => {
     setError(null);
-    router.push(`/kits/${kitId}/checkout?quantity=${quantity}`);
+    router.push(`/dashboard/kits/${kitId}/checkout?quantity=${quantity}`);
   };
 
   const purchase = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -109,7 +109,7 @@ export default function KitPurchaseButton({
       if (order.free) {
         onSuccess?.();
         router.push(
-          `/kits/${kitId}/confirmation?orderId=${encodeURIComponent(order.paymentId ?? "")}`
+          `/dashboard/kits/${kitId}/confirmation?orderId=${encodeURIComponent(order.paymentId ?? "")}`
         );
         setLoading(false);
         return;
@@ -143,7 +143,7 @@ handler: async (response: RazorpayResponse) => {
               await verifyPayment({ paymentId: order.paymentId!, ...response });
               onSuccess?.();
               router.push(
-                `/kits/${kitId}/confirmation?orderId=${encodeURIComponent(order.paymentId!)}`
+                `/dashboard/kits/${kitId}/confirmation?orderId=${encodeURIComponent(order.paymentId!)}`
               );
             } catch (err) {
             setError(err instanceof Error ? err.message : "Payment verification failed");
@@ -229,7 +229,7 @@ handler: async (response: RazorpayResponse) => {
               </div>
               <button
                 type="button"
-                onClick={() => router.push(`/kits/${kitId}`)}
+                onClick={() => router.push(`/dashboard/kits/${kitId}`)}
                 disabled={loading}
                 className="text-sm font-semibold text-slate-500 transition-colors hover:text-slate-950 disabled:opacity-50"
               >

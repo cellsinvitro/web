@@ -292,7 +292,7 @@ export default function AdminKitDetailView() {
                   </span>
                 ) : null}
                 <Link
-                  href="/kits"
+                  href="/dashboard/kits"
                   className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                 >
                   View public page

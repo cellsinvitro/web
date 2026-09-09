@@ -1871,3 +1871,174 @@ export async function sendCourseReminders() {
   });
 }
 
+
+// ─── Budget Management ────────────────────────────────────────────────────────
+
+export type BudgetFieldType = "TEXT" | "NUMBER" | "DATE";
+export type BudgetFieldDirection = "EXPENSE" | "ADDITION" | "NONE";
+
+export type BudgetFormField = {
+  id: string;
+  budgetId: string;
+  label: string;
+  fieldType: BudgetFieldType;
+  direction: BudgetFieldDirection;
+  defaultValue: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BudgetSubmissionValue = {
+  fieldId: string;
+  label: string;
+  fieldType: BudgetFieldType;
+  direction: BudgetFieldDirection;
+  value: string;
+};
+
+export type BudgetSubmission = {
+  id: string;
+  submittedAt: string;
+  netEffect: number;
+  note: string | null;
+  user: { id: string; name: string | null; email: string };
+  values: BudgetSubmissionValue[];
+};
+
+export type Budget = {
+  id: string;
+  ownerId: string;
+  name: string;
+  description: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  allocatedAmount: number; // paise
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  fields: BudgetFormField[];
+  // summary
+  submissionCount: number;
+  netSpent: number;
+  remaining: number;
+};
+
+// ── Budgets ───────────────────────────────────────────────────────────────────
+
+export async function fetchBudgets() {
+  const data = await apiFetch<{ budgets: Budget[] }>("/budgets");
+  return data.budgets;
+}
+
+export async function createBudget(input: {
+  name: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  allocatedAmount: number; // rupees decimal
+  currency?: string;
+}) {
+  const data = await apiFetch<{ budget: Budget }>("/budgets", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.budget;
+}
+
+export async function fetchBudget(budgetId: string) {
+  const data = await apiFetch<{ budget: Budget; submissions: BudgetSubmission[] }>(
+    `/budgets/${budgetId}`
+  );
+  return data;
+}
+
+export async function updateBudget(
+  budgetId: string,
+  input: {
+    name?: string;
+    description?: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    allocatedAmount?: number;
+    currency?: string;
+  }
+) {
+  const data = await apiFetch<{ budget: Budget }>(`/budgets/${budgetId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.budget;
+}
+
+export async function deleteBudget(budgetId: string) {
+  return apiFetch<{ success: boolean }>(`/budgets/${budgetId}`, { method: "DELETE" });
+}
+
+// ── Per-budget fields ─────────────────────────────────────────────────────────
+
+export async function createBudgetField(
+  budgetId: string,
+  input: {
+    label: string;
+    fieldType: BudgetFieldType;
+    direction?: BudgetFieldDirection;
+    defaultValue?: string;
+    sortOrder?: number;
+  }
+) {
+  const data = await apiFetch<{ field: BudgetFormField }>(
+    `/budgets/${budgetId}/fields`,
+    { method: "POST", body: JSON.stringify(input) }
+  );
+  return data.field;
+}
+
+export async function updateBudgetField(
+  budgetId: string,
+  fieldId: string,
+  input: {
+    label?: string;
+    fieldType?: BudgetFieldType;
+    direction?: BudgetFieldDirection;
+    defaultValue?: string;
+    sortOrder?: number;
+  }
+) {
+  const data = await apiFetch<{ field: BudgetFormField }>(
+    `/budgets/${budgetId}/fields/${fieldId}`,
+    { method: "PATCH", body: JSON.stringify(input) }
+  );
+  return data.field;
+}
+
+export async function deleteBudgetField(budgetId: string, fieldId: string) {
+  return apiFetch<{ success: boolean }>(
+    `/budgets/${budgetId}/fields/${fieldId}`,
+    { method: "DELETE" }
+  );
+}
+
+// ── Submissions ───────────────────────────────────────────────────────────────
+
+export async function submitBudgetForm(
+  budgetId: string,
+  values: Record<string, string>,
+  note?: string
+) {
+  const data = await apiFetch<{ submission: BudgetSubmission }>(
+    `/budgets/${budgetId}/submissions`,
+    { method: "POST", body: JSON.stringify({ values, note }) }
+  );
+  return data.submission;
+}
+
+export async function deleteBudgetSubmission(budgetId: string, submissionId: string) {
+  return apiFetch<{ success: boolean }>(
+    `/budgets/${budgetId}/submissions/${submissionId}`,
+    { method: "DELETE" }
+  );
+}
+
+// ── Admin-facing ──────────────────────────────────────────────────────────────
+

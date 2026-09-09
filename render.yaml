@@ -10,6 +10,6 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: FRONTEND_ORIGIN
-        value: https://cellsinvitro.vercel.app
+        value: https://www.cellsinvitro.com
       - key: GOOGLE_REDIRECT_URI
-        value: https://cellsinvitro.vercel.app/api/auth/google/callback
+        value: https://www.cellsinvitro.com/api/auth/google/callback

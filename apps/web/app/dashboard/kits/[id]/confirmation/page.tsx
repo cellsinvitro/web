@@ -166,7 +166,7 @@ export default function KitConfirmationPage() {
               <p className="text-sm text-slate-500">You can track updates and delivery details from your order history.</p>
               <div className="flex flex-wrap justify-center gap-3 sm:justify-end">
                 <Link href="/dashboard/orders" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50">View order history</Link>
-                <Link href="/kits" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800">Continue shopping</Link>
+                <Link href="/dashboard/kits" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800">Continue shopping</Link>
               </div>
             </div>
           </>

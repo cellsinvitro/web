@@ -32,7 +32,7 @@ export default function OrdersPage() {
       {!loading && !error && orders.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
           <p className="font-medium text-slate-950">No kit orders yet</p>
-          <Link href="/kits" className="mt-3 inline-flex text-sm font-semibold text-slate-700 hover:text-slate-950">Browse research kits</Link>
+          <Link href="/dashboard/kits" className="mt-3 inline-flex text-sm font-semibold text-slate-700 hover:text-slate-950">Browse research kits</Link>
         </div>
       ) : null}
       <div className="mt-8 space-y-4">
