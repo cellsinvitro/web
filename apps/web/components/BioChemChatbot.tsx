@@ -31,7 +31,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       id: "welcome-1",
       role: "assistant",
       content:
-        "Welcome to **BioChem AI** by CellsInVitro. I am specialized strictly in Chemistry and Biology.\n\nAsk me about organic/inorganic chemistry, cell biology, genetics, biochemistry, laboratory calculations, or reaction protocols.",
+        "Welcome to **CellsInVitro AI** by CellsInVitro. I am specialized strictly in Chemistry and Biology.\n\nAsk me about organic/inorganic chemistry, cell biology, genetics, biochemistry, laboratory calculations, or reaction protocols.",
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -273,7 +273,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-sm tracking-tight text-white">
-                BioChem AI
+                CellsInVitro AI
               </h3>
               <span className="bg-slate-800 text-slate-300 text-[10px] uppercase font-semibold tracking-widest px-2 py-0.5 rounded-full border border-slate-700/70">
                 Chem & Bio
@@ -422,7 +422,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
                 className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
                 style={{ animationDelay: "0.3s" }}
               ></span>
-              <span className="ml-1 text-slate-500 font-medium text-[11px]">BioChem AI is thinking...</span>
+              <span className="ml-1 text-slate-500 font-medium text-[11px]">CellsInVitro AI is thinking...</span>
             </div>
           </div>
         )}
@@ -491,7 +491,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="group relative flex items-center gap-2.5 bg-slate-950 hover:bg-slate-900 text-white px-5 py-3.5 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 border border-slate-800"
-        aria-label="Open BioChem AI Chatbot"
+        aria-label="Open CellsInVitro AI Chatbot"
       >
         <svg className="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -502,7 +502,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
           />
         </svg>
         <span className="font-semibold text-sm tracking-tight">
-          {isOpen ? "Close Chat" : "BioChem AI"}
+          {isOpen ? "Close Chat" : "CellsInVitro AI"}
         </span>
         <span className="flex h-2 w-2 relative">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

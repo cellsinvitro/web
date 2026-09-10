@@ -9,7 +9,7 @@ import {
 } from "@/lib/api";
 
 const labels: Record<ToolKey, { title: string; description: string }> = {
-  chatbot: { title: "BioChem AI Assistant", description: "Questions sent to the Chemistry and Biology assistant." },
+  chatbot: { title: "CellsInVitro AI Assistant", description: "Questions sent to the Chemistry and Biology assistant." },
   molarity: { title: "Molarity calculator", description: "Molarity, mass, and dilution calculations." },
   ic50: { title: "IC50 calculator", description: "Dose-response and IC50 curve fitting." },
 };

@@ -4,7 +4,7 @@ import Footer from "@/components/Footer";
 import BioChemChatbot from "@/components/BioChemChatbot";
 
 export const metadata: Metadata = {
-  title: "BioChem AI Chatbot | CellsInVitro",
+  title: "CellsInVitro AI Chatbot | CellsInVitro",
   description:
     "Ask any question related to Chemistry and Biology.",
 };
@@ -81,7 +81,7 @@ export default function ChatbotPage() {
                 Supported Science Domains
               </h2>
               <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-                BioChem AI is configured with strict guardrails to answer only Chemistry and Biology queries.
+                CellsInVitro AI is configured with strict guardrails to answer only Chemistry and Biology queries.
               </p>
 
               <div className="space-y-3">
