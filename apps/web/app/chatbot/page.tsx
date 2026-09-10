@@ -6,19 +6,10 @@ import BioChemChatbot from "@/components/BioChemChatbot";
 export const metadata: Metadata = {
   title: "CellsInVitro AI Chatbot | CellsInVitro",
   description:
-    "Ask any question related to Chemistry and Biology.",
+    "Ask any question related to Biology.",
 };
 
 const TOPICS = [
-  {
-    title: "Organic & Inorganic Chemistry",
-    desc: "Reaction mechanisms, functional groups, stoichiometry, molecular geometry.",
-    icon: (
-      <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.18.106l-1.5 1.5a2 2 0 000 2.828l1.5 1.5a2 2 0 002.828 0l1.5-1.5a2 2 0 00.106-1.18l-.477-2.387a6 6 0 01.517-3.86l.158-.318a6 6 0 00.517-3.86L8.88 5.6a2 2 0 00-.106-1.18l-1.5-1.5a2 2 0 00-2.828 0l-1.5 1.5a2 2 0 000 2.828l1.5 1.5" />
-      </svg>
-    ),
-  },
   {
     title: "Cell Biology & Genetics",
     desc: "DNA replication, transcription, organelle function, mitosis, gene expression.",
@@ -34,6 +25,15 @@ const TOPICS = [
     icon: (
       <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Microbiology & Pharmacology",
+    desc: "Bacterial growth, viral replication, drug mechanisms, antibiotic resistance.",
+    icon: (
+      <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.18.106l-1.5 1.5a2 2 0 000 2.828l1.5 1.5a2 2 0 002.828 0l1.5-1.5a2 2 0 00.106-1.18l-.477-2.387a6 6 0 01.517-3.86l.158-.318a6 6 0 00.517-3.86L8.88 5.6a2 2 0 00-.106-1.18l-1.5-1.5a2 2 0 00-2.828 0l-1.5 1.5a2 2 0 000 2.828l1.5 1.5" />
       </svg>
     ),
   },
@@ -63,10 +63,10 @@ export default function ChatbotPage() {
             </span>
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-            BioChem <span className="text-slate-500">AI Assistant</span>
+            Biology <span className="text-slate-500">AI Assistant</span>
           </h1>
           <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            Your specialized AI tutor exclusively focused on Chemistry & Biology. Ask questions about chemical reactions, cellular mechanisms, genetics, or lab calculations.
+            Your specialized AI tutor exclusively focused on Biology. Ask questions about cellular mechanisms, genetics, biochemistry, microbiology, or lab calculations.
           </p>
         </div>
 
@@ -78,10 +78,10 @@ export default function ChatbotPage() {
                 Coverage
               </p>
               <h2 className="text-lg font-bold text-slate-950 mb-3">
-                Supported Science Domains
+                Supported Biology Domains
               </h2>
               <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-                CellsInVitro AI is configured with strict guardrails to answer only Chemistry and Biology queries.
+                CellsInVitro AI is configured with strict guardrails to answer only Biology queries.
               </p>
 
               <div className="space-y-3">

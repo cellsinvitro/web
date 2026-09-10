@@ -13,11 +13,11 @@ export interface Message {
 
 const SAMPLE_QUESTIONS = [
   "What is DNA replication?",
-  "Explain the Krebs Cycle in biology",
+  "Explain the Krebs Cycle",
   "How do you prepare 500 mL of 0.1 M HCl?",
-  "Difference between ionic and covalent bonds?",
   "Explain enzyme kinetics & Michaelis-Menten",
   "What are peptide bonds in proteins?",
+  "How does CRISPR-Cas9 work?",
 ];
 
 interface BioChemChatbotProps {
@@ -31,7 +31,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       id: "welcome-1",
       role: "assistant",
       content:
-        "Welcome to **CellsInVitro AI** by CellsInVitro. I am specialized strictly in Chemistry and Biology.\n\nAsk me about organic/inorganic chemistry, cell biology, genetics, biochemistry, laboratory calculations, or reaction protocols.",
+        "Welcome to **CellsInVitro AI** by CellsInVitro. I am specialized strictly in Biology.\n\nAsk me about cell biology, genetics, biochemistry, microbiology, laboratory calculations, or reaction protocols.",
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -160,7 +160,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
         id: "welcome-1",
         role: "assistant",
         content:
-          "Chat reset! Ask me any question related to **Chemistry** or **Biology**.",
+          "Chat reset! Ask me any question related to **Biology**.",
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -276,7 +276,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
                 CellsInVitro AI
               </h3>
               <span className="bg-slate-800 text-slate-300 text-[10px] uppercase font-semibold tracking-widest px-2 py-0.5 rounded-full border border-slate-700/70">
-                Chem & Bio
+                Bio
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -331,7 +331,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
 
       {/* Notice Banner */}
       <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-[11px] text-slate-500 flex items-center justify-between">
-        <span className="font-medium">Direct Chemistry & Biology queries only</span>
+        <span className="font-medium">Direct Biology queries only</span>
         <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Strict Guardrails</span>
       </div>
 
@@ -455,7 +455,7 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a Chemistry or Biology question..."
+          placeholder="Ask a Biology question..."
           rows={1}
           disabled={loading}
           className="flex-1 resize-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950 disabled:opacity-50"
