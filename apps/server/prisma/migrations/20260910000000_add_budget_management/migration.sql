@@ -1,6 +1,19 @@
 -- Squashed migration: combines _add_budget_management, _redesign_budget_management,
--- _budget_fields_per_budget, and _budget_field_defaultvalue_submission_note into
--- a single idempotent migration that produces the final schema state.
+-- _budget_fields_per_budget, and _budget_field_defaultvalue_submission_note.
+-- Fully idempotent: drops everything first, then recreates from scratch.
+
+-- Drop any partial tables from previous failed attempts (CASCADE drops dependent objects)
+DROP TABLE IF EXISTS "BudgetSubmissionValue" CASCADE;
+DROP TABLE IF EXISTS "BudgetSubmission" CASCADE;
+DROP TABLE IF EXISTS "BudgetFormField" CASCADE;
+DROP TABLE IF EXISTS "BudgetEntry" CASCADE;
+DROP TABLE IF EXISTS "BudgetCategory" CASCADE;
+DROP TABLE IF EXISTS "Budget" CASCADE;
+
+-- Drop enums (CASCADE handles any leftover dependencies)
+DROP TYPE IF EXISTS "BudgetFieldType" CASCADE;
+DROP TYPE IF EXISTS "BudgetFieldDirection" CASCADE;
+DROP TYPE IF EXISTS "BudgetEntryType" CASCADE;
 
 -- CreateEnum
 CREATE TYPE "BudgetFieldType" AS ENUM ('TEXT', 'NUMBER', 'DATE');
