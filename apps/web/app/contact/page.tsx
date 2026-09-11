@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 const contactDetails = [
   {
     label: "Email",
-    value: "info@cellsinvitro.com",
-    href: "mailto:info@cellsinvitro.com",
+    value: "cellsinvitro@gmail.com",
+    href: "mailto:cellsinvitro@gmail.com",
   },
   {
     label: "Website",

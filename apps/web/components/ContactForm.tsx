@@ -91,10 +91,10 @@ export default function ContactForm() {
           We received your message and will get back to you soon. You can also
           write to us at{" "}
           <a
-            href="mailto:info@cellsinvitro.com"
+            href="mailto:cellsinvitro@gmail.com"
             className="font-medium text-slate-800 underline-offset-2 hover:underline"
           >
-            info@cellsinvitro.com
+            cellsinvitro@gmail.com
           </a>
           .
         </p>

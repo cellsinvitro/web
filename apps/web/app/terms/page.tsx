@@ -38,7 +38,7 @@ const sections = [
   },
   {
     title: "Changes and contact",
-    text: "We may update these terms when our services, practices, or legal requirements change. Continued use after an update means you accept the revised terms. Questions about these terms can be sent to info@cellsinvitro.com.",
+    text: "We may update these terms when our services, practices, or legal requirements change. Continued use after an update means you accept the revised terms. Questions about these terms can be sent to cellsinvitro@gmail.com.",
   },
 ];
 

@@ -44,7 +44,7 @@ const sections = [
   {
     title: "Changes and contact",
     paragraphs: [
-      "We may update this policy as our services or legal requirements change. The updated version will be posted on this page with a revised effective date. For privacy questions or requests, contact us at info@cellsinvitro.com.",
+      "We may update this policy as our services or legal requirements change. The updated version will be posted on this page with a revised effective date. For privacy questions or requests, contact us at cellsinvitro@gmail.com.",
     ],
   },
 ];
