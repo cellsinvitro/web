@@ -17,7 +17,6 @@ import {
   type Budget,
   type BudgetHead,
   type BudgetFormField,
-  type BudgetFieldType,
   type BudgetFieldDirection,
   type BudgetSubmission,
 } from "@/lib/api";
@@ -462,9 +461,7 @@ function FieldEditRow({
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState(field.label);
-  const [fieldType, setFieldType] = useState<BudgetFieldType>(field.fieldType);
   const [direction, setDirection] = useState<BudgetFieldDirection>(field.direction);
-  const [defaultValue, setDefaultValue] = useState(field.defaultValue ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -472,9 +469,7 @@ function FieldEditRow({
 
   function cancelEdit() {
     setLabel(field.label);
-    setFieldType(field.fieldType);
     setDirection(field.direction);
-    setDefaultValue(field.defaultValue ?? "");
     setErr(null);
     setOpen(false);
   }
@@ -485,9 +480,8 @@ function FieldEditRow({
     try {
       const updated = await updateBudgetField(budgetId, field.id, {
         label: label.trim(),
-        fieldType,
-        direction: fieldType === "NUMBER" ? direction : "NONE",
-        defaultValue: defaultValue.trim() || undefined,
+        fieldType: "NUMBER",
+        direction,
       });
       onUpdated(updated);
       setOpen(false);
@@ -505,12 +499,9 @@ function FieldEditRow({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-slate-900">{field.label}</p>
           <p className="text-xs text-slate-400">
-            {field.fieldType === "TEXT" ? "Text" : field.fieldType === "DATE" ? "Date" : (
-              field.direction === "EXPENSE" ? "Amount · deducts"
-                : field.direction === "ADDITION" ? "Amount · adds"
-                  : "Amount · info only"
-            )}
-            {field.defaultValue ? ` · default: ${field.defaultValue}` : ""}
+            {field.direction === "EXPENSE" ? "Amount · deducts"
+              : field.direction === "ADDITION" ? "Amount · adds"
+              : "Amount · info only"}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -554,35 +545,15 @@ function FieldEditRow({
               <input type="text" value={label} onChange={(e) => setLabel(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-slate-400 focus:bg-white focus:outline-none" />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">Input type</label>
-              <select value={fieldType} onChange={(e) => {
-                const t = e.target.value as BudgetFieldType;
-                setFieldType(t);
-                if (t !== "NUMBER") setDirection("NONE");
-              }} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-slate-400 focus:bg-white focus:outline-none">
-                <option value="TEXT">Text</option>
-                <option value="NUMBER">Number (amount)</option>
-                <option value="DATE">Date</option>
-              </select>
-            </div>
-            <div>
+            <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-semibold text-slate-600">Budget effect</label>
-              <select value={direction} disabled={fieldType !== "NUMBER"}
+              <select value={direction}
                 onChange={(e) => setDirection(e.target.value as BudgetFieldDirection)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-slate-400 focus:bg-white focus:outline-none disabled:opacity-40">
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-slate-400 focus:bg-white focus:outline-none">
                 <option value="EXPENSE">Deducts from budget</option>
                 <option value="ADDITION">Adds to budget</option>
                 <option value="NONE">Informational only</option>
               </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
-                Default value <span className="font-normal text-slate-400">(pre-filled, user can change)</span>
-              </label>
-              <input type="text" value={defaultValue} onChange={(e) => setDefaultValue(e.target.value)}
-                placeholder="Leave blank for empty"
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-slate-400 focus:bg-white focus:outline-none" />
             </div>
           </div>
           {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
@@ -613,9 +584,7 @@ function AddFieldForm({
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [fieldType, setFieldType] = useState<BudgetFieldType>("NUMBER");
   const [direction, setDirection] = useState<BudgetFieldDirection>("EXPENSE");
-  const [defaultValue, setDefaultValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -626,14 +595,12 @@ function AddFieldForm({
     try {
       const field = await createBudgetField(budgetId, {
         label: label.trim(),
-        fieldType,
-        direction: fieldType === "NUMBER" ? direction : "NONE",
-        defaultValue: defaultValue.trim() || undefined,
+        fieldType: "NUMBER",
+        direction,
         headId: headId ?? undefined,
       });
       onAdded(field);
-      setLabel(""); setFieldType("NUMBER"); setDirection("EXPENSE");
-      setDefaultValue(""); setOpen(false);
+      setLabel(""); setDirection("EXPENSE"); setOpen(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to add.");
     } finally {
@@ -658,41 +625,21 @@ function AddFieldForm({
       <div className="grid gap-2.5 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className="mb-1 block text-xs font-semibold text-slate-600">
-            Label <span className="text-red-500">*</span>
+            Name <span className="text-red-500">*</span>
           </label>
           <input type="text" value={label} autoFocus onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Reagent cost, Vendor name, Purchase date"
+            placeholder="e.g. Microscope, Centrifuge, Reagents, Salary"
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" />
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-600">Input type</label>
-          <select value={fieldType} onChange={(e) => {
-            const t = e.target.value as BudgetFieldType;
-            setFieldType(t);
-            if (t !== "NUMBER") setDirection("NONE");
-          }} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none">
-            <option value="NUMBER">Number (amount)</option>
-            <option value="TEXT">Text</option>
-            <option value="DATE">Date</option>
-          </select>
-        </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className="mb-1 block text-xs font-semibold text-slate-600">Budget effect</label>
-          <select value={direction} disabled={fieldType !== "NUMBER"}
+          <select value={direction}
             onChange={(e) => setDirection(e.target.value as BudgetFieldDirection)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:opacity-40">
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none">
             <option value="EXPENSE">Deducts from budget</option>
             <option value="ADDITION">Adds to budget</option>
             <option value="NONE">Informational only</option>
           </select>
-        </div>
-        <div className="sm:col-span-2">
-          <label className="mb-1 block text-xs font-semibold text-slate-600">
-            Default value <span className="font-normal text-slate-400">(optional)</span>
-          </label>
-          <input type="text" value={defaultValue} onChange={(e) => setDefaultValue(e.target.value)}
-            placeholder="Leave blank for empty"
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" />
         </div>
       </div>
       {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
