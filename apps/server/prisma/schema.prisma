@@ -739,14 +739,32 @@ model Budget {
   owner           User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   fields          BudgetFormField[]
   submissions     BudgetSubmission[]
+  heads           BudgetHead[]
 
   @@index([ownerId, createdAt])
+}
+
+/// A named category / section within a budget (e.g. "Equipment", "Salary").
+model BudgetHead {
+  id          String             @id @default(cuid())
+  budgetId    String
+  name        String
+  description String?
+  sortOrder   Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  budget      Budget             @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  fields      BudgetFormField[]
+  submissions BudgetSubmission[]
+
+  @@index([budgetId, sortOrder])
 }
 
 /// Per-budget form field — configured by the budget owner.
 model BudgetFormField {
   id           String               @id @default(cuid())
   budgetId     String
+  headId       String?              // optional: field belongs to a budget head section
   label        String
   fieldType    BudgetFieldType      // TEXT | NUMBER | DATE
   direction    BudgetFieldDirection @default(NONE) // only meaningful for NUMBER fields
@@ -755,25 +773,30 @@ model BudgetFormField {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
   budget       Budget               @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  head         BudgetHead?          @relation(fields: [headId], references: [id], onDelete: SetNull)
   values       BudgetSubmissionValue[]
 
   @@index([budgetId, sortOrder])
+  @@index([headId])
 }
 
 /// One form submission against a budget.
 model BudgetSubmission {
   id          String                 @id @default(cuid())
   budgetId    String
+  headId      String?                // optional: submission belongs to a budget head section
   userId      String
   submittedAt DateTime               @default(now())
   /// Net paise applied to budget: positive = net expense, negative = net addition
   netEffect   Int                    @default(0)
   note        String?                // free-text note shown in submission history
   budget      Budget                 @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  head        BudgetHead?            @relation(fields: [headId], references: [id], onDelete: SetNull)
   user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   values      BudgetSubmissionValue[]
 
   @@index([budgetId, submittedAt])
+  @@index([headId])
   @@index([userId])
 }
 

@@ -1877,9 +1877,20 @@ export async function sendCourseReminders() {
 export type BudgetFieldType = "TEXT" | "NUMBER" | "DATE";
 export type BudgetFieldDirection = "EXPENSE" | "ADDITION" | "NONE";
 
+export type BudgetHead = {
+  id: string;
+  budgetId: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type BudgetFormField = {
   id: string;
   budgetId: string;
+  headId: string | null;
   label: string;
   fieldType: BudgetFieldType;
   direction: BudgetFieldDirection;
@@ -1902,6 +1913,7 @@ export type BudgetSubmission = {
   submittedAt: string;
   netEffect: number;
   note: string | null;
+  headId: string | null;
   user: { id: string; name: string | null; email: string };
   values: BudgetSubmissionValue[];
 };
@@ -1918,6 +1930,7 @@ export type Budget = {
   createdAt: string;
   updatedAt: string;
   fields: BudgetFormField[];
+  heads: BudgetHead[];
   // summary
   submissionCount: number;
   netSpent: number;
@@ -1985,6 +1998,7 @@ export async function createBudgetField(
     direction?: BudgetFieldDirection;
     defaultValue?: string;
     sortOrder?: number;
+    headId?: string;
   }
 ) {
   const data = await apiFetch<{ field: BudgetFormField }>(
@@ -2019,16 +2033,37 @@ export async function deleteBudgetField(budgetId: string, fieldId: string) {
   );
 }
 
+// ── Budget Heads ──────────────────────────────────────────────────────────────
+
+export async function createBudgetHead(budgetId: string, input: { name: string; description?: string }) {
+  const data = await apiFetch<{ head: BudgetHead }>(`/budgets/${budgetId}/heads`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+  return data.head;
+}
+
+export async function updateBudgetHead(budgetId: string, headId: string, input: { name?: string; description?: string }) {
+  const data = await apiFetch<{ head: BudgetHead }>(`/budgets/${budgetId}/heads/${headId}`, {
+    method: "PATCH", body: JSON.stringify(input),
+  });
+  return data.head;
+}
+
+export async function deleteBudgetHead(budgetId: string, headId: string) {
+  return apiFetch<{ success: boolean }>(`/budgets/${budgetId}/heads/${headId}`, { method: "DELETE" });
+}
+
 // ── Submissions ───────────────────────────────────────────────────────────────
 
 export async function submitBudgetForm(
   budgetId: string,
   values: Record<string, string>,
-  note?: string
+  note?: string,
+  headId?: string
 ) {
   const data = await apiFetch<{ submission: BudgetSubmission }>(
     `/budgets/${budgetId}/submissions`,
-    { method: "POST", body: JSON.stringify({ values, note }) }
+    { method: "POST", body: JSON.stringify({ values, note, headId }) }
   );
   return data.submission;
 }

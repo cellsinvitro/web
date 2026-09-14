@@ -3,6 +3,8 @@ import { HTTPException } from "hono/http-exception";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
 export const budgetRoutes = new Hono<{ Variables: AuthVariables }>();
 
 budgetRoutes.use("*", requireAuth);
@@ -47,10 +49,13 @@ budgetRoutes.get("/", async (c) => {
   const budgets = await prisma.budget.findMany({
     where: { ownerId: userId },
     orderBy: { createdAt: "desc" },
-    include: { fields: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      fields: { orderBy: { sortOrder: "asc" } },
+      heads: { orderBy: { sortOrder: "asc" } },
+    },
   });
   const withSummary = await Promise.all(
-    budgets.map(async (b) => ({ ...serializeBudget(b), fields: b.fields, ...await budgetSummary(b.id, b.allocatedAmount) }))
+    budgets.map(async (b) => ({ ...serializeBudget(b), fields: b.fields, heads: b.heads, ...await budgetSummary(b.id, b.allocatedAmount) }))
   );
   return c.json({ budgets: withSummary });
 });
@@ -94,7 +99,8 @@ budgetRoutes.get("/:id", async (c) => {
   const budgetId = c.req.param("id");
   const budget = await requireOwnBudget(budgetId, userId);
 
-  const [fields, submissions] = await Promise.all([
+  const [heads, fields, submissions] = await Promise.all([
+    prisma.budgetHead.findMany({ where: { budgetId }, orderBy: { sortOrder: "asc" } }),
     prisma.budgetFormField.findMany({ where: { budgetId }, orderBy: { sortOrder: "asc" } }),
     prisma.budgetSubmission.findMany({
       where: { budgetId },
@@ -111,12 +117,13 @@ budgetRoutes.get("/:id", async (c) => {
   const summary = await budgetSummary(budgetId, budget.allocatedAmount);
 
   return c.json({
-    budget: { ...serializeBudget(budget), fields, ...summary },
+    budget: { ...serializeBudget(budget), fields, heads, ...summary },
     submissions: submissions.map((s) => ({
       id: s.id,
       submittedAt: s.submittedAt.toISOString(),
       netEffect: s.netEffect,
       note: s.note,
+      headId: s.headId,
       user: s.user,
       values: s.values.map((v) => ({
         fieldId: v.fieldId, label: v.field.label,
@@ -156,8 +163,9 @@ budgetRoutes.patch("/:id", async (c) => {
   const updated = await prisma.budget.update({ where: { id: budgetId }, data });
   const summary = await budgetSummary(budgetId, updated.allocatedAmount);
   const fields = await prisma.budgetFormField.findMany({ where: { budgetId }, orderBy: { sortOrder: "asc" } });
+  const heads = await prisma.budgetHead.findMany({ where: { budgetId }, orderBy: { sortOrder: "asc" } });
 
-  return c.json({ budget: { ...serializeBudget(updated), fields, ...summary } });
+  return c.json({ budget: { ...serializeBudget(updated), fields, heads, ...summary } });
 });
 
 // ── DELETE /budgets/:id  — delete own budget ──────────────────────────────────
@@ -166,6 +174,83 @@ budgetRoutes.delete("/:id", async (c) => {
   const budgetId = c.req.param("id");
   await requireOwnBudget(budgetId, userId);
   await prisma.budget.delete({ where: { id: budgetId } });
+  return c.json({ success: true });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Budget Heads (owner only)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── GET /budgets/:id/heads ────────────────────────────────────────────────────
+budgetRoutes.get("/:id/heads", async (c) => {
+  const userId = c.get("user").sub;
+  const budgetId = c.req.param("id");
+  await requireOwnBudget(budgetId, userId);
+  const heads = await prisma.budgetHead.findMany({ where: { budgetId }, orderBy: { sortOrder: "asc" } });
+  return c.json({ heads });
+});
+
+// ── POST /budgets/:id/heads ───────────────────────────────────────────────────
+budgetRoutes.post("/:id/heads", async (c) => {
+  const userId = c.get("user").sub;
+  const budgetId = c.req.param("id");
+  await requireOwnBudget(budgetId, userId);
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    name?: string; description?: string; sortOrder?: unknown;
+  };
+
+  const name = body.name?.trim();
+  if (!name) throw new HTTPException(400, { message: "name is required" });
+
+  const maxOrder = await prisma.budgetHead.aggregate({ where: { budgetId }, _max: { sortOrder: true } });
+  const sortOrder = body.sortOrder !== undefined ? Number(body.sortOrder) : (maxOrder._max.sortOrder ?? -1) + 1;
+
+  const head = await prisma.budgetHead.create({
+    data: { budgetId, name, description: body.description?.trim() || null, sortOrder },
+  });
+
+  return c.json({ head }, 201);
+});
+
+// ── PATCH /budgets/:id/heads/:headId ─────────────────────────────────────────
+budgetRoutes.patch("/:id/heads/:headId", async (c) => {
+  const userId = c.get("user").sub;
+  const budgetId = c.req.param("id");
+  const headId = c.req.param("headId");
+  await requireOwnBudget(budgetId, userId);
+
+  const existing = await prisma.budgetHead.findFirst({ where: { id: headId, budgetId } });
+  if (!existing) throw new HTTPException(404, { message: "Head not found" });
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    name?: string; description?: string; sortOrder?: unknown;
+  };
+
+  const data: Record<string, unknown> = {};
+  if (body.name !== undefined) {
+    const n = body.name.trim();
+    if (!n) throw new HTTPException(400, { message: "name cannot be empty" });
+    data.name = n;
+  }
+  if (body.description !== undefined) data.description = body.description?.trim() || null;
+  if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
+
+  const head = await prisma.budgetHead.update({ where: { id: headId }, data });
+  return c.json({ head });
+});
+
+// ── DELETE /budgets/:id/heads/:headId ─────────────────────────────────────────
+budgetRoutes.delete("/:id/heads/:headId", async (c) => {
+  const userId = c.get("user").sub;
+  const budgetId = c.req.param("id");
+  const headId = c.req.param("headId");
+  await requireOwnBudget(budgetId, userId);
+
+  const existing = await prisma.budgetHead.findFirst({ where: { id: headId, budgetId } });
+  if (!existing) throw new HTTPException(404, { message: "Head not found" });
+
+  await prisma.budgetHead.delete({ where: { id: headId } });
   return c.json({ success: true });
 });
 
@@ -190,7 +275,7 @@ budgetRoutes.post("/:id/fields", async (c) => {
 
   const body = (await c.req.json().catch(() => ({}))) as {
     label?: string; fieldType?: string; direction?: string;
-    defaultValue?: string; sortOrder?: unknown;
+    defaultValue?: string; sortOrder?: unknown; headId?: string | null;
   };
 
   const label = body.label?.trim();
@@ -212,11 +297,19 @@ budgetRoutes.post("/:id/fields", async (c) => {
   const maxOrder = await prisma.budgetFormField.aggregate({ where: { budgetId }, _max: { sortOrder: true } });
   const sortOrder = body.sortOrder !== undefined ? Number(body.sortOrder) : (maxOrder._max.sortOrder ?? -1) + 1;
 
+  // validate headId belongs to this budget
+  let headId: string | null = null;
+  if (body.headId) {
+    const head = await prisma.budgetHead.findFirst({ where: { id: body.headId, budgetId } });
+    if (!head) throw new HTTPException(400, { message: "Head not found in this budget" });
+    headId = head.id;
+  }
+
   const field = await prisma.budgetFormField.create({
     data: {
       budgetId, label, fieldType, direction,
       defaultValue: body.defaultValue?.trim() || null,
-      sortOrder,
+      sortOrder, headId,
     },
   });
 
@@ -235,7 +328,7 @@ budgetRoutes.patch("/:id/fields/:fieldId", async (c) => {
 
   const body = (await c.req.json().catch(() => ({}))) as {
     label?: string; fieldType?: string; direction?: string;
-    defaultValue?: string; sortOrder?: unknown;
+    defaultValue?: string; sortOrder?: unknown; headId?: string | null;
   };
 
   const validTypes = ["TEXT", "NUMBER", "DATE"] as const;
@@ -257,6 +350,15 @@ budgetRoutes.patch("/:id/fields/:fieldId", async (c) => {
   }
   if (body.defaultValue !== undefined) data.defaultValue = body.defaultValue.trim() || null;
   if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
+  if ("headId" in body) {
+    if (body.headId) {
+      const head = await prisma.budgetHead.findFirst({ where: { id: body.headId, budgetId } });
+      if (!head) throw new HTTPException(400, { message: "Head not found in this budget" });
+      data.headId = head.id;
+    } else {
+      data.headId = null;
+    }
+  }
 
   const field = await prisma.budgetFormField.update({ where: { id: fieldId }, data });
   return c.json({ field });
@@ -290,9 +392,17 @@ budgetRoutes.post("/:id/submissions", async (c) => {
   if (fields.length === 0)
     throw new HTTPException(400, { message: "Add at least one field to your budget form before submitting." });
 
-  const body = (await c.req.json().catch(() => ({}))) as { values?: Record<string, string>; note?: string };
+  const body = (await c.req.json().catch(() => ({}))) as { values?: Record<string, string>; note?: string; headId?: string };
   const inputValues: Record<string, string> = body.values ?? {};
   const note = body.note?.trim() || null;
+
+  // validate headId
+  let headId: string | null = null;
+  if (body.headId) {
+    const head = await prisma.budgetHead.findFirst({ where: { id: body.headId, budgetId } });
+    if (!head) throw new HTTPException(400, { message: "Head not found in this budget" });
+    headId = head.id;
+  }
 
   let netEffect = 0;
   for (const field of fields) {
@@ -307,7 +417,7 @@ budgetRoutes.post("/:id/submissions", async (c) => {
 
   const submission = await prisma.budgetSubmission.create({
     data: {
-      budgetId, userId, netEffect, note,
+      budgetId, userId, netEffect, note, headId,
       values: {
         create: fields
           .filter((f) => inputValues[f.id] !== undefined && inputValues[f.id] !== "")
@@ -328,6 +438,7 @@ budgetRoutes.post("/:id/submissions", async (c) => {
       submittedAt: submission.submittedAt.toISOString(),
       netEffect: submission.netEffect,
       note: submission.note,
+      headId: submission.headId,
       user: submission.user,
       values: submission.values.map((v) => ({
         fieldId: v.fieldId, label: v.field.label,
