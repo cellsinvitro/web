@@ -10,6 +10,7 @@ import {
   verifyRazorpaySignature,
 } from "../lib/razorpay.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
+import { notifyConsultancyBooking } from "../lib/email.js";
 
 const consultantInclude = {
   category: true,
@@ -293,6 +294,10 @@ consultancyRoutes.post("/verify", async (c) => {
       data: { isBooked: true },
     });
   });
+
+  notifyConsultancyBooking(booking.id).catch((err) =>
+    console.error("[consultancy] Failed to send booking confirmation email:", err)
+  );
 
   return c.json({ success: true });
 });

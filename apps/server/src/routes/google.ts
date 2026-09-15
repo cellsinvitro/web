@@ -5,6 +5,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { prisma } from "../lib/prisma.js";
 import { setAuthCookies } from "../lib/cookies.js";
 import { issueTokenPair } from "../lib/session.js";
+import { notifyNewUserRegistered } from "../lib/email.js";
 
 const STATE_COOKIE = "oauth_state";
 const REDIRECT_COOKIE = "oauth_redirect";
@@ -205,6 +206,15 @@ googleAuthRoutes.get("/callback", async (c) => {
             avatarUrl,
           },
         });
+
+        notifyNewUserRegistered({
+          userId: user.id,
+          userName: user.name || user.email?.split("@")[0] || user.email || "",
+          userEmail: user.email || "",
+          signupMethod: "google",
+        }).catch((err) =>
+          console.error("[auth] Failed to send welcome email (Google):", err)
+        );
       }
     }
 
