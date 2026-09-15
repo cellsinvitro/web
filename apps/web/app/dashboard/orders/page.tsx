@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchKitOrders, type KitOrder } from "@/lib/api";
 import { formatPrice, formatCourseDate } from "@/lib/courses";
+import GlobalLoader from "@/components/GlobalLoader";
 
 function statusLabel(status: string) {
   return status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
@@ -27,7 +28,7 @@ export default function OrdersPage() {
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Order history</h1>
       <p className="mt-2 text-sm text-slate-500">Track your CellsInVitro research kit purchases.</p>
 
-      {loading ? <p className="mt-8 text-sm text-slate-500">Loading orders...</p> : null}
+      {loading ? <GlobalLoader fullScreen={false} sublabel="Loading orders..." /> : null}
       {error ? <p className="mt-8 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
       {!loading && !error && orders.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">

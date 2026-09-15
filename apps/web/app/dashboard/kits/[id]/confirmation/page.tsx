@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { fetchKitOrder, type KitOrder } from "@/lib/api";
 import { formatCourseDate, formatPrice } from "@/lib/courses";
 import Navbar from "@/components/Navbar";
+import GlobalLoader from "@/components/GlobalLoader";
 
 function statusLabel(status: string) {
   return status
@@ -52,12 +53,7 @@ export default function KitConfirmationPage() {
       <Navbar />
       <div className="mx-auto max-w-5xl">
         {loading ? (
-          <div className="animate-pulse rounded-3xl border border-slate-200 bg-white p-8 sm:p-12">
-            <div className="mx-auto h-14 w-14 rounded-full bg-slate-200" />
-            <div className="mx-auto mt-6 h-8 max-w-xs rounded bg-slate-200" />
-            <div className="mx-auto mt-3 h-4 max-w-md rounded bg-slate-100" />
-            <div className="mt-10 h-48 rounded-2xl bg-slate-100" />
-          </div>
+          <GlobalLoader fullScreen={false} sublabel="Loading order details..." />
         ) : error ? (
           <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm sm:p-12">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-500">

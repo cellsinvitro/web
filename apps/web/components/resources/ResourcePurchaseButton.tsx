@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPaymentOrder, verifyPayment } from "@/lib/api";
+import GlobalLoader, { CellSpinner } from "@/components/GlobalLoader";
 
 type RazorpayResponse = {
   razorpay_order_id: string;
@@ -122,6 +123,9 @@ export default function ResourcePurchaseButton({
 
   return (
     <div className="inline-block">
+      {loading && (
+        <GlobalLoader fullScreen label="CellsInVitro" sublabel="Processing payment..." showProgressBar={false} />
+      )}
       <button
         type="button"
         onClick={handlePurchase}
@@ -133,25 +137,7 @@ export default function ResourcePurchaseButton({
       >
         {loading ? (
           <>
-            <svg
-              className="h-4 w-4 animate-spin text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              />
-            </svg>
+            <CellSpinner size={16} />
             Processing…
           </>
         ) : (

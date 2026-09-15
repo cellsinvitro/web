@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import KitPurchaseButton from "@/components/kits/KitPurchaseButton";
 import { fetchKit } from "@/lib/api";
 import type { ResearchKit } from "@/lib/api";
+import GlobalLoader from "@/components/GlobalLoader";
 
 export default function KitCheckoutPage() {
   const params = useParams<{ id: string }>();
@@ -45,7 +46,7 @@ export default function KitCheckoutPage() {
       <Navbar />
       <div className="mx-auto max-w-5xl">
         {loading ? (
-          <div className="h-96 animate-pulse rounded-3xl bg-white" />
+          <GlobalLoader fullScreen={false} sublabel="Loading checkout..." />
         ) : error ? (
           <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}

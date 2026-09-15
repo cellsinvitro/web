@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchKitOrder, type KitOrder } from "@/lib/api";
 import { formatCourseDate, formatPrice } from "@/lib/courses";
+import GlobalLoader from "@/components/GlobalLoader";
 
 function statusLabel(status: string) {
   return status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
@@ -20,7 +21,7 @@ export default function OrderDetailPage() {
   }, [params.id]);
 
   if (error) return <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8"><p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p></div>;
-  if (!order) return <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8"><p className="text-sm text-slate-500">Loading order...</p></div>;
+  if (!order) return <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8"><GlobalLoader fullScreen={false} sublabel="Loading order..." /></div>;
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">

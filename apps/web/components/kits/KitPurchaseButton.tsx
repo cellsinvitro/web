@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPaymentOrder, verifyPayment } from "@/lib/api";
 import DiscountedPrice from "@/components/DiscountedPrice";
+import GlobalLoader from "@/components/GlobalLoader";
 
 type RazorpayResponse = {
   razorpay_order_id: string;
@@ -161,6 +162,9 @@ handler: async (response: RazorpayResponse) => {
 
   return (
     <>
+      {loading && (
+        <GlobalLoader fullScreen label="CellsInVitro" sublabel="Processing payment..." showProgressBar={false} />
+      )}
       {!checkoutPage ? <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-end justify-between gap-4">
           <div>

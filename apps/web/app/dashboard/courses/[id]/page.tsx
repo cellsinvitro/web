@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import CoursePlayer from "@/components/courses/CoursePlayer";
 import { fetchMyCourse } from "@/lib/api";
 import { formatCourseDate } from "@/lib/courses";
+import GlobalLoader from "@/components/GlobalLoader";
 
 export default function DashboardCourseLearnPage() {
   const params = useParams();
@@ -34,7 +35,7 @@ export default function DashboardCourseLearnPage() {
   if (loading) {
     return (
       <div className="px-5 py-8">
-        <p className="text-sm text-slate-500">Loading course…</p>
+        <GlobalLoader fullScreen={false} sublabel="Loading course..." />
       </div>
     );
   }

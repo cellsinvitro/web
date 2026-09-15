@@ -1,5 +1,5 @@
-import GlobalLoader from "@/components/GlobalLoader";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 
 export default function Loading() {
-  return <GlobalLoader fullScreen label="CellsInVitro" sublabel="Loading page..." />;
+  return <PageLoadingScreen sublabel="Loading page..." />;
 }

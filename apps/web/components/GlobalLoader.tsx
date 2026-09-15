@@ -111,8 +111,8 @@ export function CellSpinner({ size = 64 }: { size?: number }) {
   );
 }
 
-/** Top progress bar (NProgress style) */
-function ProgressBar({ progress }: { progress: number }) {
+/** Top progress bar (NProgress style) — exported for NavigationLoader */
+export function ProgressBar({ progress }: { progress: number }) {
   return (
     <div className="fixed inset-x-0 top-0 z-[110] h-[2.5px] overflow-hidden">
       <div

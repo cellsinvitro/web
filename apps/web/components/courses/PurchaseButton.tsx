@@ -6,6 +6,7 @@ import {
   createPaymentOrder,
   verifyPayment,
 } from "@/lib/api";
+import GlobalLoader from "@/components/GlobalLoader";
 
 type RazorpayResponse = {
   razorpay_order_id: string;
@@ -104,6 +105,9 @@ export default function PurchaseButton({
 
   return (
     <div>
+      {loading && (
+        <GlobalLoader fullScreen label="CellsInVitro" sublabel="Processing payment..." showProgressBar={false} />
+      )}
       <button
         type="button"
         onClick={handlePurchase}

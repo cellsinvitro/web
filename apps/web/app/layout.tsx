@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import localFont from "next/font/local";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfirmProvider } from "@/context/ConfirmContext";
 import BioChemChatbot from "@/components/BioChemChatbot";
+import NavigationLoader from "@/components/NavigationLoader";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -38,6 +40,9 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AuthProvider>
           <ConfirmProvider>
+            <Suspense fallback={null}>
+              <NavigationLoader />
+            </Suspense>
             {children}
             <BioChemChatbot />
           </ConfirmProvider>

@@ -8,6 +8,7 @@ import { fetchKit } from "@/lib/api";
 import type { ResearchKit } from "@/lib/api";
 import KitPurchaseButton from "@/components/kits/KitPurchaseButton";
 import Navbar from "@/components/Navbar";
+import GlobalLoader from "@/components/GlobalLoader";
 
 export default function KitDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -41,7 +42,7 @@ export default function KitDetailsPage() {
       <Navbar />
       <div className="mx-auto max-w-6xl">
         {loading ? (
-          <div className="mt-4 h-[80vh] animate-pulse rounded-4xl bg-white" />
+          <GlobalLoader fullScreen={false} sublabel="Loading kit details..." />
         ) : error ? (
           <p className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}

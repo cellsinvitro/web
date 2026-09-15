@@ -10,6 +10,7 @@ import {
   verifyConsultancyPayment,
   type ConsultancyConsultant,
 } from "@/lib/api";
+import GlobalLoader from "@/components/GlobalLoader";
 
 function loadRazorpayScript() {
   return new Promise<boolean>((resolve) => {
@@ -166,10 +167,7 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
   if (loading) {
     return (
       <div className="mx-auto max-w-6xl px-5 py-10">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 w-32 rounded bg-slate-200" />
-          <div className="h-80 rounded-3xl border border-slate-200 bg-white" />
-        </div>
+        <GlobalLoader fullScreen={false} sublabel="Loading consultant..." />
       </div>
     );
   }
@@ -186,6 +184,9 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+      {paymentLoading && (
+        <GlobalLoader fullScreen label="CellsInVitro" sublabel="Processing payment..." showProgressBar={false} />
+      )}
       <div className="mb-6 flex items-center gap-2 text-sm text-slate-500">
         <Link href="/dashboard/consultancy" className="hover:text-slate-800">Consultancy</Link>
         <span>/</span>
