@@ -14,7 +14,7 @@ import { issueTokenPair } from "../lib/session.js";
 import { publicUserSelect, toPublicUser, isValidDesignation } from "../lib/user.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { googleAuthRoutes } from "./google.js";
-import { sendOtpEmail, isEmailConfigured } from "../lib/email.js";
+import { sendOtpEmail, isEmailConfigured, notifyNewUserRegistered } from "../lib/email.js";
 
 type RegisterBody = {
   email?: string;
@@ -96,6 +96,13 @@ authRoutes.post("/register", async (c) => {
   const user = await prisma.user.create({
     data: { email, passwordHash, name },
   });
+
+  notifyNewUserRegistered({
+    userId: user.id,
+    userName: user.name || user.email?.split("@")[0] || user.email || "",
+    userEmail: user.email || "",
+    signupMethod: "email",
+  }).catch((err) => console.error("[auth] Failed to send welcome email:", err));
 
   const tokens = await issueTokenPair(user);
   setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
@@ -330,6 +337,13 @@ authRoutes.post("/verify-otp", async (c) => {
         name: email.split("@")[0],
       },
     });
+
+    notifyNewUserRegistered({
+      userId: user.id,
+      userName: user.name || user.email?.split("@")[0] || user.email || "",
+      userEmail: user.email || "",
+      signupMethod: "otp",
+    }).catch((err) => console.error("[auth] Failed to send welcome email (OTP):", err));
   }
 
   const tokens = await issueTokenPair(user);

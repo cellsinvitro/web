@@ -12,6 +12,7 @@ import {
 } from "../lib/razorpay.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
+import { notifyLiveClassBooking } from "../lib/email.js";
 
 export const liveClassesRoutes = new Hono<{ Variables: AuthVariables }>();
 liveClassesRoutes.use("*", requireAuth);
@@ -209,6 +210,16 @@ liveClassesRoutes.post("/:id/payment/order", async (c) => {
   if (!liveClass) throw new HTTPException(404, { message: "Live class not found" });
   if (!liveClass.isPaid || liveClass.price <= 0) {
     await prisma.liveClassEnrollment.upsert({ where: { userId_liveClassId: { userId, liveClassId: liveClass.id } }, create: { userId, liveClassId: liveClass.id }, update: { status: "ACTIVE" } });
+    notifyLiveClassBooking({
+      userId,
+      liveClassId: liveClass.id,
+      classTitle: liveClass.title,
+      scheduledAt: liveClass.scheduledAt,
+      startTime: liveClass.startTime,
+      duration: liveClass.duration,
+      amount: 0,
+      currency: liveClass.currency,
+    }).catch((err) => console.error("[live-classes] Failed to send free booking email:", err));
     return c.json({ free: true });
   }
   if (!isRazorpayConfigured()) throw new HTTPException(503, { message: "Payment gateway not configured" });
@@ -229,6 +240,25 @@ liveClassesRoutes.post("/:id/payment/verify", async (c) => {
     prisma.payment.update({ where: { id: payment.id }, data: { status: "COMPLETED", providerPaymentId: body.razorpay_payment_id, completedAt: new Date() } }),
     prisma.liveClassEnrollment.upsert({ where: { userId_liveClassId: { userId, liveClassId: c.req.param("id") } }, create: { userId, liveClassId: c.req.param("id"), paymentId: payment.id }, update: { status: "ACTIVE", paymentId: payment.id } }),
   ]);
+
+  // Fire-and-forget booking confirmation emails
+  const liveClassId = c.req.param("id");
+  prisma.liveClass.findUnique({ where: { id: liveClassId }, select: { title: true, scheduledAt: true, startTime: true, duration: true, currency: true, price: true } })
+    .then((lc) => {
+      if (!lc) return;
+      notifyLiveClassBooking({
+        userId,
+        liveClassId,
+        classTitle: lc.title,
+        scheduledAt: lc.scheduledAt,
+        startTime: lc.startTime,
+        duration: lc.duration,
+        amount: payment.amount,
+        currency: lc.currency,
+      });
+    })
+    .catch((err) => console.error("[live-classes] Failed to send paid booking email:", err));
+
   return c.json({ success: true });
 });
 

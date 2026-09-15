@@ -479,3 +479,964 @@ export async function notifyKitOrderCreated(paymentId: string) {
     console.error("[email] Error in notifyKitOrderCreated:", err);
   }
 }
+
+// ─── Helper: collect all admin emails (DB admins + env var) ─────────────────
+
+async function collectAdminEmails(): Promise<Set<string>> {
+  const adminUsers = await prisma.user.findMany({
+    where: { role: "ADMIN" },
+    select: { email: true },
+  });
+
+  const emails = new Set<string>();
+  for (const admin of adminUsers) {
+    if (admin.email) emails.add(admin.email.trim().toLowerCase());
+  }
+  if (ADMIN_NOTIFICATION_EMAIL) {
+    emails.add(ADMIN_NOTIFICATION_EMAIL.toLowerCase());
+  }
+  return emails;
+}
+
+// ─── Welcome / Registration ──────────────────────────────────────────────────
+
+export async function sendWelcomeEmail(input: {
+  to: string;
+  userName: string;
+  isGoogleSignup?: boolean;
+}) {
+  const dashboardUrl = `${FRONTEND_ORIGIN}/dashboard`;
+  const displayName = input.userName || "there";
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background-color: #0f172a; padding: 32px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 26px; font-weight: 800; margin: 0 0 6px 0; letter-spacing: -0.3px;">Welcome to CellsInVitro</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin: 0;">Advancing Cell Culture Education &amp; Research</p>
+      </div>
+
+      <div style="padding: 32px 28px;">
+        <h2 style="font-size: 20px; color: #0f172a; margin: 0 0 12px 0;">Hi ${displayName}, your account is ready!</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+          You have successfully registered on CellsInVitro${input.isGoogleSignup ? " via Google" : ""}. Explore our courses, live sessions, research kits, and resource library — all designed to advance your cell culture skills.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; margin-bottom: 28px;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #0f172a; font-weight: 600;">What you can do next:</p>
+          <ul style="margin: 0; padding-left: 18px; color: #475569; font-size: 14px; line-height: 2;">
+            <li>Browse and enrol in courses</li>
+            <li>Book live sessions &amp; expert consultations</li>
+            <li>Order research kits delivered to your door</li>
+            <li>Access the study material library</li>
+          </ul>
+        </div>
+
+        <div style="text-align: center; margin: 0 0 8px 0;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 13px 32px; background-color: #0f172a; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px;">
+            Go to My Dashboard &rarr;
+          </a>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+        CellsInVitro &bull; Advancing Cell Culture Education &amp; Research
+      </div>
+    </div>
+  `;
+
+  return sendEmail(input.to, "Welcome to CellsInVitro — your account is ready!", html);
+}
+
+export async function sendWelcomeAdminNotificationEmail(input: {
+  to: string;
+  newUserName: string;
+  newUserEmail: string;
+  signupMethod: "email" | "google" | "otp";
+}) {
+  const adminDashboardUrl = `${FRONTEND_ORIGIN}/admin/users`;
+  const methodLabel =
+    input.signupMethod === "google"
+      ? "Google OAuth"
+      : input.signupMethod === "otp"
+      ? "Email OTP (passwordless)"
+      : "Email &amp; Password";
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background-color: #0f172a; padding: 24px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0;">New User Registration</h1>
+        <p style="color: #94a3b8; font-size: 13px; margin: 0;">A new account has been created on CellsInVitro</p>
+      </div>
+
+      <div style="padding: 28px;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr>
+              <td style="padding: 5px 0; color: #64748b; width: 40%;">Name:</td>
+              <td style="padding: 5px 0; font-weight: 600; color: #0f172a;">${input.newUserName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Email:</td>
+              <td style="padding: 5px 0; color: #0f172a;">${input.newUserEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Sign-up Method:</td>
+              <td style="padding: 5px 0; color: #0f172a;">${methodLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Registered At:</td>
+              <td style="padding: 5px 0; color: #0f172a;">${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${adminDashboardUrl}" style="display: inline-block; padding: 11px 28px; background-color: #0f172a; color: #ffffff; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 8px;">
+            View in Admin Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `[NEW USER] ${input.newUserName} (${input.newUserEmail}) just registered`,
+    html
+  );
+}
+
+export async function notifyNewUserRegistered(input: {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  signupMethod: "email" | "google" | "otp";
+}) {
+  try {
+    // 1. Welcome email to the new user
+    await sendWelcomeEmail({
+      to: input.userEmail,
+      userName: input.userName,
+      isGoogleSignup: input.signupMethod === "google",
+    });
+
+    // 2. Admin notification
+    const adminEmails = await collectAdminEmails();
+    for (const adminEmail of adminEmails) {
+      await sendWelcomeAdminNotificationEmail({
+        to: adminEmail,
+        newUserName: input.userName,
+        newUserEmail: input.userEmail,
+        signupMethod: input.signupMethod,
+      });
+    }
+  } catch (err) {
+    console.error("[email] Error in notifyNewUserRegistered:", err);
+  }
+}
+
+// ─── Course / Package Enrollment ─────────────────────────────────────────────
+
+export async function sendCourseEnrollmentConfirmationEmail(input: {
+  to: string;
+  userName: string;
+  courseTitle: string;
+  enrollmentId: string;
+  expiresAt: string;
+  amount: number;
+  currency: string;
+  isFree: boolean;
+  packageTitle?: string;
+}) {
+  const dashboardUrl = `${FRONTEND_ORIGIN}/dashboard/courses`;
+  const formattedAmount = input.isFree
+    ? "Free"
+    : `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background-color: #0f172a; padding: 32px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 6px 0;">Enrolment Confirmed!</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin: 0;">You now have access to your course</p>
+      </div>
+
+      <div style="padding: 32px 28px;">
+        <h2 style="font-size: 18px; color: #0f172a; margin: 0 0 16px 0;">Hi ${input.userName},</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+          Your enrolment in <strong>${input.courseTitle}</strong>${input.packageTitle ? ` (part of the <strong>${input.packageTitle}</strong> package)` : ""} has been confirmed. You can start learning immediately.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Course:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.courseTitle}</td>
+            </tr>
+            ${
+              input.packageTitle
+                ? `<tr>
+              <td style="padding: 6px 0; color: #64748b;">Package:</td>
+              <td style="padding: 6px 0; color: #0f172a; text-align: right;">${input.packageTitle}</td>
+            </tr>`
+                : ""
+            }
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Enrolment ID:</td>
+              <td style="padding: 6px 0; font-size: 12px; color: #64748b; text-align: right;">${input.enrollmentId.slice(-12).toUpperCase()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Access Until:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.expiresAt}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Amount Paid:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #2563eb; text-align: right;">${formattedAmount}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 0 0 8px 0;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 13px 32px; background-color: #0f172a; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px;">
+            Start Learning &rarr;
+          </a>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+        CellsInVitro &bull; Advancing Cell Culture Education &amp; Research
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `Enrolment Confirmed: ${input.courseTitle}`,
+    html
+  );
+}
+
+export async function sendCourseEnrollmentAdminNotificationEmail(input: {
+  to: string;
+  userName: string;
+  userEmail: string;
+  courseTitle: string;
+  enrollmentId: string;
+  expiresAt: string;
+  amount: number;
+  currency: string;
+  isFree: boolean;
+  packageTitle?: string;
+}) {
+  const adminDashboardUrl = `${FRONTEND_ORIGIN}/admin/enrollments`;
+  const formattedAmount = input.isFree
+    ? "Free"
+    : `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background-color: #16a34a; padding: 24px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0;">New Course Enrolment</h1>
+        <p style="color: #bbf7d0; font-size: 13px; margin: 0;">A student has enrolled in a course</p>
+      </div>
+
+      <div style="padding: 28px;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #0f172a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Student</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr><td style="padding: 4px 0; color: #64748b; width: 35%;">Name:</td><td style="padding: 4px 0; font-weight: 600; color: #0f172a;">${input.userName}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Email:</td><td style="padding: 4px 0; color: #0f172a;">${input.userEmail}</td></tr>
+          </table>
+        </div>
+
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #0f172a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Enrolment Details</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr><td style="padding: 4px 0; color: #64748b; width: 40%;">Course:</td><td style="padding: 4px 0; font-weight: 600; color: #0f172a;">${input.courseTitle}</td></tr>
+            ${input.packageTitle ? `<tr><td style="padding: 4px 0; color: #64748b;">Package:</td><td style="padding: 4px 0; color: #0f172a;">${input.packageTitle}</td></tr>` : ""}
+            <tr><td style="padding: 4px 0; color: #64748b;">Amount:</td><td style="padding: 4px 0; font-weight: 700; color: #16a34a;">${formattedAmount}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Access Until:</td><td style="padding: 4px 0; color: #0f172a;">${input.expiresAt}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Enrolment ID:</td><td style="padding: 4px 0; font-size: 12px; color: #64748b;">${input.enrollmentId.slice(-12).toUpperCase()}</td></tr>
+          </table>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${adminDashboardUrl}" style="display: inline-block; padding: 11px 28px; background-color: #16a34a; color: #ffffff; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 8px;">
+            View Enrolments
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `[NEW ENROLMENT] ${input.userName} enrolled in ${input.courseTitle}`,
+    html
+  );
+}
+
+export async function notifyCourseEnrollment(input: {
+  userId: string;
+  enrollmentId: string;
+  courseTitle: string;
+  expiresAt: Date;
+  amount: number;
+  currency: string;
+  packageTitle?: string;
+}) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { name: true, email: true },
+    });
+    if (!user?.email) return;
+
+    const userName: string = user.name || user.email.split("@")[0] || user.email;
+    const isFree = input.amount === 0;
+    const expiresAtFormatted = input.expiresAt.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+
+    // 1. Confirmation to user
+    await sendCourseEnrollmentConfirmationEmail({
+      to: user.email,
+      userName,
+      courseTitle: input.courseTitle,
+      enrollmentId: input.enrollmentId,
+      expiresAt: expiresAtFormatted,
+      amount: input.amount,
+      currency: input.currency,
+      isFree,
+      packageTitle: input.packageTitle,
+    });
+
+    // 2. Admin notification
+    const adminEmails = await collectAdminEmails();
+    for (const adminEmail of adminEmails) {
+      await sendCourseEnrollmentAdminNotificationEmail({
+        to: adminEmail,
+        userName,
+        userEmail: user.email,
+        courseTitle: input.courseTitle,
+        enrollmentId: input.enrollmentId,
+        expiresAt: expiresAtFormatted,
+        amount: input.amount,
+        currency: input.currency,
+        isFree,
+        packageTitle: input.packageTitle,
+      });
+    }
+  } catch (err) {
+    console.error("[email] Error in notifyCourseEnrollment:", err);
+  }
+}
+
+// ─── Live Class Booking ───────────────────────────────────────────────────────
+
+export async function sendLiveClassBookingConfirmationEmail(input: {
+  to: string;
+  userName: string;
+  classTitle: string;
+  scheduledAt: string;
+  startTime: string;
+  duration: number;
+  amount: number;
+  currency: string;
+  isFree: boolean;
+  liveClassId: string;
+}) {
+  const dashboardUrl = `${FRONTEND_ORIGIN}/dashboard/live-classes`;
+  const formattedAmount = input.isFree
+    ? "Free"
+    : `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); padding: 32px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 6px 0;">Live Session Booking Confirmed!</h1>
+        <p style="color: #ddd6fe; font-size: 14px; margin: 0;">Your seat is reserved</p>
+      </div>
+
+      <div style="padding: 32px 28px;">
+        <h2 style="font-size: 18px; color: #0f172a; margin: 0 0 16px 0;">Hi ${input.userName},</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+          Your booking for the live session <strong>${input.classTitle}</strong> has been confirmed. Join before the session starts to ensure a smooth entry.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Session:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.classTitle}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Date:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.scheduledAt}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Start Time:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.startTime}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Duration:</td>
+              <td style="padding: 6px 0; text-align: right;">${input.duration} minutes</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Booking ID:</td>
+              <td style="padding: 6px 0; font-size: 12px; color: #64748b; text-align: right;">${input.liveClassId.slice(-10).toUpperCase()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Amount Paid:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #7c3aed; text-align: right;">${formattedAmount}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 0 0 8px 0;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 13px 32px; background-color: #7c3aed; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px;">
+            View My Live Sessions &rarr;
+          </a>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+        CellsInVitro &bull; Advancing Cell Culture Education &amp; Research
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `Live Session Booked: ${input.classTitle}`,
+    html
+  );
+}
+
+export async function sendLiveClassBookingAdminNotificationEmail(input: {
+  to: string;
+  userName: string;
+  userEmail: string;
+  classTitle: string;
+  scheduledAt: string;
+  startTime: string;
+  duration: number;
+  amount: number;
+  currency: string;
+  isFree: boolean;
+  liveClassId: string;
+}) {
+  const adminDashboardUrl = `${FRONTEND_ORIGIN}/admin/live-classes`;
+  const formattedAmount = input.isFree
+    ? "Free"
+    : `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); padding: 24px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0;">New Live Session Booking</h1>
+        <p style="color: #ddd6fe; font-size: 13px; margin: 0;">A student has booked a live session</p>
+      </div>
+
+      <div style="padding: 28px;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 10px 0; font-size: 13px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Student</h3>
+          <p style="margin: 2px 0; font-size: 14px; color: #0f172a;"><strong>${input.userName}</strong> &bull; ${input.userEmail}</p>
+        </div>
+
+        <div style="background-color: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 13px; color: #7c3aed; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Booking Details</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr><td style="padding: 4px 0; color: #64748b; width: 40%;">Session:</td><td style="padding: 4px 0; font-weight: 600; color: #0f172a;">${input.classTitle}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Date:</td><td style="padding: 4px 0; color: #0f172a;">${input.scheduledAt}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Time:</td><td style="padding: 4px 0; color: #0f172a;">${input.startTime}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Duration:</td><td style="padding: 4px 0; color: #0f172a;">${input.duration} min</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Amount:</td><td style="padding: 4px 0; font-weight: 700; color: #7c3aed;">${formattedAmount}</td></tr>
+          </table>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${adminDashboardUrl}" style="display: inline-block; padding: 11px 28px; background-color: #7c3aed; color: #ffffff; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 8px;">
+            View Live Classes
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `[LIVE BOOKING] ${input.userName} booked "${input.classTitle}"`,
+    html
+  );
+}
+
+export async function notifyLiveClassBooking(input: {
+  userId: string;
+  liveClassId: string;
+  classTitle: string;
+  scheduledAt: Date;
+  startTime: string;
+  duration: number;
+  amount: number;
+  currency: string;
+}) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { name: true, email: true },
+    });
+    if (!user?.email) return;
+
+    const userName: string = user.name || user.email.split("@")[0] || user.email;
+    const isFree = input.amount === 0;
+    const scheduledAtFormatted = input.scheduledAt.toLocaleDateString("en-IN", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+
+    // 1. Confirmation to user
+    await sendLiveClassBookingConfirmationEmail({
+      to: user.email,
+      userName,
+      classTitle: input.classTitle,
+      scheduledAt: scheduledAtFormatted,
+      startTime: input.startTime,
+      duration: input.duration,
+      amount: input.amount,
+      currency: input.currency,
+      isFree,
+      liveClassId: input.liveClassId,
+    });
+
+    // 2. Admin notification
+    const adminEmails = await collectAdminEmails();
+    for (const adminEmail of adminEmails) {
+      await sendLiveClassBookingAdminNotificationEmail({
+        to: adminEmail,
+        userName,
+        userEmail: user.email,
+        classTitle: input.classTitle,
+        scheduledAt: scheduledAtFormatted,
+        startTime: input.startTime,
+        duration: input.duration,
+        amount: input.amount,
+        currency: input.currency,
+        isFree,
+        liveClassId: input.liveClassId,
+      });
+    }
+  } catch (err) {
+    console.error("[email] Error in notifyLiveClassBooking:", err);
+  }
+}
+
+// ─── Consultancy Booking ──────────────────────────────────────────────────────
+
+export async function sendConsultancyBookingConfirmationEmail(input: {
+  to: string;
+  userName: string;
+  consultantName: string;
+  consultationType: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  amount: number;
+  currency: string;
+  bookingId: string;
+}) {
+  const dashboardUrl = `${FRONTEND_ORIGIN}/dashboard/consultancy`;
+  const formattedAmount = `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); padding: 32px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 6px 0;">Consultation Booking Confirmed!</h1>
+        <p style="color: #a5f3fc; font-size: 14px; margin: 0;">Your session with ${input.consultantName} is booked</p>
+      </div>
+
+      <div style="padding: 32px 28px;">
+        <h2 style="font-size: 18px; color: #0f172a; margin: 0 0 16px 0;">Hi ${input.userName},</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+          Your consultation with <strong>${input.consultantName}</strong> has been confirmed. Please be ready a few minutes before the session starts.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Consultant:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.consultantName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Consultation Type:</td>
+              <td style="padding: 6px 0; color: #0f172a; text-align: right;">${input.consultationType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Date:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.date}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Time:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.startTime} – ${input.endTime}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Booking ID:</td>
+              <td style="padding: 6px 0; font-size: 12px; color: #64748b; text-align: right;">${input.bookingId.slice(-10).toUpperCase()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Amount Paid:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #0891b2; text-align: right;">${formattedAmount}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 0 0 8px 0;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 13px 32px; background-color: #0891b2; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px;">
+            View My Bookings &rarr;
+          </a>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+        CellsInVitro &bull; Advancing Cell Culture Education &amp; Research
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `Consultation Confirmed: ${input.consultantName} on ${input.date}`,
+    html
+  );
+}
+
+export async function sendConsultancyBookingAdminNotificationEmail(input: {
+  to: string;
+  userName: string;
+  userEmail: string;
+  userPhone?: string | null;
+  consultantName: string;
+  consultationType: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  amount: number;
+  currency: string;
+  bookingId: string;
+  notes?: string | null;
+}) {
+  const adminDashboardUrl = `${FRONTEND_ORIGIN}/admin/consultancy`;
+  const formattedAmount = `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); padding: 24px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0;">New Consultation Booking</h1>
+        <p style="color: #a5f3fc; font-size: 13px; margin: 0;">A new consultation has been booked and confirmed</p>
+      </div>
+
+      <div style="padding: 28px;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 10px 0; font-size: 13px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Client</h3>
+          <p style="margin: 2px 0; font-size: 14px; color: #0f172a;"><strong>${input.userName}</strong></p>
+          <p style="margin: 2px 0; font-size: 13px; color: #64748b;">${input.userEmail}${input.userPhone ? ` &bull; ${input.userPhone}` : ""}</p>
+        </div>
+
+        <div style="background-color: #f0fdfe; border: 1px solid #a5f3fc; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 13px; color: #0891b2; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Booking Details</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr><td style="padding: 4px 0; color: #64748b; width: 40%;">Consultant:</td><td style="padding: 4px 0; font-weight: 600; color: #0f172a;">${input.consultantName}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Type:</td><td style="padding: 4px 0; color: #0f172a;">${input.consultationType}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Date:</td><td style="padding: 4px 0; color: #0f172a;">${input.date}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Time:</td><td style="padding: 4px 0; color: #0f172a;">${input.startTime} – ${input.endTime}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Amount Paid:</td><td style="padding: 4px 0; font-weight: 700; color: #0891b2;">${formattedAmount}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Booking ID:</td><td style="padding: 4px 0; font-size: 12px; color: #64748b;">${input.bookingId.slice(-10).toUpperCase()}</td></tr>
+          </table>
+        </div>
+
+        ${
+          input.notes
+            ? `<div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+          <p style="margin: 0 0 4px 0; font-size: 12px; color: #854d0e; font-weight: 700; text-transform: uppercase;">Client Notes</p>
+          <p style="margin: 0; font-size: 14px; color: #713f12; line-height: 1.5;">${input.notes}</p>
+        </div>`
+            : ""
+        }
+
+        <div style="text-align: center;">
+          <a href="${adminDashboardUrl}" style="display: inline-block; padding: 11px 28px; background-color: #0891b2; color: #ffffff; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 8px;">
+            View Consultancy Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `[CONSULTATION] ${input.userName} booked ${input.consultantName} on ${input.date}`,
+    html
+  );
+}
+
+export async function notifyConsultancyBooking(bookingId: string) {
+  try {
+    const booking = await prisma.consultancyBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        consultant: true,
+        slot: true,
+        user: { select: { name: true, email: true } },
+      },
+    });
+
+    if (!booking) {
+      console.warn(`[email] notifyConsultancyBooking: booking ${bookingId} not found`);
+      return;
+    }
+
+    const userEmail = booking.userEmail || booking.user?.email;
+    if (!userEmail) {
+      console.warn(`[email] notifyConsultancyBooking: no email for booking ${bookingId}`);
+      return;
+    }
+
+    const userName: string = booking.userName || booking.user?.name || userEmail.split("@")[0] || userEmail;
+    const dateFormatted = booking.date.toLocaleDateString("en-IN", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+
+    // 1. Confirmation to client
+    await sendConsultancyBookingConfirmationEmail({
+      to: userEmail,
+      userName,
+      consultantName: booking.consultant.name,
+      consultationType: booking.consultationType,
+      date: dateFormatted,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      amount: booking.amount,
+      currency: booking.currency,
+      bookingId: booking.id,
+    });
+
+    // 2. Admin notification
+    const adminEmails = await collectAdminEmails();
+    for (const adminEmail of adminEmails) {
+      await sendConsultancyBookingAdminNotificationEmail({
+        to: adminEmail,
+        userName,
+        userEmail,
+        userPhone: booking.userPhone,
+        consultantName: booking.consultant.name,
+        consultationType: booking.consultationType,
+        date: dateFormatted,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        amount: booking.amount,
+        currency: booking.currency,
+        bookingId: booking.id,
+        notes: booking.notes,
+      });
+    }
+  } catch (err) {
+    console.error("[email] Error in notifyConsultancyBooking:", err);
+  }
+}
+
+// ─── Resource / Study Material Access ────────────────────────────────────────
+
+export async function sendResourceAccessConfirmationEmail(input: {
+  to: string;
+  userName: string;
+  resourceTitle: string;
+  scope: string;
+  amount: number;
+  currency: string;
+  isFree: boolean;
+  accessId: string;
+}) {
+  const dashboardUrl = `${FRONTEND_ORIGIN}/dashboard/resources`;
+  const formattedAmount = input.isFree
+    ? "Free"
+    : `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+  const scopeLabel =
+    input.scope === "FULL_LIBRARY"
+      ? "Full Resource Library"
+      : input.scope === "MODULE"
+      ? "Resource Module"
+      : "Resource File";
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%); padding: 32px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 6px 0;">Access Granted!</h1>
+        <p style="color: #fed7aa; font-size: 14px; margin: 0;">${scopeLabel} is now available to you</p>
+      </div>
+
+      <div style="padding: 32px 28px;">
+        <h2 style="font-size: 18px; color: #0f172a; margin: 0 0 16px 0;">Hi ${input.userName},</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+          You now have access to <strong>${input.resourceTitle}</strong>. Head to your resources dashboard to start exploring the material.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Resource:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">${input.resourceTitle}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Access Type:</td>
+              <td style="padding: 6px 0; color: #0f172a; text-align: right;">${scopeLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Access ID:</td>
+              <td style="padding: 6px 0; font-size: 12px; color: #64748b; text-align: right;">${input.accessId.slice(-10).toUpperCase()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Amount Paid:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: #ea580c; text-align: right;">${formattedAmount}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 0 0 8px 0;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 13px 32px; background-color: #ea580c; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px;">
+            Browse Resources &rarr;
+          </a>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+        CellsInVitro &bull; Advancing Cell Culture Education &amp; Research
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `Access Confirmed: ${input.resourceTitle}`,
+    html
+  );
+}
+
+export async function sendResourceAccessAdminNotificationEmail(input: {
+  to: string;
+  userName: string;
+  userEmail: string;
+  resourceTitle: string;
+  scope: string;
+  amount: number;
+  currency: string;
+  isFree: boolean;
+  accessId: string;
+}) {
+  const adminDashboardUrl = `${FRONTEND_ORIGIN}/admin/materials`;
+  const formattedAmount = input.isFree
+    ? "Free"
+    : `${input.currency} ${(input.amount / 100).toFixed(2)}`;
+  const scopeLabel =
+    input.scope === "FULL_LIBRARY"
+      ? "Full Resource Library"
+      : input.scope === "MODULE"
+      ? "Resource Module"
+      : "Resource File";
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%); padding: 24px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0;">New Resource Access Purchase</h1>
+        <p style="color: #fed7aa; font-size: 13px; margin: 0;">A user purchased access to study materials</p>
+      </div>
+
+      <div style="padding: 28px;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 10px 0; font-size: 13px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">User</h3>
+          <p style="margin: 2px 0; font-size: 14px; color: #0f172a;"><strong>${input.userName}</strong> &bull; ${input.userEmail}</p>
+        </div>
+
+        <div style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 13px; color: #ea580c; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Access Details</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+            <tr><td style="padding: 4px 0; color: #64748b; width: 40%;">Resource:</td><td style="padding: 4px 0; font-weight: 600; color: #0f172a;">${input.resourceTitle}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Access Type:</td><td style="padding: 4px 0; color: #0f172a;">${scopeLabel}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Amount:</td><td style="padding: 4px 0; font-weight: 700; color: #ea580c;">${formattedAmount}</td></tr>
+            <tr><td style="padding: 4px 0; color: #64748b;">Access ID:</td><td style="padding: 4px 0; font-size: 12px; color: #64748b;">${input.accessId.slice(-10).toUpperCase()}</td></tr>
+          </table>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${adminDashboardUrl}" style="display: inline-block; padding: 11px 28px; background-color: #ea580c; color: #ffffff; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 8px;">
+            View Materials Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `[RESOURCE ACCESS] ${input.userName} purchased ${scopeLabel}: ${input.resourceTitle}`,
+    html
+  );
+}
+
+export async function notifyResourceAccess(input: {
+  userId: string;
+  accessId: string;
+  resourceTitle: string;
+  scope: string;
+  amount: number;
+  currency: string;
+}) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { name: true, email: true },
+    });
+    if (!user?.email) return;
+
+    const userName: string = user.name || user.email.split("@")[0] || user.email;
+    const isFree = input.amount === 0;
+
+    // 1. Confirmation to user
+    await sendResourceAccessConfirmationEmail({
+      to: user.email,
+      userName,
+      resourceTitle: input.resourceTitle,
+      scope: input.scope,
+      amount: input.amount,
+      currency: input.currency,
+      isFree,
+      accessId: input.accessId,
+    });
+
+    // 2. Admin notification
+    const adminEmails = await collectAdminEmails();
+    for (const adminEmail of adminEmails) {
+      await sendResourceAccessAdminNotificationEmail({
+        to: adminEmail,
+        userName,
+        userEmail: user.email,
+        resourceTitle: input.resourceTitle,
+        scope: input.scope,
+        amount: input.amount,
+        currency: input.currency,
+        isFree,
+        accessId: input.accessId,
+      });
+    }
+  } catch (err) {
+    console.error("[email] Error in notifyResourceAccess:", err);
+  }
+}

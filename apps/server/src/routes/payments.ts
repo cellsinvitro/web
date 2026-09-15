@@ -10,7 +10,7 @@ import {
   isRazorpayConfigured,
 } from "../lib/razorpay.js";
 import { resolveKitImageUrl } from "../lib/kits.js";
-import { notifyKitOrderCreated } from "../lib/email.js";
+import { notifyKitOrderCreated, notifyCourseEnrollment, notifyResourceAccess } from "../lib/email.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 
 export const paymentsRoutes = new Hono<{ Variables: AuthVariables }>();
@@ -316,6 +316,14 @@ paymentsRoutes.post("/create-order", async (c) => {
 
     if (resourceScope) {
       await grantResourceAccess(userId, resourceScope, studyMaterialId, studyMaterialFileId, payment.id);
+      notifyResourceAccess({
+        userId,
+        accessId: payment.id,
+        resourceTitle: title,
+        scope: resourceScope,
+        amount: payment.amount,
+        currency: payment.currency,
+      }).catch((err) => console.error("[payments] Failed to send resource access email:", err));
     } else if (!kitId) {
       await createEnrollments(userId, courseId, packageId, payment.id);
     } else {
@@ -456,6 +464,14 @@ paymentsRoutes.post("/verify", async (c) => {
 
   if (payment.resourceScope) {
     await grantResourceAccess(userId, payment.resourceScope, payment.studyMaterialId, payment.studyMaterialFileId, payment.id);
+    notifyResourceAccess({
+      userId,
+      accessId: payment.id,
+      resourceTitle: payment.itemTitle || "Study Material",
+      scope: payment.resourceScope,
+      amount: payment.amount,
+      currency: payment.currency,
+    }).catch((err) => console.error("[payments] Failed to send resource access email:", err));
   } else if (!payment.kitId) {
     await createEnrollments(userId, payment.courseId, payment.packageId, payment.id);
   } else {
@@ -477,7 +493,7 @@ async function createEnrollments(
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) return;
 
-    await prisma.enrollment.upsert({
+    const enrollment = await prisma.enrollment.upsert({
       where: { userId_courseId: { userId, courseId } },
       create: {
         userId,
@@ -493,6 +509,22 @@ async function createEnrollments(
         purchasedAt: new Date(),
       },
     });
+
+    // Look up the payment amount for the email
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { amount: true, currency: true },
+    });
+
+    notifyCourseEnrollment({
+      userId,
+      enrollmentId: enrollment.id,
+      courseTitle: course.title,
+      expiresAt: enrollment.expiresAt,
+      amount: payment?.amount ?? 0,
+      currency: payment?.currency ?? course.currency,
+    }).catch((err) => console.error("[payments] Failed to send enrollment email:", err));
+
     return;
   }
 
@@ -503,11 +535,17 @@ async function createEnrollments(
     });
     if (!pkg) return;
 
+    // Look up the payment amount once for all package courses
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { amount: true, currency: true },
+    });
+
     for (const item of pkg.items) {
       const course = await prisma.course.findUnique({ where: { id: item.courseId } });
       if (!course) continue;
 
-      await prisma.enrollment.upsert({
+      const enrollment = await prisma.enrollment.upsert({
         where: { userId_courseId: { userId, courseId: item.courseId } },
         create: {
           userId,
@@ -525,6 +563,17 @@ async function createEnrollments(
           purchasedAt: new Date(),
         },
       });
+
+      notifyCourseEnrollment({
+        userId,
+        enrollmentId: enrollment.id,
+        courseTitle: course.title,
+        expiresAt: enrollment.expiresAt,
+        // Spread package cost across courses; use 0 for each individual one since total is on the package
+        amount: payment?.amount ?? 0,
+        currency: payment?.currency ?? pkg.currency,
+        packageTitle: pkg.title,
+      }).catch((err) => console.error("[payments] Failed to send package enrollment email:", err));
     }
   }
 }
