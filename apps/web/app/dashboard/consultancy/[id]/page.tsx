@@ -224,7 +224,7 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Rate</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">₹{consultant.hourlyRate}/hr</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">₹{(consultant.hourlyRate / 100).toLocaleString("en-IN")}/hr</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Duration</p>
@@ -349,7 +349,7 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between text-sm text-slate-600">
                 <span>Consultation fee</span>
-                <span className="text-lg font-semibold text-slate-950">₹{consultant.hourlyRate}</span>
+                <span className="text-lg font-semibold text-slate-950">₹{(consultant.hourlyRate / 100).toLocaleString("en-IN")}</span>
               </div>
             </div>
 
@@ -359,7 +359,7 @@ export default function ConsultancyProfilePage({ params }: { params: Promise<{ i
               disabled={paymentLoading || !selectedSlotId || !userDetails.name || !userDetails.email}
               className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {paymentLoading ? "Opening payment…" : `Book now · ₹${consultant.hourlyRate}`}
+              {paymentLoading ? "Opening payment…" : `Book now · ₹${(consultant.hourlyRate / 100).toLocaleString("en-IN")}`}
             </button>
 
             {bookingId ? <p className="text-xs text-slate-500">Booking reference: {bookingId}</p> : null}

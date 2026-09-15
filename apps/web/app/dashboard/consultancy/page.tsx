@@ -115,7 +115,7 @@ export default function DashboardConsultancyPage() {
 
                   <div className="flex items-center justify-between text-sm text-slate-600">
                     <span>{consultant.experienceYears}+ years</span>
-                    <span className="font-semibold text-slate-950">₹{consultant.hourlyRate}/hr</span>
+                    <span className="font-semibold text-slate-950">₹{(consultant.hourlyRate / 100).toLocaleString("en-IN")}/hr</span>
                   </div>
 
                   <div className="flex gap-3">
@@ -163,7 +163,7 @@ export default function DashboardConsultancyPage() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="rounded-full bg-slate-200 px-2.5 py-1 font-medium text-slate-700">{booking.status}</span>
-                  <span className="text-slate-500">₹{booking.amount}</span>
+                  <span className="text-slate-500">₹{(booking.amount / 100).toLocaleString("en-IN")}</span>
                 </div>
               </div>
             ))
