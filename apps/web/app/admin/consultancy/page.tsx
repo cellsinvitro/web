@@ -116,7 +116,7 @@ export default function AdminConsultancyPage() {
       bio: consultant.bio ?? "",
       consultationTypes: consultant.consultationTypes.join(", "),
       durationMinutes: String(consultant.durationMinutes),
-      hourlyRate: String(consultant.hourlyRate),
+      hourlyRate: String((consultant.hourlyRate / 100).toFixed(2)),
       available: consultant.available,
     });
   };

@@ -128,7 +128,7 @@ adminConsultancyRoutes.post("/consultancy/consultants", async (c) => {
         bio: String(body.bio ?? "").trim() || null,
         consultationTypes,
         durationMinutes: Number(body.durationMinutes ?? 60),
-        hourlyRate: Number(body.hourlyRate ?? 0),
+        hourlyRate: Math.round(Number(body.hourlyRate ?? 0) * 100), // store as paise
         currency: String(body.currency ?? "INR"),
         available: String(body.available ?? "true") !== "false",
         sortOrder: Number(body.sortOrder ?? 0),
@@ -161,7 +161,7 @@ adminConsultancyRoutes.patch("/consultancy/consultants/:id", async (c) => {
       ...(body.bio !== undefined ? { bio: String(body.bio).trim() || null } : {}),
       ...(body.consultationTypes !== undefined ? { consultationTypes: String(body.consultationTypes).split(",").map((type) => type.trim().toUpperCase()).filter(Boolean) } : {}),
       ...(body.durationMinutes !== undefined ? { durationMinutes: Number(body.durationMinutes) } : {}),
-      ...(body.hourlyRate !== undefined ? { hourlyRate: Number(body.hourlyRate) } : {}),
+      ...(body.hourlyRate !== undefined ? { hourlyRate: Math.round(Number(body.hourlyRate) * 100) } : {}), // store as paise
       ...(body.currency !== undefined ? { currency: String(body.currency) } : {}),
       ...(body.available !== undefined ? { available: parseBoolean(body.available) } : {}),
       ...(body.sortOrder !== undefined ? { sortOrder: Number(body.sortOrder) } : {}),
