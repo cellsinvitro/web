@@ -105,7 +105,7 @@ export default function ResearchKitsList({
             No kits available in this category yet.
           </p>
         </div>
-      ) : <KitModuleTree tree={tree} ungroupedKits={filteredKits} />}
+      ) : <KitModuleTree tree={tree} ungroupedKits={filteredKits} showAll />}
     </div>
   );
 }
