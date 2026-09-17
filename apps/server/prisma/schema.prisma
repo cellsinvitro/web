@@ -36,6 +36,9 @@ model User {
   toolUsages         ToolUsage[]
   budgets            Budget[]
   budgetSubmissions  BudgetSubmission[]
+  instrumentBookings InstrumentBooking[]
+  logbookPermission  LogbookPermission?
+  labNotebookEntries LabNotebookEntry[]
 }
 
 model MaintenanceRule {
@@ -825,3 +828,100 @@ enum BudgetFieldDirection {
   ADDITION  // adds to remaining balance
   NONE      // informational only (TEXT / DATE fields)
 }
+
+// ─── Lab Log-Book & Instrument Logbook ───────────────────────────────────────
+
+enum InstrumentStatus {
+  ACTIVE
+  UNDER_MAINTENANCE
+  OUT_OF_SERVICE
+  ARCHIVED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model Instrument {
+  id               String           @id @default(cuid())
+  code             String           @unique
+  name             String
+  installedOn      DateTime?
+  lastServiceDate  DateTime?
+  lastCleaningDate DateTime?
+  nextServiceDate  DateTime?
+  inchargeName     String?
+  inchargeContact  String?
+  description      String?
+  status           InstrumentStatus @default(ACTIVE)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  bookings         InstrumentBooking[]
+  activities       LogbookActivity[]
+}
+
+model InstrumentBooking {
+  id            String        @id @default(cuid())
+  instrumentId  String
+  userId        String
+  userName      String
+  date          DateTime
+  startTime     String        // e.g. "11:30"
+  endTime       String        // e.g. "12:30"
+  startDateTime DateTime
+  endDateTime   DateTime
+  remarks       String?
+  status        BookingStatus @default(CONFIRMED)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  createdBy     String
+  instrument    Instrument    @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([instrumentId, date])
+  @@index([instrumentId, startDateTime, endDateTime])
+  @@index([userId])
+}
+
+model LogbookPermission {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  canViewLogbook       Boolean  @default(true)
+  canCreateEntries     Boolean  @default(true)
+  canEditOwnEntries    Boolean  @default(true)
+  canEditOthersEntries Boolean  @default(false)
+  canManageInstruments Boolean  @default(false)
+  canGenerateReports   Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LogbookActivity {
+  id           String      @id @default(cuid())
+  userId       String
+  userName     String
+  action       String      // e.g. "BOOKING_CREATED", "BOOKING_CANCELLED", "INSTRUMENT_UPDATED"
+  details      String
+  instrumentId String?
+  createdAt    DateTime    @default(now())
+  instrument   Instrument? @relation(fields: [instrumentId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([instrumentId, createdAt])
+}
+
+model LabNotebookEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  userName  String
+  date      DateTime @unique
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+}
+

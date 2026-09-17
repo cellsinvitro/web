@@ -2075,5 +2075,220 @@ export async function deleteBudgetSubmission(budgetId: string, submissionId: str
   );
 }
 
-// ── Admin-facing ──────────────────────────────────────────────────────────────
+// ── Lab Log-Book & Instrument Logbook ───────────────────────────────────────
+
+export type InstrumentStatus = "ACTIVE" | "UNDER_MAINTENANCE" | "OUT_OF_SERVICE" | "ARCHIVED";
+export type BookingStatus = "CONFIRMED" | "CANCELLED";
+
+export type LogbookPermission = {
+  canViewLogbook: boolean;
+  canCreateEntries: boolean;
+  canEditOwnEntries: boolean;
+  canEditOthersEntries: boolean;
+  canManageInstruments: boolean;
+  canGenerateReports: boolean;
+};
+
+export type LogbookInstrument = {
+  id: string;
+  code: string;
+  name: string;
+  installedOn: string | null;
+  lastServiceDate: string | null;
+  lastCleaningDate: string | null;
+  nextServiceDate: string | null;
+  inchargeName: string | null;
+  inchargeContact: string | null;
+  description: string | null;
+  status: InstrumentStatus;
+  createdAt: string;
+  updatedAt: string;
+  todayBookingsCount?: number;
+  nextBookingTime?: string | null;
+  isServiceDueSoon?: boolean;
+};
+
+export type LogbookBooking = {
+  id: string;
+  instrumentId: string;
+  userId: string;
+  userName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  startDateTime: string;
+  endDateTime: string;
+  remarks: string | null;
+  status: BookingStatus;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  instrument?: { id: string; name: string; code: string; status?: InstrumentStatus };
+  user?: { id: string; name: string | null; email: string; avatarUrl: string | null };
+};
+
+export type LogbookUserWithPermissions = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  designation: string | null;
+  permissions: LogbookPermission;
+};
+
+export type LogbookActivity = {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  instrumentId: string | null;
+  createdAt: string;
+};
+
+export type LogbookReportRow = {
+  id: string;
+  date: string;
+  instrumentName: string;
+  instrumentCode: string;
+  user: string;
+  startTime: string;
+  endTime: string;
+  durationHours: string;
+  remarks: string;
+};
+
+export type LabNotebookEntry = {
+  id: string;
+  userId: string;
+  userName: string;
+  date: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchLogbookInstruments() {
+  return apiFetch<{ instruments: LogbookInstrument[]; permissions: LogbookPermission }>("/logbook/instruments");
+}
+
+export async function fetchLogbookInstrument(id: string) {
+  return apiFetch<{ instrument: LogbookInstrument & { bookings: LogbookBooking[] } }>(`/logbook/instruments/${id}`);
+}
+
+export async function createLogbookInstrument(input: {
+  code: string;
+  name: string;
+  installedOn?: string | null;
+  lastServiceDate?: string | null;
+  lastCleaningDate?: string | null;
+  nextServiceDate?: string | null;
+  inchargeName?: string | null;
+  inchargeContact?: string | null;
+  description?: string | null;
+  status?: InstrumentStatus;
+}) {
+  const data = await apiFetch<{ instrument: LogbookInstrument }>("/logbook/instruments", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.instrument;
+}
+
+export async function updateLogbookInstrument(id: string, input: Partial<Omit<LogbookInstrument, "id" | "createdAt" | "updatedAt">>) {
+  const data = await apiFetch<{ instrument: LogbookInstrument }>(`/logbook/instruments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.instrument;
+}
+
+export async function archiveLogbookInstrument(id: string) {
+  return apiFetch<{ success: true; instrument: LogbookInstrument }>(`/logbook/instruments/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchLogbookBookings(params: { instrumentId?: string; date?: string; fromDate?: string; toDate?: string }) {
+  const query = new URLSearchParams();
+  if (params.instrumentId) query.set("instrumentId", params.instrumentId);
+  if (params.date) query.set("date", params.date);
+  if (params.fromDate) query.set("fromDate", params.fromDate);
+  if (params.toDate) query.set("toDate", params.toDate);
+
+  const data = await apiFetch<{ bookings: LogbookBooking[] }>(`/logbook/bookings?${query.toString()}`);
+  return data.bookings;
+}
+
+export async function createLogbookBooking(input: {
+  instrumentId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  remarks?: string;
+}) {
+  const data = await apiFetch<{ booking: LogbookBooking }>("/logbook/bookings", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.booking;
+}
+
+export async function updateLogbookBooking(id: string, input: { date?: string; startTime?: string; endTime?: string; remarks?: string }) {
+  const data = await apiFetch<{ booking: LogbookBooking }>(`/logbook/bookings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.booking;
+}
+
+export async function cancelLogbookBooking(id: string) {
+  return apiFetch<{ success: true; booking: LogbookBooking }>(`/logbook/bookings/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchLogbookPermissions() {
+  const data = await apiFetch<{ users: LogbookUserWithPermissions[] }>("/logbook/permissions");
+  return data.users;
+}
+
+export async function updateLogbookPermission(userId: string, input: Partial<LogbookPermission>) {
+  const data = await apiFetch<{ permission: LogbookPermission }>(`/logbook/permissions/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.permission;
+}
+
+export async function fetchLogbookActivities(instrumentId?: string) {
+  const query = instrumentId ? `?instrumentId=${instrumentId}` : "";
+  const data = await apiFetch<{ activities: LogbookActivity[] }>(`/logbook/activities${query}`);
+  return data.activities;
+}
+
+export async function fetchLogbookReport(params: { instrumentId?: string; fromDate?: string; toDate?: string; userId?: string }) {
+  const query = new URLSearchParams();
+  if (params.instrumentId) query.set("instrumentId", params.instrumentId);
+  if (params.fromDate) query.set("fromDate", params.fromDate);
+  if (params.toDate) query.set("toDate", params.toDate);
+  if (params.userId) query.set("userId", params.userId);
+
+  return apiFetch<{ reportRows: LogbookReportRow[]; totalBookings: number }>(`/logbook/reports?${query.toString()}`);
+}
+
+export async function fetchLabNotebookEntry(date?: string) {
+  const query = date ? `?date=${date}` : "";
+  return apiFetch<{ date: string; entry: LabNotebookEntry | null }>(`/logbook/notebook${query}`);
+}
+
+export async function saveLabNotebookEntry(content: string, date?: string) {
+  const data = await apiFetch<{ entry: LabNotebookEntry }>("/logbook/notebook", {
+    method: "POST",
+    body: JSON.stringify({ content, date }),
+  });
+  return data.entry;
+}
+
 
