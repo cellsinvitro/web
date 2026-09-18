@@ -18,6 +18,7 @@ import DiscountedPrice from "@/components/DiscountedPrice";
 import { useConfirm } from "@/context/ConfirmContext";
 import AdminCourseWizard from "@/components/admin/AdminCourseWizard";
 import { AdminSpinner } from "@/components/AdminLoader";
+import { TableSkeleton } from "@/components/skeletons/Skeletons";
 
 export default function AdminCoursesPage() {
   const confirm = useConfirm();
@@ -190,11 +191,8 @@ export default function AdminCoursesPage() {
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-slate-950">All courses</h2>
         {loading ? (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="flex flex-col items-center gap-3 py-10">
-              <AdminSpinner size={36} />
-              <span className="text-xs text-slate-400">Loading courses…</span>
-            </div>
+          <div className="mt-4">
+            <TableSkeleton rows={5} columns={4} />
           </div>
         ) : (
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">

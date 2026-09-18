@@ -14,6 +14,7 @@ import type { StudyMaterial } from "@/lib/api";
 import { formatResourceDate, getMaterialFileCountLabel, getMaterialTypeSummary } from "@/lib/resources";
 import { useConfirm } from "@/context/ConfirmContext";
 import { AdminSpinner } from "@/components/AdminLoader";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function AdminResourcesPage() {
   const router = useRouter();
@@ -313,14 +314,26 @@ export default function AdminResourcesPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <AdminSpinner size={36} />
-                      <span className="text-xs text-slate-400">Loading resources…</span>
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse border-b border-slate-100">
+                    <td className="px-4 py-4">
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-3 w-28" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-4 py-4">
+                      <div className="flex gap-2">
+                        <Skeleton className="h-8 w-16 rounded-lg" />
+                        <Skeleton className="h-8 w-16 rounded-lg" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : error ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-red-600">

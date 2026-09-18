@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import { useConfirm } from "@/context/ConfirmContext";
 import { AdminSpinner } from "@/components/AdminLoader";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const emptyForm = { targetPath: "", scope: "WEB_PATH" as MaintenanceScope, enabled: true, message: "" };
 
@@ -130,7 +131,22 @@ export default function AdminMaintenancePage() {
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold text-slate-950">Configured rules</h2></div>
-        {loading ? <div className="flex flex-col items-center gap-3 px-4 py-12"><AdminSpinner size={36} /><span className="text-xs text-slate-400">Loading rules...</span></div> : rules.length === 0 ? <p className="px-5 py-12 text-center text-sm text-slate-500">No maintenance rules configured.</p> : <div className="divide-y divide-slate-100">{rules.map((rule) => <div key={rule.id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${rule.enabled ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500"}`}>{rule.enabled ? "Active" : "Disabled"}</span><span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{rule.scope === "WEB_PATH" ? "Website" : "API"}</span></div><p className="mt-2 truncate font-medium text-slate-950">{rule.targetPath}</p>{rule.message ? <p className="mt-1 truncate text-sm text-slate-500">{rule.message}</p> : null}</div><div className="flex shrink-0 gap-2"><button type="button" disabled={pendingId === rule.id} onClick={() => toggle(rule)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">{rule.enabled ? "Disable" : "Enable"}</button><button type="button" onClick={() => edit(rule)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</button><button type="button" disabled={pendingId === rule.id} onClick={() => remove(rule)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Delete</button></div></div>)}</div>}
+        {loading ? (
+          <div className="divide-y divide-slate-100">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between animate-pulse">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-48" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-16 rounded-lg" />
+                  <Skeleton className="h-8 w-12 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : rules.length === 0 ? <p className="px-5 py-12 text-center text-sm text-slate-500">No maintenance rules configured.</p> : <div className="divide-y divide-slate-100">{rules.map((rule) => <div key={rule.id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${rule.enabled ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500"}`}>{rule.enabled ? "Active" : "Disabled"}</span><span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{rule.scope === "WEB_PATH" ? "Website" : "API"}</span></div><p className="mt-2 truncate font-medium text-slate-950">{rule.targetPath}</p>{rule.message ? <p className="mt-1 truncate text-sm text-slate-500">{rule.message}</p> : null}</div><div className="flex shrink-0 gap-2"><button type="button" disabled={pendingId === rule.id} onClick={() => toggle(rule)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">{rule.enabled ? "Disable" : "Enable"}</button><button type="button" onClick={() => edit(rule)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</button><button type="button" disabled={pendingId === rule.id} onClick={() => remove(rule)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Delete</button></div></div>)}</div>}
       </section>
     </div>
   );

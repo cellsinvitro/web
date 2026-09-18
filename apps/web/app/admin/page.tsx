@@ -5,6 +5,7 @@ import Link from "next/link";
 import { fetchAdminStats } from "@/lib/api";
 import type { AdminOverviewData } from "@/lib/api";
 import { AdminSpinner } from "@/components/AdminLoader";
+import { AdminSkeleton } from "@/components/skeletons/Skeletons";
 
 function formatBytes(bytes?: number) {
   if (!bytes || bytes === 0) return "0 B";
@@ -469,14 +470,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {loading && !data ? (
-        <div className="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col items-center gap-3">
-            <AdminSpinner size={36} />
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-              Aggregating Master Data Across All Features...
-            </span>
-          </div>
-        </div>
+        <AdminSkeleton />
       ) : (
         <>
           {/* TAB 1: OVERVIEW & ANALYTICS */}

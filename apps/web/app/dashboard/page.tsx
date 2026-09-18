@@ -12,13 +12,13 @@ import {
   type Enrollment,
   type StudyMaterial,
 } from "@/lib/api";
-import { isAdmin } from "@/lib/admin";
 import { formatCourseDate } from "@/lib/courses";
 import {
   formatResourceDate,
   getMaterialFileCountLabel,
   getMaterialTypeSummary,
 } from "@/lib/resources";
+import { DashboardSkeleton } from "@/components/skeletons/Skeletons";
 import EnrolledCoursesList from "@/components/dashboard/EnrolledCoursesList";
 import {
   CourseProgressBars,
@@ -102,6 +102,7 @@ function StatCard({
   return <div className={className}>{content}</div>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function QuickAction({
   href,
   title,
@@ -202,6 +203,8 @@ export default function DashboardPage() {
   }, [enrollments]);
 
   const completedCount = enrollments.filter((e) => e.status === "COMPLETED").length;
+
+  if (loading) return <DashboardSkeleton />;
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">

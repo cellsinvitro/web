@@ -1,5 +1,5 @@
-import PageLoadingScreen from "@/components/PageLoadingScreen";
+import { AdminSkeleton } from "@/components/skeletons/Skeletons";
 
 export default function AdminLoading() {
-  return <PageLoadingScreen sublabel="Loading admin panel..." />;
+  return <AdminSkeleton />;
 }

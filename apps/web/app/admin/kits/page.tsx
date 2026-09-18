@@ -23,6 +23,7 @@ import {
 } from "@/lib/kits";
 import { useConfirm } from "@/context/ConfirmContext";
 import { AdminSpinner } from "@/components/AdminLoader";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 function flattenKitModules(modules: KitModuleNode[], prefix = ""): Array<{ id: string; label: string }> {
   return modules.flatMap((module) => [
@@ -391,14 +392,31 @@ export default function AdminKitsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <AdminSpinner size={36} />
-                      <span className="text-xs text-slate-400">Loading kits…</span>
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse border-b border-slate-100">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-12" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-12" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                    <td className="px-4 py-4">
+                      <div className="flex gap-2">
+                        <Skeleton className="h-8 w-16 rounded-lg" />
+                        <Skeleton className="h-8 w-16 rounded-lg" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : error ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-red-600">
