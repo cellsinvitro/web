@@ -382,6 +382,61 @@ export async function sendCryoInviteEmail(input: {
   );
 }
 
+// ─── Logbook Lab Invite ───────────────────────────────────────────────────────
+
+export async function sendLogbookInviteEmail(input: {
+  to: string;
+  inviterName: string;
+  labName: string;
+  acceptUrl: string;
+}) {
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); padding: 32px 28px; text-align: center; color: #ffffff;">
+        <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 6px 0; letter-spacing: -0.3px;">Lab Logbook Invitation</h1>
+        <p style="color: #cbd5e1; font-size: 14px; margin: 0;">You have been invited to join a laboratory workspace</p>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: 32px 28px;">
+        <p style="color: #1e293b; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+          <strong>${input.inviterName}</strong> has invited you to join their lab workspace on CellsInVitro.
+        </p>
+
+        <!-- Lab card -->
+        <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px 20px; margin-bottom: 28px;">
+          <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.6px;">Lab Workspace</p>
+          <p style="margin: 0; font-size: 16px; font-weight: 600; color: #0f172a;">${input.labName}</p>
+        </div>
+
+        <!-- CTA -->
+        <div style="text-align: center; margin: 28px 0 24px 0;">
+          <a href="${input.acceptUrl}"
+             style="display: inline-block; padding: 14px 36px; background-color: #0f172a; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px; letter-spacing: -0.2px;">
+            Accept Invitation &rarr;
+          </a>
+        </div>
+
+        <p style="color: #64748b; font-size: 12px; text-align: center; line-height: 1.5; margin: 0;">
+          This invite link expires in <strong>7 days</strong>. If you were not expecting this invitation, you can safely ignore this email.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+        CellsInVitro &bull; Lab Logbook &bull; Advancing Cell Culture Research
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    input.to,
+    `${input.inviterName} invited you to join ${input.labName} on CellsInVitro`,
+    html
+  );
+}
+
 export async function notifyKitOrderCreated(paymentId: string) {
   try {
     const payment = await prisma.payment.findUnique({

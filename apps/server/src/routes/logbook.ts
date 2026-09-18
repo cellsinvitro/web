@@ -3,6 +3,9 @@ import { HTTPException } from "hono/http-exception";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import crypto from "node:crypto";
+import { sendLogbookInviteEmail } from "../lib/email.js";
+
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:3001";
 
 export const logbookRoutes = new Hono<{ Variables: AuthVariables }>();
 
@@ -408,6 +411,15 @@ logbookRoutes.post("/labs/:labId/invites", async (c) => {
   const displayName = inviterUser.name || inviterUser.email;
 
   await logActivity(authUser.sub, displayName, "MEMBER_INVITED", `Sent invitation to ${inviteeEmail} for ${lab.name}`, labId);
+
+  // Send invite email (fire-and-forget; don't fail the request if email isn't configured)
+  const acceptUrl = `${FRONTEND_ORIGIN}/logbook/invite?token=${token}`;
+  sendLogbookInviteEmail({
+    to: inviteeEmail,
+    inviterName: displayName,
+    labName: lab.name,
+    acceptUrl,
+  }).catch((err) => console.error("[email] Failed to send logbook invite email:", err));
 
   return c.json({
     success: true,
