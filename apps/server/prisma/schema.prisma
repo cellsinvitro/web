@@ -39,6 +39,9 @@ model User {
   instrumentBookings InstrumentBooking[]
   logbookPermission  LogbookPermission?
   labNotebookEntries LabNotebookEntry[]
+  labWorkspacesOwned LabWorkspace[]     @relation("LabWorkspaceOwner")
+  labMemberships     LabMember[]
+  labInvitesSent     LabInvite[]        @relation("LabInviteInviter")
 }
 
 model MaintenanceRule {
@@ -843,9 +846,77 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum LabMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum LabInviteStatus {
+  PENDING
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+model LabWorkspace {
+  id          String             @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  owner       User               @relation("LabWorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     LabMember[]
+  invites     LabInvite[]
+  instruments Instrument[]
+  activities  LogbookActivity[]
+  notebooks   LabNotebookEntry[]
+
+  @@index([ownerId])
+}
+
+model LabMember {
+  id                   String        @id @default(cuid())
+  labId                String
+  userId               String
+  role                 LabMemberRole @default(MEMBER)
+  canViewLogbook       Boolean       @default(true)
+  canCreateEntries     Boolean       @default(true)
+  canEditOwnEntries    Boolean       @default(true)
+  canEditOthersEntries Boolean       @default(false)
+  canManageInstruments Boolean       @default(false)
+  canGenerateReports   Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  lab                  LabWorkspace  @relation(fields: [labId], references: [id], onDelete: Cascade)
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([labId, userId])
+  @@index([labId])
+  @@index([userId])
+}
+
+model LabInvite {
+  id           String          @id @default(cuid())
+  labId        String
+  inviterId    String
+  inviteeEmail String
+  token        String          @unique
+  status       LabInviteStatus @default(PENDING)
+  expiresAt    DateTime
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  lab          LabWorkspace    @relation(fields: [labId], references: [id], onDelete: Cascade)
+  inviter      User            @relation("LabInviteInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([labId])
+  @@index([inviteeEmail])
+}
+
 model Instrument {
-  id               String           @id @default(cuid())
-  code             String           @unique
+  id               String              @id @default(cuid())
+  code             String
   name             String
   installedOn      DateTime?
   lastServiceDate  DateTime?
@@ -854,11 +925,16 @@ model Instrument {
   inchargeName     String?
   inchargeContact  String?
   description      String?
-  status           InstrumentStatus @default(ACTIVE)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  status           InstrumentStatus    @default(ACTIVE)
+  labId            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
   bookings         InstrumentBooking[]
   activities       LogbookActivity[]
+  lab              LabWorkspace?       @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@index([labId])
+  @@index([code])
 }
 
 model InstrumentBooking {
@@ -899,29 +975,35 @@ model LogbookPermission {
 }
 
 model LogbookActivity {
-  id           String      @id @default(cuid())
+  id           String        @id @default(cuid())
+  labId        String?
   userId       String
   userName     String
-  action       String      // e.g. "BOOKING_CREATED", "BOOKING_CANCELLED", "INSTRUMENT_UPDATED"
+  action       String        // e.g. "BOOKING_CREATED", "BOOKING_CANCELLED", "INSTRUMENT_UPDATED"
   details      String
   instrumentId String?
-  createdAt    DateTime    @default(now())
-  instrument   Instrument? @relation(fields: [instrumentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  instrument   Instrument?   @relation(fields: [instrumentId], references: [id], onDelete: SetNull)
+  lab          LabWorkspace? @relation(fields: [labId], references: [id], onDelete: Cascade)
 
+  @@index([labId])
   @@index([userId])
   @@index([instrumentId, createdAt])
 }
 
 model LabNotebookEntry {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
+  labId     String?
   userId    String
   userName  String
-  date      DateTime @unique
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  content   String        @db.Text
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lab       LabWorkspace? @relation(fields: [labId], references: [id], onDelete: Cascade)
 
+  @@index([labId])
   @@index([date])
 }
 

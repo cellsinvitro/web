@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import LogbookHeader from "@/components/logbook/LogbookHeader";
 import { fetchLabNotebookEntry, saveLabNotebookEntry, type LabNotebookEntry } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useLabWorkspace } from "@/context/LabWorkspaceContext";
 import { isAdmin as checkIsAdmin } from "@/lib/admin";
 
 export default function LabNotebookPage() {
   const { user } = useAuth();
+  const { activeLab } = useLabWorkspace();
   const isAdminUser = checkIsAdmin(user?.role);
 
   const getTodayString = () => new Date().toISOString().split("T")[0] || "";
@@ -21,11 +23,12 @@ export default function LabNotebookPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadNotebook = async (dateStr: string) => {
+    if (!activeLab) return;
     try {
       setLoading(true);
       setError(null);
       setSavedMessage(null);
-      const res = await fetchLabNotebookEntry(dateStr);
+      const res = await fetchLabNotebookEntry(dateStr, activeLab.id);
       setEntry(res.entry);
       setContent(res.entry ? res.entry.content : "");
     } catch (err: unknown) {
@@ -38,14 +41,15 @@ export default function LabNotebookPage() {
 
   useEffect(() => {
     loadNotebook(selectedDate);
-  }, [selectedDate]);
+  }, [selectedDate, activeLab?.id]);
 
   const handleSave = async () => {
+    if (!activeLab) return;
     try {
       setSaving(true);
       setError(null);
       setSavedMessage(null);
-      const updated = await saveLabNotebookEntry(content, selectedDate);
+      const updated = await saveLabNotebookEntry(content, selectedDate, activeLab.id);
       setEntry(updated);
       setSavedMessage("Notebook entry saved successfully.");
       setTimeout(() => setSavedMessage(null), 3000);
@@ -80,7 +84,7 @@ export default function LabNotebookPage() {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 focus:border-teal-600 focus:outline-none"
+            className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 focus:border-slate-900 focus:outline-none"
           />
           <button
             type="button"

@@ -11,10 +11,12 @@ import {
   type InstrumentStatus,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useLabWorkspace } from "@/context/LabWorkspaceContext";
 import { isAdmin as checkIsAdmin } from "@/lib/admin";
 
 export default function LogbookDashboardPage() {
   const { user } = useAuth();
+  const { activeLab } = useLabWorkspace();
   const isAdminUser = checkIsAdmin(user?.role);
 
   const [instruments, setInstruments] = useState<LogbookInstrument[]>([]);
@@ -44,10 +46,11 @@ export default function LogbookDashboardPage() {
   const [modalError, setModalError] = useState<string | null>(null);
 
   const loadData = async () => {
+    if (!activeLab) return;
     try {
       setLoading(true);
       setError(null);
-      const res = await fetchLogbookInstruments();
+      const res = await fetchLogbookInstruments(activeLab.id);
       setInstruments(res.instruments);
       if (res.permissions) setPermissions(res.permissions);
     } catch (err: unknown) {
@@ -60,7 +63,7 @@ export default function LogbookDashboardPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [activeLab?.id]);
 
   const handleAddInstrument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +85,7 @@ export default function LogbookDashboardPage() {
         nextServiceDate: nextServiceDate || null,
         description: description.trim() || null,
         status,
-      });
+      }, activeLab?.id);
 
       setShowAddModal(false);
       // Reset form
@@ -173,7 +176,7 @@ export default function LogbookDashboardPage() {
             <span className="text-xs font-medium text-slate-500">
               Today&apos;s Bookings
             </span>
-            <p className="text-xl font-bold text-teal-600">
+            <p className="text-xl font-bold text-slate-900">
               {instruments.reduce((acc, curr) => acc + (curr.todayBookingsCount || 0), 0)}
             </p>
           </div>
@@ -182,7 +185,7 @@ export default function LogbookDashboardPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-teal-600" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
         </div>
       ) : error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -316,7 +319,7 @@ export default function LogbookDashboardPage() {
                 <div className="mt-6 border-t border-slate-100 pt-4">
                   <Link
                     href={`/dashboard/logbook/instruments/${inst.id}`}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-teal-600"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800"
                   >
                     Open Logbook Calendar
                     <svg
@@ -373,7 +376,7 @@ export default function LogbookDashboardPage() {
                     placeholder="e.g. HPLC-02"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -384,7 +387,7 @@ export default function LogbookDashboardPage() {
                     placeholder="e.g. HPLC System"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
@@ -397,7 +400,7 @@ export default function LogbookDashboardPage() {
                     placeholder="e.g. Dr. XYZ"
                     value={inchargeName}
                     onChange={(e) => setInchargeName(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -407,7 +410,7 @@ export default function LogbookDashboardPage() {
                     placeholder="e.g. +91 9876543210"
                     value={inchargeContact}
                     onChange={(e) => setInchargeContact(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
@@ -419,7 +422,7 @@ export default function LogbookDashboardPage() {
                     type="date"
                     value={installedOn}
                     onChange={(e) => setInstalledOn(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-2 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-2 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -428,7 +431,7 @@ export default function LogbookDashboardPage() {
                     type="date"
                     value={lastServiceDate}
                     onChange={(e) => setLastServiceDate(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-2 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-2 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -437,7 +440,7 @@ export default function LogbookDashboardPage() {
                     type="date"
                     value={nextServiceDate}
                     onChange={(e) => setNextServiceDate(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-2 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-2 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
@@ -447,7 +450,7 @@ export default function LogbookDashboardPage() {
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as InstrumentStatus)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                 >
                   <option value="ACTIVE">Active</option>
                   <option value="UNDER_MAINTENANCE">Under Maintenance</option>
@@ -463,7 +466,7 @@ export default function LogbookDashboardPage() {
                   placeholder="Optional details or specifications..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-900 focus:outline-none"
                 />
               </div>
 

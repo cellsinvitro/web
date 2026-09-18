@@ -72,6 +72,14 @@ function MaintenanceIcon({ className }: IconProps) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 6.75a4.5 4.5 0 0 0-5.79 5.79L3.75 17.25a2.121 2.121 0 0 0 3 3l4.71-4.71a4.5 4.5 0 0 0 5.79-5.79l-2.25 2.25-2.25-.75-.75-2.25 2.25-2.25Z" /></svg>;
 }
 
+function LogbookIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+}
+
 function LogoutIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
@@ -83,6 +91,7 @@ function LogoutIcon({ className }: IconProps) {
 const navItems = [
   { label: "Overview", href: "/admin", icon: OverviewIcon },
   { label: "Users", href: "/admin/users", icon: UsersIcon },
+  { label: "Logbook", href: "/admin/logbook", icon: LogbookIcon },
   { label: "Courses", href: "/admin/courses", icon: CoursesIcon },
   { label: "Live Classes", href: "/admin/live-classes", icon: LiveIcon },
   { label: "Consultancy", href: "/admin/consultancy", icon: CoursesIcon },

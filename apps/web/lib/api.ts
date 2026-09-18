@@ -2127,6 +2127,35 @@ export type LogbookBooking = {
   user?: { id: string; name: string | null; email: string; avatarUrl: string | null };
 };
 
+export type LabWorkspaceItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  isOwner: boolean;
+  role: string;
+  membersCount: number;
+};
+
+export type LabInviteItem = {
+  id: string;
+  email: string;
+  token: string;
+  status: "PENDING" | "ACCEPTED" | "CANCELLED" | "EXPIRED";
+  createdAt: string;
+  expiresAt: string;
+};
+
+export type LabTeamMember = {
+  id: string;
+  memberId: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  designation: string | null;
+  permissions: LogbookPermission;
+};
+
 export type LogbookUserWithPermissions = {
   id: string;
   name: string;
@@ -2169,12 +2198,66 @@ export type LabNotebookEntry = {
   updatedAt: string;
 };
 
-export async function fetchLogbookInstruments() {
-  return apiFetch<{ instruments: LogbookInstrument[]; permissions: LogbookPermission }>("/logbook/instruments");
+export async function fetchUserLabs() {
+  const data = await apiFetch<{ labs: LabWorkspaceItem[] }>("/logbook/labs");
+  return data.labs;
 }
 
-export async function fetchLogbookInstrument(id: string) {
-  return apiFetch<{ instrument: LogbookInstrument & { bookings: LogbookBooking[] } }>(`/logbook/instruments/${id}`);
+export async function createLabWorkspace(input: { name: string; description?: string }) {
+  const data = await apiFetch<{ lab: LabWorkspaceItem }>("/logbook/labs", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.lab;
+}
+
+export async function fetchLabTeam(labId: string) {
+  return apiFetch<{
+    labId: string;
+    labName: string;
+    isOwner: boolean;
+    userRole: string;
+    members: LabTeamMember[];
+    pendingInvites: LabInviteItem[];
+  }>(`/logbook/labs/${labId}/team`);
+}
+
+export async function sendLabInvite(labId: string, email: string) {
+  return apiFetch<{ success: true; invite: LabInviteItem }>(`/logbook/labs/${labId}/invites`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function cancelLabInvite(labId: string, inviteId: string) {
+  return apiFetch<{ success: true }>(`/logbook/labs/${labId}/invites/${inviteId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function acceptLabInvite(token: string) {
+  return apiFetch<{ success: true; labId: string; labName: string; memberId: string }>("/logbook/invites/accept", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function updateLabMemberPermission(labId: string, userId: string, input: Partial<LogbookPermission>) {
+  const data = await apiFetch<{ permission: LogbookPermission }>(`/logbook/labs/${labId}/members/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.permission;
+}
+
+export async function fetchLogbookInstruments(labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  return apiFetch<{ instruments: LogbookInstrument[]; permissions: LogbookPermission; labId?: string; labName?: string }>(`/logbook/instruments${query}`);
+}
+
+export async function fetchLogbookInstrument(id: string, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  return apiFetch<{ instrument: LogbookInstrument & { bookings: LogbookBooking[] } }>(`/logbook/instruments/${id}${query}`);
 }
 
 export async function createLogbookInstrument(input: {
@@ -2188,34 +2271,38 @@ export async function createLogbookInstrument(input: {
   inchargeContact?: string | null;
   description?: string | null;
   status?: InstrumentStatus;
-}) {
-  const data = await apiFetch<{ instrument: LogbookInstrument }>("/logbook/instruments", {
+}, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ instrument: LogbookInstrument }>(`/logbook/instruments${query}`, {
     method: "POST",
     body: JSON.stringify(input),
   });
   return data.instrument;
 }
 
-export async function updateLogbookInstrument(id: string, input: Partial<Omit<LogbookInstrument, "id" | "createdAt" | "updatedAt">>) {
-  const data = await apiFetch<{ instrument: LogbookInstrument }>(`/logbook/instruments/${id}`, {
+export async function updateLogbookInstrument(id: string, input: Partial<Omit<LogbookInstrument, "id" | "createdAt" | "updatedAt">>, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ instrument: LogbookInstrument }>(`/logbook/instruments/${id}${query}`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });
   return data.instrument;
 }
 
-export async function archiveLogbookInstrument(id: string) {
-  return apiFetch<{ success: true; instrument: LogbookInstrument }>(`/logbook/instruments/${id}`, {
+export async function archiveLogbookInstrument(id: string, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  return apiFetch<{ success: true; instrument: LogbookInstrument }>(`/logbook/instruments/${id}${query}`, {
     method: "DELETE",
   });
 }
 
-export async function fetchLogbookBookings(params: { instrumentId?: string; date?: string; fromDate?: string; toDate?: string }) {
+export async function fetchLogbookBookings(params: { instrumentId?: string; date?: string; fromDate?: string; toDate?: string; labId?: string }) {
   const query = new URLSearchParams();
   if (params.instrumentId) query.set("instrumentId", params.instrumentId);
   if (params.date) query.set("date", params.date);
   if (params.fromDate) query.set("fromDate", params.fromDate);
   if (params.toDate) query.set("toDate", params.toDate);
+  if (params.labId) query.set("labId", params.labId);
 
   const data = await apiFetch<{ bookings: LogbookBooking[] }>(`/logbook/bookings?${query.toString()}`);
   return data.bookings;
@@ -2227,68 +2314,165 @@ export async function createLogbookBooking(input: {
   startTime: string;
   endTime: string;
   remarks?: string;
-}) {
-  const data = await apiFetch<{ booking: LogbookBooking }>("/logbook/bookings", {
+}, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ booking: LogbookBooking }>(`/logbook/bookings${query}`, {
     method: "POST",
     body: JSON.stringify(input),
   });
   return data.booking;
 }
 
-export async function updateLogbookBooking(id: string, input: { date?: string; startTime?: string; endTime?: string; remarks?: string }) {
-  const data = await apiFetch<{ booking: LogbookBooking }>(`/logbook/bookings/${id}`, {
+export async function updateLogbookBooking(id: string, input: { date?: string; startTime?: string; endTime?: string; remarks?: string }, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ booking: LogbookBooking }>(`/logbook/bookings/${id}${query}`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });
   return data.booking;
 }
 
-export async function cancelLogbookBooking(id: string) {
-  return apiFetch<{ success: true; booking: LogbookBooking }>(`/logbook/bookings/${id}`, {
+export async function cancelLogbookBooking(id: string, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  return apiFetch<{ success: true; booking: LogbookBooking }>(`/logbook/bookings/${id}${query}`, {
     method: "DELETE",
   });
 }
 
-export async function fetchLogbookPermissions() {
-  const data = await apiFetch<{ users: LogbookUserWithPermissions[] }>("/logbook/permissions");
+export async function fetchLogbookPermissions(labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ users: LogbookUserWithPermissions[] }>(`/logbook/permissions${query}`);
   return data.users;
 }
 
-export async function updateLogbookPermission(userId: string, input: Partial<LogbookPermission>) {
-  const data = await apiFetch<{ permission: LogbookPermission }>(`/logbook/permissions/${userId}`, {
+export async function updateLogbookPermission(userId: string, input: Partial<LogbookPermission>, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ permission: LogbookPermission }>(`/logbook/permissions/${userId}${query}`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });
   return data.permission;
 }
 
-export async function fetchLogbookActivities(instrumentId?: string) {
-  const query = instrumentId ? `?instrumentId=${instrumentId}` : "";
-  const data = await apiFetch<{ activities: LogbookActivity[] }>(`/logbook/activities${query}`);
+export async function fetchLogbookActivities(instrumentId?: string, labId?: string) {
+  const query = new URLSearchParams();
+  if (instrumentId) query.set("instrumentId", instrumentId);
+  if (labId) query.set("labId", labId);
+
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  const data = await apiFetch<{ activities: LogbookActivity[] }>(`/logbook/activities${queryString}`);
   return data.activities;
 }
 
-export async function fetchLogbookReport(params: { instrumentId?: string; fromDate?: string; toDate?: string; userId?: string }) {
+export async function fetchLogbookReport(params: { instrumentId?: string; fromDate?: string; toDate?: string; userId?: string; labId?: string }) {
   const query = new URLSearchParams();
   if (params.instrumentId) query.set("instrumentId", params.instrumentId);
   if (params.fromDate) query.set("fromDate", params.fromDate);
   if (params.toDate) query.set("toDate", params.toDate);
   if (params.userId) query.set("userId", params.userId);
+  if (params.labId) query.set("labId", params.labId);
 
   return apiFetch<{ reportRows: LogbookReportRow[]; totalBookings: number }>(`/logbook/reports?${query.toString()}`);
 }
 
-export async function fetchLabNotebookEntry(date?: string) {
-  const query = date ? `?date=${date}` : "";
-  return apiFetch<{ date: string; entry: LabNotebookEntry | null }>(`/logbook/notebook${query}`);
+export async function fetchLabNotebookEntry(date?: string, labId?: string) {
+  const query = new URLSearchParams();
+  if (date) query.set("date", date);
+  if (labId) query.set("labId", labId);
+
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  return apiFetch<{ date: string; entry: LabNotebookEntry | null }>(`/logbook/notebook${queryString}`);
 }
 
-export async function saveLabNotebookEntry(content: string, date?: string) {
-  const data = await apiFetch<{ entry: LabNotebookEntry }>("/logbook/notebook", {
+export async function saveLabNotebookEntry(content: string, date?: string, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ entry: LabNotebookEntry }>(`/logbook/notebook${query}`, {
     method: "POST",
     body: JSON.stringify({ content, date }),
   });
   return data.entry;
+}
+
+export type AdminLogbookStats = {
+  totalLabs: number;
+  totalInstruments: number;
+  totalBookings: number;
+  totalNotebookEntries: number;
+  totalMembers: number;
+};
+
+export type AdminLabWorkspaceItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  owner: { id: string; name: string; email: string };
+  membersCount: number;
+  instrumentsCount: number;
+};
+
+export type AdminBookingItem = {
+  id: string;
+  instrumentId: string;
+  instrumentName: string;
+  instrumentCode: string;
+  labId: string | null;
+  labName: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  remarks: string;
+  status: string;
+  createdAt: string;
+};
+
+export type AdminNotebookItem = {
+  id: string;
+  date: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  labId: string | null;
+  labName: string;
+  content: string;
+  createdAt: string;
+};
+
+export async function fetchAdminLogbookOverview(params?: {
+  labId?: string;
+  userId?: string;
+  fromDate?: string;
+  toDate?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.labId) query.set("labId", params.labId);
+  if (params?.userId) query.set("userId", params.userId);
+  if (params?.fromDate) query.set("fromDate", params.fromDate);
+  if (params?.toDate) query.set("toDate", params.toDate);
+
+  return apiFetch<{
+    stats: AdminLogbookStats;
+    labs: AdminLabWorkspaceItem[];
+    users: { id: string; name: string | null; email: string; role: string }[];
+    bookings: AdminBookingItem[];
+    notebooks: AdminNotebookItem[];
+    activities: LogbookActivity[];
+  }>(`/logbook/admin/overview?${query.toString()}`);
+}
+
+export async function adminDeleteLabWorkspace(labId: string) {
+  return apiFetch<{ success: true }>(`/logbook/admin/labs/${labId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function adminCancelBooking(bookingId: string) {
+  return apiFetch<{ success: true; booking: LogbookBooking }>(`/logbook/admin/bookings/${bookingId}`, {
+    method: "DELETE",
+  });
 }
 
 

@@ -2,15 +2,65 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
+import crypto from "node:crypto";
 
 export const logbookRoutes = new Hono<{ Variables: AuthVariables }>();
 
 // All logbook endpoints require authentication
 logbookRoutes.use("*", requireAuth);
 
-// Helper: Ensure default instruments exist
-async function ensureDefaultInstruments() {
-  const count = await prisma.instrument.count();
+// Helper: Fetch user record
+async function getUserWithRole(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, name: true, email: true, role: true },
+  });
+  if (!user) throw new HTTPException(401, { message: "User not found" });
+  return user;
+}
+
+// Helper: Ensure user has at least one Lab Workspace (creates "My Lab Book" if none exists)
+async function ensureUserLabWorkspace(userId: string) {
+  const dbUser = await getUserWithRole(userId);
+  const owned = await prisma.labWorkspace.findFirst({ where: { ownerId: userId } });
+  if (owned) return owned;
+
+  const joined = await prisma.labMember.findFirst({ where: { userId } });
+  if (joined) {
+    const lab = await prisma.labWorkspace.findUnique({ where: { id: joined.labId } });
+    if (lab) return lab;
+  }
+
+  // Create default lab workspace for this user
+  const newLab = await prisma.labWorkspace.create({
+    data: {
+      name: `${dbUser.name || "My"} Lab Book`,
+      description: "Personal Laboratory Workspace & Instrument Logbook",
+      ownerId: userId,
+      members: {
+        create: {
+          userId: userId,
+          role: "OWNER",
+          canViewLogbook: true,
+          canCreateEntries: true,
+          canEditOwnEntries: true,
+          canEditOthersEntries: true,
+          canManageInstruments: true,
+          canGenerateReports: true,
+        },
+      },
+    },
+  });
+
+  // Also seed default instruments for new lab if none exist
+  await seedDefaultInstrumentsForLab(newLab.id);
+
+  return newLab;
+}
+
+// Seed default instruments for a specific lab workspace
+async function seedDefaultInstrumentsForLab(labId: string) {
+  const count = await prisma.instrument.count({ where: { labId } });
   if (count > 0) return;
 
   const defaultInstruments = [
@@ -25,6 +75,7 @@ async function ensureDefaultInstruments() {
       inchargeContact: "+91 9876543210",
       description: "High-Performance Liquid Chromatography system for analytical separations.",
       status: "ACTIVE" as const,
+      labId,
     },
     {
       code: "SPEC-01",
@@ -37,6 +88,7 @@ async function ensureDefaultInstruments() {
       inchargeContact: "+91 9876543211",
       description: "UV-Vis spectrophotometer for optical density measurements.",
       status: "ACTIVE" as const,
+      labId,
     },
     {
       code: "CENT-01",
@@ -49,35 +101,40 @@ async function ensureDefaultInstruments() {
       inchargeContact: "+91 9876543212",
       description: "High-speed refrigerated benchtop centrifuge.",
       status: "ACTIVE" as const,
+      labId,
     },
   ];
 
   for (const inst of defaultInstruments) {
-    await prisma.instrument.upsert({
-      where: { code: inst.code },
-      create: inst,
-      update: {},
-    });
+    await prisma.instrument.create({ data: inst });
   }
 }
 
-// Helper: Fetch user record + permissions
-async function getUserWithRole(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, name: true, email: true, role: true },
-  });
-  if (!user) throw new HTTPException(401, { message: "User not found" });
-  return user;
-}
-
-async function getUserPermissions(userId: string) {
+// Helper: Resolve active lab workspace & permissions for a user
+async function resolveLabAndPermissions(userId: string, requestedLabId?: string | null) {
   const dbUser = await getUserWithRole(userId);
 
-  if (dbUser.role === "ADMIN") {
+  let labId = requestedLabId;
+  if (!labId) {
+    const activeLab = await ensureUserLabWorkspace(userId);
+    labId = activeLab.id;
+  }
+
+  const lab = await prisma.labWorkspace.findUnique({
+    where: { id: labId },
+    include: { owner: true },
+  });
+
+  if (!lab) {
+    throw new HTTPException(404, { message: "Lab workspace not found" });
+  }
+
+  // System admin or Lab Owner gets full privileges
+  if (dbUser.role === "ADMIN" || lab.ownerId === userId) {
     return {
-      role: dbUser.role,
-      user: dbUser,
+      lab,
+      isOwner: true,
+      role: dbUser.role === "ADMIN" ? "ADMIN" : "OWNER",
       permissions: {
         canViewLogbook: true,
         canCreateEntries: true,
@@ -89,25 +146,31 @@ async function getUserPermissions(userId: string) {
     };
   }
 
-  const perm = await prisma.logbookPermission.findUnique({
-    where: { userId },
+  // Check membership
+  const member = await prisma.labMember.findUnique({
+    where: { labId_userId: { labId, userId } },
   });
 
+  if (!member) {
+    throw new HTTPException(403, { message: "You are not a member of this Lab Workspace" });
+  }
+
   return {
-    role: dbUser.role,
-    user: dbUser,
-    permissions: perm || {
-      canViewLogbook: true,
-      canCreateEntries: true,
-      canEditOwnEntries: true,
-      canEditOthersEntries: false,
-      canManageInstruments: false,
-      canGenerateReports: false,
+    lab,
+    isOwner: member.role === "OWNER",
+    role: member.role,
+    permissions: {
+      canViewLogbook: member.canViewLogbook,
+      canCreateEntries: member.canCreateEntries,
+      canEditOwnEntries: member.canEditOwnEntries,
+      canEditOthersEntries: member.canEditOthersEntries,
+      canManageInstruments: member.canManageInstruments,
+      canGenerateReports: member.canGenerateReports,
     },
   };
 }
 
-// Helper: Format date string YYYY-MM-DD
+// Format date string YYYY-MM-DD
 function getTodayString() {
   const d = new Date();
   const year = d.getFullYear();
@@ -116,18 +179,8 @@ function getTodayString() {
   return `${year}-${month}-${day}`;
 }
 
-// Helper: Parse date string + time string into DateTime
-function parseDateTime(dateStr: string, timeStr: string): Date {
-  const parts = timeStr.split(":");
-  const hours = Number(parts[0] || 0);
-  const minutes = Number(parts[1] || 0);
-  const d = new Date(dateStr);
-  d.setHours(hours, minutes, 0, 0);
-  return d;
-}
-
-// Helper: Log action in LogbookActivity
-async function logActivity(userId: string, userName: string, action: string, details: string, instrumentId?: string) {
+// Log action in LogbookActivity
+async function logActivity(userId: string, userName: string, action: string, details: string, labId?: string, instrumentId?: string) {
   try {
     await prisma.logbookActivity.create({
       data: {
@@ -135,6 +188,7 @@ async function logActivity(userId: string, userName: string, action: string, det
         userName,
         action,
         details,
+        labId: labId || null,
         instrumentId: instrumentId || null,
       },
     });
@@ -144,28 +198,428 @@ async function logActivity(userId: string, userName: string, action: string, det
 }
 
 // ─────────────────────────────────────────────
+// LAB WORKSPACE ENDPOINTS
+// ─────────────────────────────────────────────
+
+// GET /logbook/labs - List labs owned or joined by user
+logbookRoutes.get("/labs", async (c) => {
+  const authUser = c.get("user");
+  await ensureUserLabWorkspace(authUser.sub);
+
+  const ownedLabs = await prisma.labWorkspace.findMany({
+    where: { ownerId: authUser.sub },
+    include: {
+      _count: { select: { members: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const memberRecords = await prisma.labMember.findMany({
+    where: { userId: authUser.sub },
+    include: {
+      lab: {
+        include: {
+          _count: { select: { members: true } },
+        },
+      },
+    },
+  });
+
+  const ownedIds = new Set(ownedLabs.map((l) => l.id));
+  const joinedLabs = memberRecords
+    .map((mr) => mr.lab)
+    .filter((l) => !ownedIds.has(l.id));
+
+  const formattedOwned = ownedLabs.map((l) => ({
+    id: l.id,
+    name: l.name,
+    description: l.description,
+    isOwner: true,
+    role: "OWNER",
+    membersCount: l._count.members,
+  }));
+
+  const formattedJoined = joinedLabs.map((l) => ({
+    id: l.id,
+    name: l.name,
+    description: l.description,
+    isOwner: false,
+    role: "MEMBER",
+    membersCount: l._count.members,
+  }));
+
+  return c.json({
+    labs: [...formattedOwned, ...formattedJoined],
+  });
+});
+
+// POST /logbook/labs - Create new Lab Workspace
+logbookRoutes.post("/labs", async (c) => {
+  const authUser = c.get("user");
+  const body = await c.req.json().catch(() => null);
+
+  if (!body || !body.name || !String(body.name).trim()) {
+    throw new HTTPException(400, { message: "Lab Workspace Name is required" });
+  }
+
+  const name = String(body.name).trim();
+  const description = body.description ? String(body.description).trim() : null;
+
+  const lab = await prisma.labWorkspace.create({
+    data: {
+      name,
+      description,
+      ownerId: authUser.sub,
+      members: {
+        create: {
+          userId: authUser.sub,
+          role: "OWNER",
+          canViewLogbook: true,
+          canCreateEntries: true,
+          canEditOwnEntries: true,
+          canEditOthersEntries: true,
+          canManageInstruments: true,
+          canGenerateReports: true,
+        },
+      },
+    },
+  });
+
+  await seedDefaultInstrumentsForLab(lab.id);
+
+  return c.json({ lab });
+});
+
+// ─────────────────────────────────────────────
+// TEAM & INVITATIONS ENDPOINTS
+// ─────────────────────────────────────────────
+
+// GET /logbook/labs/:labId/team - Fetch active team members & pending invites
+logbookRoutes.get("/labs/:labId/team", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+
+  const { lab, isOwner, role } = await resolveLabAndPermissions(authUser.sub, labId);
+
+  // Active members
+  const members = await prisma.labMember.findMany({
+    where: { labId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          avatarUrl: true,
+          designation: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const formattedMembers = members.map((m) => ({
+    id: m.userId,
+    memberId: m.id,
+    name: m.user.name || m.user.email.split("@")[0],
+    email: m.user.email,
+    role: m.role,
+    avatarUrl: m.user.avatarUrl,
+    designation: m.user.designation,
+    permissions: {
+      canViewLogbook: m.canViewLogbook,
+      canCreateEntries: m.canCreateEntries,
+      canEditOwnEntries: m.canEditOwnEntries,
+      canEditOthersEntries: m.canEditOthersEntries,
+      canManageInstruments: m.canManageInstruments,
+      canGenerateReports: m.canGenerateReports,
+    },
+  }));
+
+  // Pending invites
+  const invites = await prisma.labInvite.findMany({
+    where: { labId, status: "PENDING" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const formattedInvites = invites.map((inv) => ({
+    id: inv.id,
+    email: inv.inviteeEmail,
+    token: inv.token,
+    status: inv.status,
+    createdAt: inv.createdAt,
+    expiresAt: inv.expiresAt,
+  }));
+
+  return c.json({
+    labId,
+    labName: lab.name,
+    isOwner,
+    userRole: role,
+    members: formattedMembers,
+    pendingInvites: formattedInvites,
+  });
+});
+
+// POST /logbook/labs/:labId/invites - Invite team member by email
+logbookRoutes.post("/labs/:labId/invites", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+
+  const { isOwner, role, lab } = await resolveLabAndPermissions(authUser.sub, labId);
+  if (!isOwner && role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only the Lab Owner or Admin can invite team members" });
+  }
+
+  const body = await c.req.json().catch(() => null);
+  if (!body || !body.email || !String(body.email).trim()) {
+    throw new HTTPException(400, { message: "Invitee Email is required" });
+  }
+
+  const inviteeEmail = String(body.email).trim().toLowerCase();
+
+  // Check if user is already an active member of this lab
+  const existingUser = await prisma.user.findUnique({ where: { email: inviteeEmail } });
+  if (existingUser) {
+    const activeMember = await prisma.labMember.findUnique({
+      where: { labId_userId: { labId, userId: existingUser.id } },
+    });
+    if (activeMember) {
+      throw new HTTPException(409, { message: `'${inviteeEmail}' is already an active member of this lab` });
+    }
+  }
+
+  const token = crypto.randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  const invite = await prisma.labInvite.create({
+    data: {
+      labId,
+      inviterId: authUser.sub,
+      inviteeEmail,
+      token,
+      status: "PENDING",
+      expiresAt,
+    },
+  });
+
+  const inviterUser = await getUserWithRole(authUser.sub);
+  const displayName = inviterUser.name || inviterUser.email;
+
+  await logActivity(authUser.sub, displayName, "MEMBER_INVITED", `Sent invitation to ${inviteeEmail} for ${lab.name}`, labId);
+
+  return c.json({
+    success: true,
+    invite: {
+      id: invite.id,
+      email: invite.inviteeEmail,
+      token: invite.token,
+      status: invite.status,
+      expiresAt: invite.expiresAt,
+    },
+  });
+});
+
+// DELETE /logbook/labs/:labId/invites/:inviteId - Cancel invite
+logbookRoutes.delete("/labs/:labId/invites/:inviteId", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+  const inviteId = c.req.param("inviteId");
+
+  const { isOwner, role } = await resolveLabAndPermissions(authUser.sub, labId);
+  if (!isOwner && role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Lab Owner or Admin can cancel invitations" });
+  }
+
+  await prisma.labInvite.update({
+    where: { id: inviteId },
+    data: { status: "CANCELLED" },
+  });
+
+  return c.json({ success: true });
+});
+
+// POST /logbook/invites/accept - Accept invitation link
+logbookRoutes.post("/invites/accept", async (c) => {
+  const authUser = c.get("user");
+  const body = await c.req.json().catch(() => null);
+
+  if (!body || !body.token) {
+    throw new HTTPException(400, { message: "Invitation token required" });
+  }
+
+  const invite = await prisma.labInvite.findUnique({
+    where: { token: String(body.token).trim() },
+    include: { lab: true },
+  });
+
+  if (!invite || invite.status !== "PENDING") {
+    throw new HTTPException(404, { message: "Invalid or expired invitation" });
+  }
+
+  if (invite.expiresAt < new Date()) {
+    await prisma.labInvite.update({
+      where: { id: invite.id },
+      data: { status: "EXPIRED" },
+    });
+    throw new HTTPException(400, { message: "Invitation has expired" });
+  }
+
+  // Create LabMember record
+  const member = await prisma.labMember.upsert({
+    where: { labId_userId: { labId: invite.labId, userId: authUser.sub } },
+    create: {
+      labId: invite.labId,
+      userId: authUser.sub,
+      role: "MEMBER",
+      canViewLogbook: true,
+      canCreateEntries: true,
+      canEditOwnEntries: true,
+      canEditOthersEntries: false,
+      canManageInstruments: false,
+      canGenerateReports: false,
+    },
+    update: {},
+  });
+
+  // Mark invite as accepted
+  await prisma.labInvite.update({
+    where: { id: invite.id },
+    data: { status: "ACCEPTED" },
+  });
+
+  const acceptorUser = await getUserWithRole(authUser.sub);
+  const displayName = acceptorUser.name || acceptorUser.email;
+
+  await logActivity(authUser.sub, displayName, "MEMBER_JOINED", `${displayName} accepted invitation and joined ${invite.lab.name}`, invite.labId);
+
+  return c.json({
+    success: true,
+    labId: invite.labId,
+    labName: invite.lab.name,
+    memberId: member.id,
+  });
+});
+
+// PATCH /logbook/labs/:labId/members/:memberUserId - Update member permissions
+logbookRoutes.patch("/labs/:labId/members/:memberUserId", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+  const memberUserId = c.req.param("memberUserId");
+
+  const { isOwner, role } = await resolveLabAndPermissions(authUser.sub, labId);
+  if (!isOwner && role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Laboratory Owner/Admin can update team permissions" });
+  }
+
+  const body = await c.req.json().catch(() => null);
+  if (!body) {
+    throw new HTTPException(400, { message: "Request body required" });
+  }
+
+  const updated = await prisma.labMember.update({
+    where: { labId_userId: { labId, userId: memberUserId } },
+    data: {
+      ...(body.canViewLogbook !== undefined && { canViewLogbook: Boolean(body.canViewLogbook) }),
+      ...(body.canCreateEntries !== undefined && { canCreateEntries: Boolean(body.canCreateEntries) }),
+      ...(body.canEditOwnEntries !== undefined && { canEditOwnEntries: Boolean(body.canEditOwnEntries) }),
+      ...(body.canEditOthersEntries !== undefined && { canEditOthersEntries: Boolean(body.canEditOthersEntries) }),
+      ...(body.canManageInstruments !== undefined && { canManageInstruments: Boolean(body.canManageInstruments) }),
+      ...(body.canGenerateReports !== undefined && { canGenerateReports: Boolean(body.canGenerateReports) }),
+    },
+  });
+
+  return c.json({ permission: updated });
+});
+
+// GET /logbook/permissions - Fallback backward compatibility endpoint
+logbookRoutes.get("/permissions", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const { lab, isOwner, role } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
+  const members = await prisma.labMember.findMany({
+    where: { labId: lab.id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          avatarUrl: true,
+          designation: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const formattedUsers = members.map((m) => ({
+    id: m.userId,
+    name: m.user.name || m.user.email.split("@")[0],
+    email: m.user.email,
+    role: m.role,
+    avatarUrl: m.user.avatarUrl,
+    designation: m.user.designation,
+    permissions: {
+      canViewLogbook: m.canViewLogbook,
+      canCreateEntries: m.canCreateEntries,
+      canEditOwnEntries: m.canEditOwnEntries,
+      canEditOthersEntries: m.canEditOthersEntries,
+      canManageInstruments: m.canManageInstruments,
+      canGenerateReports: m.canGenerateReports,
+    },
+  }));
+
+  return c.json({ users: formattedUsers, labId: lab.id, isOwner, role });
+});
+
+// PATCH /logbook/permissions/:userId - Fallback backward compatibility permission update
+logbookRoutes.patch("/permissions/:userId", async (c) => {
+  const authUser = c.get("user");
+  const targetUserId = c.req.param("userId");
+  const requestedLabId = c.req.query("labId");
+
+  const { lab } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+  const body = await c.req.json().catch(() => null);
+
+  const updated = await prisma.labMember.update({
+    where: { labId_userId: { labId: lab.id, userId: targetUserId } },
+    data: {
+      ...(body.canViewLogbook !== undefined && { canViewLogbook: Boolean(body.canViewLogbook) }),
+      ...(body.canCreateEntries !== undefined && { canCreateEntries: Boolean(body.canCreateEntries) }),
+      ...(body.canEditOwnEntries !== undefined && { canEditOwnEntries: Boolean(body.canEditOwnEntries) }),
+      ...(body.canEditOthersEntries !== undefined && { canEditOthersEntries: Boolean(body.canEditOthersEntries) }),
+      ...(body.canManageInstruments !== undefined && { canManageInstruments: Boolean(body.canManageInstruments) }),
+      ...(body.canGenerateReports !== undefined && { canGenerateReports: Boolean(body.canGenerateReports) }),
+    },
+  });
+
+  return c.json({ permission: updated });
+});
+
+// ─────────────────────────────────────────────
 // INSTRUMENTS ENDPOINTS
 // ─────────────────────────────────────────────
 
-// GET /logbook/instruments - List all instruments
+// GET /logbook/instruments - List instruments for active lab workspace
 logbookRoutes.get("/instruments", async (c) => {
-  await ensureDefaultInstruments();
-
   const authUser = c.get("user");
-  const { permissions } = await getUserPermissions(authUser.sub);
+  const requestedLabId = c.req.query("labId");
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
 
   if (!permissions.canViewLogbook) {
     throw new HTTPException(403, { message: "Access denied to Logbook" });
   }
 
   const instruments = await prisma.instrument.findMany({
-    where: { status: { not: "ARCHIVED" } },
+    where: { labId: lab.id, status: { not: "ARCHIVED" } },
     orderBy: { createdAt: "asc" },
     include: {
       bookings: {
-        where: {
-          status: "CONFIRMED",
-        },
+        where: { status: "CONFIRMED" },
         orderBy: { startDateTime: "asc" },
       },
     },
@@ -176,16 +630,12 @@ logbookRoutes.get("/instruments", async (c) => {
   const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   const enriched = instruments.map((inst) => {
-    // Today's bookings
     const todayBookings = inst.bookings.filter((b) => {
       const bDateStr = b.date.toISOString().split("T")[0];
       return bDateStr === todayStr;
     });
 
-    // Next upcoming booking today
     const nextBooking = todayBookings.find((b) => b.startDateTime >= now) || todayBookings[0] || null;
-
-    // Service due status
     const isServiceDueSoon = inst.nextServiceDate ? inst.nextServiceDate <= thirtyDaysFromNow : false;
 
     return {
@@ -208,55 +658,22 @@ logbookRoutes.get("/instruments", async (c) => {
     };
   });
 
-  return c.json({ instruments: enriched, permissions });
+  return c.json({ instruments: enriched, permissions, labId: lab.id, labName: lab.name });
 });
 
-// POST /logbook/instruments - Add instrument (Admin / Manage permission)
-logbookRoutes.post("/instruments", async (c) => {
-  const authUser = c.get("user");
-  const { permissions, user: dbUser } = await getUserPermissions(authUser.sub);
-
-  if (!permissions.canManageInstruments) {
-    throw new HTTPException(403, { message: "Only lab admins can manage instruments" });
-  }
-
-  const body = await c.req.json().catch(() => null);
-  if (!body || !body.name || !body.code) {
-    throw new HTTPException(400, { message: "Instrument Name and Code are required" });
-  }
-
-  const existing = await prisma.instrument.findUnique({ where: { code: String(body.code).trim() } });
-  if (existing) {
-    throw new HTTPException(409, { message: `Instrument code '${body.code}' already exists` });
-  }
-
-  const instrument = await prisma.instrument.create({
-    data: {
-      code: String(body.code).trim(),
-      name: String(body.name).trim(),
-      installedOn: body.installedOn ? new Date(body.installedOn) : null,
-      lastServiceDate: body.lastServiceDate ? new Date(body.lastServiceDate) : null,
-      lastCleaningDate: body.lastCleaningDate ? new Date(body.lastCleaningDate) : null,
-      nextServiceDate: body.nextServiceDate ? new Date(body.nextServiceDate) : null,
-      inchargeName: body.inchargeName ? String(body.inchargeName).trim() : null,
-      inchargeContact: body.inchargeContact ? String(body.inchargeContact).trim() : null,
-      description: body.description ? String(body.description).trim() : null,
-      status: body.status || "ACTIVE",
-    },
-  });
-
-  const displayName = dbUser.name || dbUser.email;
-
-  await logActivity(authUser.sub, displayName, "INSTRUMENT_ADDED", `${instrument.name} (${instrument.code}) was added to Lab Logbook`, instrument.id);
-
-  return c.json({ instrument }, 201);
-});
-
-// GET /logbook/instruments/:id - View single instrument details
+// GET /logbook/instruments/:id
 logbookRoutes.get("/instruments/:id", async (c) => {
-  const id = c.req.param("id");
+  const authUser = c.get("user");
+  const instId = c.req.param("id");
+  const requestedLabId = c.req.query("labId");
+
+  const { permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+  if (!permissions.canViewLogbook) {
+    throw new HTTPException(403, { message: "Access denied" });
+  }
+
   const instrument = await prisma.instrument.findUnique({
-    where: { id },
+    where: { id: instId },
     include: {
       bookings: {
         where: { status: "CONFIRMED" },
@@ -272,24 +689,73 @@ logbookRoutes.get("/instruments/:id", async (c) => {
   return c.json({ instrument });
 });
 
-// PATCH /logbook/instruments/:id - Edit instrument
-logbookRoutes.patch("/instruments/:id", async (c) => {
+// POST /logbook/instruments
+logbookRoutes.post("/instruments", async (c) => {
   const authUser = c.get("user");
-  const { permissions, user: dbUser } = await getUserPermissions(authUser.sub);
+  const requestedLabId = c.req.query("labId");
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
 
   if (!permissions.canManageInstruments) {
-    throw new HTTPException(403, { message: "Only lab admins can modify instrument information" });
+    throw new HTTPException(403, { message: "Only lab admins can manage instruments" });
   }
 
-  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+  if (!body || !body.name || !body.code) {
+    throw new HTTPException(400, { message: "Instrument Name and Code are required" });
+  }
+
+  const code = String(body.code).trim();
+  const existing = await prisma.instrument.findFirst({
+    where: { code, labId: lab.id },
+  });
+
+  if (existing) {
+    throw new HTTPException(409, { message: `Instrument code '${code}' already exists in this lab` });
+  }
+
+  const instrument = await prisma.instrument.create({
+    data: {
+      code,
+      name: String(body.name).trim(),
+      installedOn: body.installedOn ? new Date(body.installedOn) : null,
+      lastServiceDate: body.lastServiceDate ? new Date(body.lastServiceDate) : null,
+      lastCleaningDate: body.lastCleaningDate ? new Date(body.lastCleaningDate) : null,
+      nextServiceDate: body.nextServiceDate ? new Date(body.nextServiceDate) : null,
+      inchargeName: body.inchargeName ? String(body.inchargeName).trim() : null,
+      inchargeContact: body.inchargeContact ? String(body.inchargeContact).trim() : null,
+      description: body.description ? String(body.description).trim() : null,
+      status: body.status || "ACTIVE",
+      labId: lab.id,
+    },
+  });
+
+  const dbUser = await getUserWithRole(authUser.sub);
+  const displayName = dbUser.name || dbUser.email;
+
+  await logActivity(authUser.sub, displayName, "INSTRUMENT_ADDED", `${instrument.name} (${instrument.code}) added`, lab.id, instrument.id);
+
+  return c.json({ instrument });
+});
+
+// PATCH /logbook/instruments/:id
+logbookRoutes.patch("/instruments/:id", async (c) => {
+  const authUser = c.get("user");
+  const instId = c.req.param("id");
+  const requestedLabId = c.req.query("labId");
+
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+  if (!permissions.canManageInstruments) {
+    throw new HTTPException(403, { message: "Only lab admins can manage instruments" });
+  }
+
   const body = await c.req.json().catch(() => null);
   if (!body) throw new HTTPException(400, { message: "Request body required" });
 
-  const updated = await prisma.instrument.update({
-    where: { id },
+  const instrument = await prisma.instrument.update({
+    where: { id: instId },
     data: {
-      ...(body.name && { name: String(body.name).trim() }),
-      ...(body.code && { code: String(body.code).trim() }),
+      ...(body.name !== undefined && { name: String(body.name).trim() }),
+      ...(body.code !== undefined && { code: String(body.code).trim() }),
       ...(body.installedOn !== undefined && { installedOn: body.installedOn ? new Date(body.installedOn) : null }),
       ...(body.lastServiceDate !== undefined && { lastServiceDate: body.lastServiceDate ? new Date(body.lastServiceDate) : null }),
       ...(body.lastCleaningDate !== undefined && { lastCleaningDate: body.lastCleaningDate ? new Date(body.lastCleaningDate) : null }),
@@ -297,66 +763,67 @@ logbookRoutes.patch("/instruments/:id", async (c) => {
       ...(body.inchargeName !== undefined && { inchargeName: body.inchargeName ? String(body.inchargeName).trim() : null }),
       ...(body.inchargeContact !== undefined && { inchargeContact: body.inchargeContact ? String(body.inchargeContact).trim() : null }),
       ...(body.description !== undefined && { description: body.description ? String(body.description).trim() : null }),
-      ...(body.status && { status: body.status }),
+      ...(body.status !== undefined && { status: body.status }),
     },
   });
 
+  const dbUser = await getUserWithRole(authUser.sub);
   const displayName = dbUser.name || dbUser.email;
 
-  await logActivity(authUser.sub, displayName, "INSTRUMENT_UPDATED", `${updated.name} service/information was updated`, updated.id);
+  await logActivity(authUser.sub, displayName, "INSTRUMENT_UPDATED", `${instrument.name} details updated`, lab.id, instrument.id);
 
-  return c.json({ instrument: updated });
+  return c.json({ instrument });
 });
 
-// DELETE /logbook/instruments/:id - Archive instrument
+// DELETE /logbook/instruments/:id
 logbookRoutes.delete("/instruments/:id", async (c) => {
   const authUser = c.get("user");
-  const { permissions, user: dbUser } = await getUserPermissions(authUser.sub);
+  const instId = c.req.param("id");
+  const requestedLabId = c.req.query("labId");
 
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
   if (!permissions.canManageInstruments) {
     throw new HTTPException(403, { message: "Only lab admins can archive instruments" });
   }
 
-  const id = c.req.param("id");
-  const updated = await prisma.instrument.update({
-    where: { id },
+  const instrument = await prisma.instrument.update({
+    where: { id: instId },
     data: { status: "ARCHIVED" },
   });
 
+  const dbUser = await getUserWithRole(authUser.sub);
   const displayName = dbUser.name || dbUser.email;
 
-  await logActivity(authUser.sub, displayName, "INSTRUMENT_ARCHIVED", `${updated.name} was archived`, updated.id);
+  await logActivity(authUser.sub, displayName, "INSTRUMENT_ARCHIVED", `${instrument.name} was archived`, lab.id, instrument.id);
 
-  return c.json({ success: true, instrument: updated });
+  return c.json({ success: true, instrument });
 });
 
 // ─────────────────────────────────────────────
-// BOOKINGS / LOG ENTRIES ENDPOINTS
+// BOOKINGS ENDPOINTS
 // ─────────────────────────────────────────────
 
-// GET /logbook/bookings - Fetch bookings for instrument & date / date range
+// GET /logbook/bookings
 logbookRoutes.get("/bookings", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+
+  const { permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+  if (!permissions.canViewLogbook) {
+    throw new HTTPException(403, { message: "Access denied" });
+  }
+
   const instrumentId = c.req.query("instrumentId");
-  const dateStr = c.req.query("date"); // YYYY-MM-DD
-  const fromDateStr = c.req.query("fromDate");
-  const toDateStr = c.req.query("toDate");
+  const dateStr = c.req.query("date");
 
   const whereClause: Record<string, unknown> = {
     status: "CONFIRMED",
   };
 
-  if (instrumentId) {
-    whereClause.instrumentId = instrumentId;
-  }
-
+  if (instrumentId) whereClause.instrumentId = instrumentId;
   if (dateStr) {
-    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
-    whereClause.startDateTime = { gte: startOfDay, lte: endOfDay };
-  } else if (fromDateStr && toDateStr) {
-    const start = new Date(`${fromDateStr}T00:00:00.000Z`);
-    const end = new Date(`${toDateStr}T23:59:59.999Z`);
-    whereClause.startDateTime = { gte: start, lte: end };
+    const d = new Date(`${dateStr}T00:00:00.000Z`);
+    whereClause.date = d;
   }
 
   const bookings = await prisma.instrumentBooking.findMany({
@@ -371,313 +838,118 @@ logbookRoutes.get("/bookings", async (c) => {
   return c.json({ bookings });
 });
 
-// POST /logbook/bookings - Create new booking with strict overlap check
+// POST /logbook/bookings
 logbookRoutes.post("/bookings", async (c) => {
   const authUser = c.get("user");
-  const { permissions, user: dbUser } = await getUserPermissions(authUser.sub);
+  const requestedLabId = c.req.query("labId");
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
 
   if (!permissions.canCreateEntries) {
-    throw new HTTPException(403, { message: "You do not have permission to create logbook entries" });
+    throw new HTTPException(403, { message: "You do not have permission to create instrument bookings" });
   }
 
   const body = await c.req.json().catch(() => null);
   if (!body || !body.instrumentId || !body.date || !body.startTime || !body.endTime) {
-    throw new HTTPException(400, { message: "Instrument, Date, Start Time, and End Time are required" });
+    throw new HTTPException(400, { message: "instrumentId, date, startTime, and endTime are required" });
   }
 
-  const { instrumentId, date: dateStr, startTime, endTime, remarks } = body;
+  const dbUser = await getUserWithRole(authUser.sub);
+  const displayName = dbUser.name || dbUser.email;
 
-  // Verify instrument availability
-  const instrument = await prisma.instrument.findUnique({ where: { id: String(instrumentId) } });
-  if (!instrument) {
-    throw new HTTPException(404, { message: "Instrument not found" });
-  }
-  if (instrument.status === "UNDER_MAINTENANCE" || instrument.status === "OUT_OF_SERVICE" || instrument.status === "ARCHIVED") {
-    throw new HTTPException(400, { message: `Instrument is currently ${instrument.status.replace("_", " ").toLowerCase()}. New bookings are disabled.` });
-  }
+  const dateObj = new Date(`${body.date}T00:00:00.000Z`);
+  const startDT = new Date(`${body.date}T${body.startTime}:00.000Z`);
+  const endDT = new Date(`${body.date}T${body.endTime}:00.000Z`);
 
-  // Parse start & end Date objects
-  const startDateTime = parseDateTime(String(dateStr), String(startTime));
-  const endDateTime = parseDateTime(String(dateStr), String(endTime));
-
-  if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-    throw new HTTPException(400, { message: "Invalid date or time format" });
-  }
-
-  if (endDateTime <= startDateTime) {
+  if (endDT <= startDT) {
     throw new HTTPException(400, { message: "End time must be after start time" });
   }
 
-  const displayName = dbUser.name || dbUser.email;
-
-  // ─────────────────────────────────────────────
-  // STRICT ATOMIC OVERLAP CHECK (BACKEND LEVEL)
-  // Two ranges [A_start, A_end) and [B_start, B_end) overlap iff:
-  // A_start < B_end AND A_end > B_start
-  // ─────────────────────────────────────────────
-  const overlappingBookings = await prisma.instrumentBooking.findMany({
+  // Conflict check
+  const conflict = await prisma.instrumentBooking.findFirst({
     where: {
-      instrumentId: String(instrumentId),
+      instrumentId: String(body.instrumentId),
       status: "CONFIRMED",
-      startDateTime: { lt: endDateTime },
-      endDateTime: { gt: startDateTime },
+      date: dateObj,
+      OR: [
+        { startDateTime: { lt: endDT }, endDateTime: { gt: startDT } },
+      ],
     },
   });
 
-  if (overlappingBookings.length > 0) {
-    const conflict = overlappingBookings[0];
-    if (conflict) {
-      throw new HTTPException(409, {
-        message: `Instrument already booked during this time (${conflict.startTime} - ${conflict.endTime} by ${conflict.userName})`,
-      });
-    }
+  if (conflict) {
+    throw new HTTPException(409, { message: `Time slot ${body.startTime} - ${body.endTime} conflicts with an existing booking (${conflict.userName})` });
   }
 
-  // Create booking
   const booking = await prisma.instrumentBooking.create({
     data: {
-      instrumentId: String(instrumentId),
+      instrumentId: String(body.instrumentId),
       userId: authUser.sub,
       userName: displayName,
-      date: new Date(`${dateStr}T00:00:00.000Z`),
-      startTime: String(startTime),
-      endTime: String(endTime),
-      startDateTime,
-      endDateTime,
-      remarks: remarks ? String(remarks).trim() : null,
-      status: "CONFIRMED",
+      date: dateObj,
+      startTime: String(body.startTime),
+      endTime: String(body.endTime),
+      startDateTime: startDT,
+      endDateTime: endDT,
+      remarks: body.remarks ? String(body.remarks).trim() : null,
       createdBy: authUser.sub,
     },
     include: {
-      instrument: { select: { id: true, name: true, code: true } },
+      instrument: true,
     },
   });
 
-  // Log activity
-  await logActivity(
-    authUser.sub,
-    displayName,
-    "BOOKING_CREATED",
-    `${displayName} booked ${instrument.name} from ${startTime} to ${endTime} on ${dateStr}`,
-    instrument.id
-  );
+  await logActivity(authUser.sub, displayName, "BOOKING_CREATED", `Booked ${booking.instrument.name} for ${body.date} (${body.startTime} - ${body.endTime})`, lab.id, booking.instrumentId);
 
-  return c.json({ booking }, 201);
-});
-
-// PATCH /logbook/bookings/:id - Edit booking
-logbookRoutes.patch("/bookings/:id", async (c) => {
-  const authUser = c.get("user");
-  const { permissions, role, user: dbUser } = await getUserPermissions(authUser.sub);
-  const id = c.req.param("id");
-
-  const existing = await prisma.instrumentBooking.findUnique({
-    where: { id },
-    include: { instrument: true },
-  });
-
-  if (!existing) {
-    throw new HTTPException(404, { message: "Booking not found" });
-  }
-
-  // Permission check: Admin or Owner
-  const isOwner = existing.userId === authUser.sub;
-  if (!isOwner && !permissions.canEditOthersEntries && role !== "ADMIN") {
-    throw new HTTPException(403, { message: "You cannot modify another member's booking" });
-  }
-
-  const body = await c.req.json().catch(() => null);
-  if (!body) throw new HTTPException(400, { message: "Request body required" });
-
-  const dateStr = body.date || existing.date.toISOString().split("T")[0];
-  const startTime = body.startTime || existing.startTime;
-  const endTime = body.endTime || existing.endTime;
-
-  const startDateTime = parseDateTime(String(dateStr), String(startTime));
-  const endDateTime = parseDateTime(String(dateStr), String(endTime));
-
-  if (endDateTime <= startDateTime) {
-    throw new HTTPException(400, { message: "End time must be after start time" });
-  }
-
-  // If time/date changed, perform overlap check (excluding current booking ID)
-  if (
-    startDateTime.getTime() !== existing.startDateTime.getTime() ||
-    endDateTime.getTime() !== existing.endDateTime.getTime()
-  ) {
-    const overlapping = await prisma.instrumentBooking.findMany({
-      where: {
-        id: { not: id },
-        instrumentId: existing.instrumentId,
-        status: "CONFIRMED",
-        startDateTime: { lt: endDateTime },
-        endDateTime: { gt: startDateTime },
-      },
-    });
-
-    if (overlapping.length > 0) {
-      const conflict = overlapping[0];
-      if (conflict) {
-        throw new HTTPException(409, {
-          message: `Instrument already booked during this time (${conflict.startTime} - ${conflict.endTime} by ${conflict.userName})`,
-        });
-      }
-    }
-  }
-
-  const updated = await prisma.instrumentBooking.update({
-    where: { id },
-    data: {
-      date: new Date(`${dateStr}T00:00:00.000Z`),
-      startTime: String(startTime),
-      endTime: String(endTime),
-      startDateTime,
-      endDateTime,
-      ...(body.remarks !== undefined && { remarks: body.remarks ? String(body.remarks).trim() : null }),
-    },
-    include: {
-      instrument: { select: { id: true, name: true, code: true } },
-    },
-  });
-
-  const displayName = dbUser.name || dbUser.email;
-
-  const actionText = isOwner
-    ? `${displayName} updated their ${existing.instrument.name} booking`
-    : `${displayName} (Admin) modified ${existing.userName}'s ${existing.instrument.name} booking`;
-
-  await logActivity(authUser.sub, displayName, "BOOKING_UPDATED", actionText, existing.instrumentId);
-
-  return c.json({ booking: updated });
+  return c.json({ booking });
 });
 
 // DELETE /logbook/bookings/:id - Cancel booking
 logbookRoutes.delete("/bookings/:id", async (c) => {
   const authUser = c.get("user");
-  const { permissions, role, user: dbUser } = await getUserPermissions(authUser.sub);
-  const id = c.req.param("id");
+  const bookingId = c.req.param("id");
+  const requestedLabId = c.req.query("labId");
 
-  const existing = await prisma.instrumentBooking.findUnique({
-    where: { id },
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
+  const booking = await prisma.instrumentBooking.findUnique({
+    where: { id: bookingId },
     include: { instrument: true },
   });
 
-  if (!existing) {
-    throw new HTTPException(404, { message: "Booking not found" });
+  if (!booking) throw new HTTPException(404, { message: "Booking not found" });
+
+  const isOwner = booking.userId === authUser.sub;
+  if (!isOwner && !permissions.canEditOthersEntries) {
+    throw new HTTPException(403, { message: "You can only cancel your own bookings" });
   }
 
-  // Permission check: Admin or Owner
-  const isOwner = existing.userId === authUser.sub;
-  if (!isOwner && !permissions.canEditOthersEntries && role !== "ADMIN") {
-    throw new HTTPException(403, { message: "You cannot cancel another member's booking" });
-  }
-
-  const cancelled = await prisma.instrumentBooking.update({
-    where: { id },
+  const updated = await prisma.instrumentBooking.update({
+    where: { id: bookingId },
     data: { status: "CANCELLED" },
   });
 
+  const dbUser = await getUserWithRole(authUser.sub);
   const displayName = dbUser.name || dbUser.email;
 
-  const actionText = isOwner
-    ? `${displayName} cancelled their ${existing.instrument.name} booking (${existing.startTime} - ${existing.endTime})`
-    : `${displayName} (Admin) cancelled ${existing.userName}'s ${existing.instrument.name} booking`;
+  await logActivity(authUser.sub, displayName, "BOOKING_CANCELLED", `Cancelled booking for ${booking.instrument.name} on ${booking.startTime}`, lab.id, booking.instrumentId);
 
-  await logActivity(authUser.sub, displayName, "BOOKING_CANCELLED", actionText, existing.instrumentId);
-
-  return c.json({ success: true, booking: cancelled });
-});
-
-// ─────────────────────────────────────────────
-// PERMISSIONS ENDPOINTS
-// ─────────────────────────────────────────────
-
-// GET /logbook/permissions - List team permissions (Admin view)
-logbookRoutes.get("/permissions", async (c) => {
-  const authUser = c.get("user");
-  const { role } = await getUserPermissions(authUser.sub);
-  if (role !== "ADMIN") {
-    throw new HTTPException(403, { message: "Admin access required" });
-  }
-
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      avatarUrl: true,
-      designation: true,
-      logbookPermission: true,
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const enrichedUsers = users.map((u) => ({
-    id: u.id,
-    name: u.name || u.email,
-    email: u.email,
-    role: u.role,
-    avatarUrl: u.avatarUrl,
-    designation: u.designation,
-    permissions: u.logbookPermission || {
-      canViewLogbook: true,
-      canCreateEntries: true,
-      canEditOwnEntries: true,
-      canEditOthersEntries: u.role === "ADMIN",
-      canManageInstruments: u.role === "ADMIN",
-      canGenerateReports: u.role === "ADMIN",
-    },
-  }));
-
-  return c.json({ users: enrichedUsers });
-});
-
-// PATCH /logbook/permissions/:userId - Update user logbook permissions
-logbookRoutes.patch("/permissions/:userId", async (c) => {
-  const authUser = c.get("user");
-  const { role } = await getUserPermissions(authUser.sub);
-  if (role !== "ADMIN") {
-    throw new HTTPException(403, { message: "Admin access required" });
-  }
-
-  const userId = c.req.param("userId");
-  const body = await c.req.json().catch(() => null);
-  if (!body) throw new HTTPException(400, { message: "Request body required" });
-
-  const updated = await prisma.logbookPermission.upsert({
-    where: { userId },
-    create: {
-      userId,
-      canViewLogbook: body.canViewLogbook ?? true,
-      canCreateEntries: body.canCreateEntries ?? true,
-      canEditOwnEntries: body.canEditOwnEntries ?? true,
-      canEditOthersEntries: body.canEditOthersEntries ?? false,
-      canManageInstruments: body.canManageInstruments ?? false,
-      canGenerateReports: body.canGenerateReports ?? false,
-    },
-    update: {
-      ...(body.canViewLogbook !== undefined && { canViewLogbook: Boolean(body.canViewLogbook) }),
-      ...(body.canCreateEntries !== undefined && { canCreateEntries: Boolean(body.canCreateEntries) }),
-      ...(body.canEditOwnEntries !== undefined && { canEditOwnEntries: Boolean(body.canEditOwnEntries) }),
-      ...(body.canEditOthersEntries !== undefined && { canEditOthersEntries: Boolean(body.canEditOthersEntries) }),
-      ...(body.canManageInstruments !== undefined && { canManageInstruments: Boolean(body.canManageInstruments) }),
-      ...(body.canGenerateReports !== undefined && { canGenerateReports: Boolean(body.canGenerateReports) }),
-    },
-  });
-
-  return c.json({ permission: updated });
+  return c.json({ success: true, booking: updated });
 });
 
 // ─────────────────────────────────────────────
 // ACTIVITIES ENDPOINT
 // ─────────────────────────────────────────────
 
-// GET /logbook/activities - Master Logbook Activity log
 logbookRoutes.get("/activities", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const { lab } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
   const instrumentId = c.req.query("instrumentId");
 
-  const whereClause: Record<string, unknown> = {};
+  const whereClause: Record<string, unknown> = {
+    OR: [{ labId: lab.id }, { labId: null }],
+  };
   if (instrumentId) whereClause.instrumentId = instrumentId;
 
   const activities = await prisma.logbookActivity.findMany({
@@ -693,10 +965,10 @@ logbookRoutes.get("/activities", async (c) => {
 // REPORTS ENDPOINT
 // ─────────────────────────────────────────────
 
-// GET /logbook/reports - Generate reports rows
 logbookRoutes.get("/reports", async (c) => {
   const authUser = c.get("user");
-  const { permissions } = await getUserPermissions(authUser.sub);
+  const requestedLabId = c.req.query("labId");
+  const { permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
 
   if (!permissions.canGenerateReports) {
     throw new HTTPException(403, { message: "Only authorized members can generate reports" });
@@ -711,13 +983,8 @@ logbookRoutes.get("/reports", async (c) => {
     status: "CONFIRMED",
   };
 
-  if (instrumentId && instrumentId !== "ALL") {
-    whereClause.instrumentId = instrumentId;
-  }
-
-  if (userId && userId !== "ALL") {
-    whereClause.userId = userId;
-  }
+  if (instrumentId && instrumentId !== "ALL") whereClause.instrumentId = instrumentId;
+  if (userId && userId !== "ALL") whereClause.userId = userId;
 
   if (fromDateStr && toDateStr) {
     const start = new Date(`${fromDateStr}T00:00:00.000Z`);
@@ -758,13 +1025,20 @@ logbookRoutes.get("/reports", async (c) => {
 // LAB NOTEBOOK ENDPOINTS
 // ─────────────────────────────────────────────
 
-// GET /logbook/notebook - Fetch entry for date
 logbookRoutes.get("/notebook", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const { lab } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
   const dateStr = c.req.query("date") || getTodayString();
   const dateObj = new Date(`${dateStr}T00:00:00.000Z`);
 
-  const entry = await prisma.labNotebookEntry.findUnique({
-    where: { date: dateObj },
+  const entry = await prisma.labNotebookEntry.findFirst({
+    where: {
+      date: dateObj,
+      userId: authUser.sub,
+      OR: [{ labId: lab.id }, { labId: null }],
+    },
   });
 
   return c.json({
@@ -773,10 +1047,10 @@ logbookRoutes.get("/notebook", async (c) => {
   });
 });
 
-// POST /logbook/notebook - Save today's notebook entry
 logbookRoutes.post("/notebook", async (c) => {
   const authUser = c.get("user");
-  const { user: dbUser } = await getUserPermissions(authUser.sub);
+  const requestedLabId = c.req.query("labId");
+  const { lab } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
 
   const body = await c.req.json().catch(() => null);
 
@@ -786,23 +1060,220 @@ logbookRoutes.post("/notebook", async (c) => {
 
   const dateStr = body.date || getTodayString();
   const dateObj = new Date(`${dateStr}T00:00:00.000Z`);
-
+  const dbUser = await getUserWithRole(authUser.sub);
   const displayName = dbUser.name || dbUser.email;
 
-  const entry = await prisma.labNotebookEntry.upsert({
-    where: { date: dateObj },
-    create: {
+  const existing = await prisma.labNotebookEntry.findFirst({
+    where: {
       date: dateObj,
       userId: authUser.sub,
-      userName: displayName,
-      content: String(body.content),
-    },
-    update: {
-      userId: authUser.sub,
-      userName: displayName,
-      content: String(body.content),
+      labId: lab.id,
     },
   });
 
+  let entry;
+  if (existing) {
+    entry = await prisma.labNotebookEntry.update({
+      where: { id: existing.id },
+      data: {
+        content: String(body.content),
+        userName: displayName,
+      },
+    });
+  } else {
+    entry = await prisma.labNotebookEntry.create({
+      data: {
+        date: dateObj,
+        userId: authUser.sub,
+        userName: displayName,
+        content: String(body.content),
+        labId: lab.id,
+      },
+    });
+  }
+
   return c.json({ entry });
 });
+
+// ─────────────────────────────────────────────
+// SUPER ADMIN LOGBOOK OVERVIEW ENDPOINTS
+// ─────────────────────────────────────────────
+
+// GET /logbook/admin/overview - System-wide stats, labs, bookings, notebooks & activity
+logbookRoutes.get("/admin/overview", async (c) => {
+  const authUser = c.get("user");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  if (dbUser.role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Super Administrators can access the Admin Logbook Overview" });
+  }
+
+  const filterLabId = c.req.query("labId");
+  const filterUserId = c.req.query("userId");
+  const fromDateStr = c.req.query("fromDate");
+  const toDateStr = c.req.query("toDate");
+
+  // System Stats
+  const totalLabs = await prisma.labWorkspace.count();
+  const totalInstruments = await prisma.instrument.count({ where: { status: { not: "ARCHIVED" } } });
+  const totalBookings = await prisma.instrumentBooking.count({ where: { status: "CONFIRMED" } });
+  const totalNotebookEntries = await prisma.labNotebookEntry.count();
+  const totalMembers = await prisma.labMember.count();
+
+  // All Labs List
+  const labs = await prisma.labWorkspace.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      owner: { select: { id: true, name: true, email: true } },
+      _count: { select: { members: true, instruments: true } },
+    },
+  });
+
+  const formattedLabs = labs.map((l) => ({
+    id: l.id,
+    name: l.name,
+    description: l.description,
+    createdAt: l.createdAt.toISOString(),
+    owner: {
+      id: l.owner.id,
+      name: l.owner.name || l.owner.email.split("@")[0],
+      email: l.owner.email,
+    },
+    membersCount: l._count.members,
+    instrumentsCount: l._count.instruments,
+  }));
+
+  // All Users List
+  const users = await prisma.user.findMany({
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: { email: "asc" },
+  });
+
+  // Master Bookings
+  const bookingWhere: Record<string, unknown> = {};
+  if (filterLabId && filterLabId !== "ALL") {
+    bookingWhere.instrument = { labId: filterLabId };
+  }
+  if (filterUserId && filterUserId !== "ALL") {
+    bookingWhere.userId = filterUserId;
+  }
+  if (fromDateStr && toDateStr) {
+    const start = new Date(`${fromDateStr}T00:00:00.000Z`);
+    const end = new Date(`${toDateStr}T23:59:59.999Z`);
+    bookingWhere.startDateTime = { gte: start, lte: end };
+  }
+
+  const bookings = await prisma.instrumentBooking.findMany({
+    where: bookingWhere,
+    orderBy: { startDateTime: "desc" },
+    take: 300,
+    include: {
+      instrument: { select: { id: true, name: true, code: true, labId: true, lab: { select: { name: true } } } },
+      user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+    },
+  });
+
+  const formattedBookings = bookings.map((b) => ({
+    id: b.id,
+    instrumentId: b.instrumentId,
+    instrumentName: b.instrument.name,
+    instrumentCode: b.instrument.code,
+    labId: b.instrument.labId,
+    labName: b.instrument.lab?.name || "Global Lab",
+    userId: b.userId,
+    userName: b.user.name || b.userName,
+    userEmail: b.user.email,
+    date: b.date.toISOString().split("T")[0],
+    startTime: b.startTime,
+    endTime: b.endTime,
+    remarks: b.remarks || "-",
+    status: b.status,
+    createdAt: b.createdAt.toISOString(),
+  }));
+
+  // Master Lab Notebook Entries
+  const notebookWhere: Record<string, unknown> = {};
+  if (filterLabId && filterLabId !== "ALL") {
+    notebookWhere.labId = filterLabId;
+  }
+  if (filterUserId && filterUserId !== "ALL") {
+    notebookWhere.userId = filterUserId;
+  }
+
+  const notebooks = await prisma.labNotebookEntry.findMany({
+    where: notebookWhere,
+    orderBy: { date: "desc" },
+    take: 200,
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      lab: { select: { id: true, name: true } },
+    },
+  });
+
+  const formattedNotebooks = notebooks.map((n) => ({
+    id: n.id,
+    date: n.date.toISOString().split("T")[0],
+    userId: n.userId,
+    userName: n.user.name || n.userName,
+    userEmail: n.user.email,
+    labId: n.labId,
+    labName: n.lab?.name || "Personal Logbook",
+    content: n.content,
+    createdAt: n.createdAt.toISOString(),
+  }));
+
+  // Global Activities
+  const activities = await prisma.logbookActivity.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 150,
+  });
+
+  return c.json({
+    stats: {
+      totalLabs,
+      totalInstruments,
+      totalBookings,
+      totalNotebookEntries,
+      totalMembers,
+    },
+    labs: formattedLabs,
+    users,
+    bookings: formattedBookings,
+    notebooks: formattedNotebooks,
+    activities,
+  });
+});
+
+// DELETE /logbook/admin/labs/:labId - Admin Delete Lab Workspace
+logbookRoutes.delete("/admin/labs/:labId", async (c) => {
+  const authUser = c.get("user");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  if (dbUser.role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Super Administrators can delete lab workspaces" });
+  }
+
+  const labId = c.req.param("labId");
+  await prisma.labWorkspace.delete({ where: { id: labId } });
+
+  return c.json({ success: true });
+});
+
+// DELETE /logbook/admin/bookings/:bookingId - Admin Cancel/Delete Booking
+logbookRoutes.delete("/admin/bookings/:bookingId", async (c) => {
+  const authUser = c.get("user");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  if (dbUser.role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Super Administrators can cancel user bookings" });
+  }
+
+  const bookingId = c.req.param("bookingId");
+  const updated = await prisma.instrumentBooking.update({
+    where: { id: bookingId },
+    data: { status: "CANCELLED" },
+  });
+
+  return c.json({ success: true, booking: updated });
+});
+

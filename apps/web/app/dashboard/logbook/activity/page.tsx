@@ -9,10 +9,12 @@ import {
   type LogbookInstrument,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useLabWorkspace } from "@/context/LabWorkspaceContext";
 import { isAdmin as checkIsAdmin } from "@/lib/admin";
 
 export default function LogbookActivityPage() {
   const { user } = useAuth();
+  const { activeLab } = useLabWorkspace();
   const isAdminUser = checkIsAdmin(user?.role);
 
   const [instruments, setInstruments] = useState<LogbookInstrument[]>([]);
@@ -22,17 +24,20 @@ export default function LogbookActivityPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchLogbookInstruments()
+    if (!activeLab) return;
+    fetchLogbookInstruments(activeLab.id)
       .then((res) => setInstruments(res.instruments))
       .catch(() => {});
-  }, []);
+  }, [activeLab?.id]);
 
   const loadActivities = async () => {
+    if (!activeLab) return;
     try {
       setLoading(true);
       setError(null);
       const res = await fetchLogbookActivities(
-        selectedInstrumentId === "ALL" ? undefined : selectedInstrumentId
+        selectedInstrumentId === "ALL" ? undefined : selectedInstrumentId,
+        activeLab.id
       );
       setActivities(res);
     } catch (err: unknown) {
@@ -45,7 +50,7 @@ export default function LogbookActivityPage() {
 
   useEffect(() => {
     loadActivities();
-  }, [selectedInstrumentId]);
+  }, [selectedInstrumentId, activeLab?.id]);
 
   const getActionBadge = (action: string) => {
     if (action.includes("CREATED") || action.includes("ADDED")) {
@@ -84,7 +89,7 @@ export default function LogbookActivityPage() {
           <select
             value={selectedInstrumentId}
             onChange={(e) => setSelectedInstrumentId(e.target.value)}
-            className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-900 focus:border-teal-600 focus:outline-none"
+            className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-900 focus:border-slate-900 focus:outline-none"
           >
             <option value="ALL">All Instruments</option>
             {instruments.map((inst) => (
@@ -102,7 +107,7 @@ export default function LogbookActivityPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-teal-600" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
         </div>
       ) : error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
