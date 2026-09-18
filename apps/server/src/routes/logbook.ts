@@ -413,7 +413,7 @@ logbookRoutes.post("/labs/:labId/invites", async (c) => {
   await logActivity(authUser.sub, displayName, "MEMBER_INVITED", `Sent invitation to ${inviteeEmail} for ${lab.name}`, labId);
 
   // Send invite email (fire-and-forget; don't fail the request if email isn't configured)
-  const acceptUrl = `${FRONTEND_ORIGIN}/logbook/invite?token=${token}`;
+  const acceptUrl = `${FRONTEND_ORIGIN}/dashboard/logbook/invite/accept?token=${token}`;
   sendLogbookInviteEmail({
     to: inviteeEmail,
     inviterName: displayName,
