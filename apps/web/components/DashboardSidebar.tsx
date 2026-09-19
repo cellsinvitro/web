@@ -121,16 +121,23 @@ function StockIcon({ className }: IconProps) {
   );
 }
 
+function CyroSearchIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className={className} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25v19.5m9.75-9.75H2.25m16.714-6.964L5.036 18.714m13.928 0L5.036 5.036" />
+    </svg>
+  );
+}
+
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: OverviewIcon },
   { label: "Lab Log-Book", href: "/dashboard/logbook", icon: LogbookIcon },
-  { label: "Stock Management", href: "/dashboard/stock", icon: StockIcon },
+  { label: "CyroSearch", href: "/cyrosearch", icon: CyroSearchIcon },
   { label: "My Courses", href: "/dashboard/courses", icon: CoursesIcon },
   { label: "Live Classes", href: "/dashboard/live-classes", icon: LiveIcon },
   { label: "Consultancy", href: "/dashboard/consultancy", icon: ContactIcon },
   { label: "Resource Library", href: "/dashboard/resources", icon: ResourcesIcon },
   { label: "Research Kits", href: "/dashboard/kits", icon: KitsIcon },
-  { label: "Budget", href: "/dashboard/budget", icon: BudgetIcon },
   { label: "Order History", href: "/dashboard/orders", icon: OrdersIcon },
   { label: "Profile", href: "/dashboard/account", icon: AccountIcon },
 ];

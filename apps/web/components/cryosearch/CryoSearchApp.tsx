@@ -32,42 +32,26 @@ import ItemOptionsModal, { ItemType } from "./modals/ItemOptionsModal";
 import SendRequestModal from "./modals/SendRequestModal";
 import AllowedUsersModal from "./modals/AllowedUsersModal";
 
-// FAQ Data from mobile app FAQData.dart
-const FAQ_ITEMS = [
-  {
-    q: "How to use CryoSearch Repository?",
-    a: "Steps to start using CryoSearch:\n\n1. Go to the Repository section.\n2. Add your lab by clicking on the 'Create Lab' button.\n3. Within your lab, add a container (Dewar/Freezer) from the options menu.\n4. Similarly in the container, add different racks.\n5. In each rack, add boxes selecting the dimension (5x5, 9x9, or 10x10).\n6. Click on any box to open the interactive grid and store or revive cryovials.",
-  },
-  {
-    q: "How to make an entry for stored cryovials?",
-    a: "Click on the Box where you want to store vials. Click 'Store Cryovials' and select the vacant slots. Click 'Confirm Location' to enter cell line, passage, remarks, quality ratings, and stored date. Click 'Save' to finish.",
-  },
-  {
-    q: "How can we Search the location of cells stored?",
-    a: "Use the Search bar in the Repository section. Enter the name of the cell line (e.g. 'HeLa', 'MCF-7') or type 'vacant' to find empty slots. A list of matching boxes with their exact slot numbers will be displayed.",
-  },
-  {
-    q: "How to make an entry for revived cryovials?",
-    a: "Open the Box, click 'Revive Cryovials', and select the cell slot you wish to thaw. Click 'Revive', enter your post-thaw viability remarks and date, then confirm.",
-  },
-  {
-    q: "How can we observe past storage and revival?",
-    a: "Navigate to the 'Activities' tab to review a full chronological timeline of all storage and revival operations.",
-  },
-  {
-    q: "How can we share a location with a lab mate?",
-    a: "Click on the options menu (...) of any Lab, Container, Rack, or Box and select 'Share ID'. Share this ID with your collaborator. When they submit an Access Request with that ID, you will receive an approval notification in 'Access Requests'.",
-  },
-  {
-    q: "How to Unshare a location with a lab mate?",
-    a: "Go to the 'Access Requests' section and click 'Allowed Users'. Click 'Revoke Access' next to the collaborator to withdraw permissions.",
-  },
-];
+import { LabWorkspaceProvider } from "@/context/LabWorkspaceContext";
+import CryoBudgetWrapper from "./CryoBudgetWrapper";
+import StockDashboardPage from "@/app/dashboard/stock/dashboard/page";
+import StockInventoryPage from "@/app/dashboard/stock/inventory/page";
+import StockIssuePage from "@/app/dashboard/stock/issue/page";
+import StockActivityPage from "@/app/dashboard/stock/activity/page";
+import StockSettingsPage from "@/app/dashboard/stock/settings/page";
 
 export default function CryoSearchApp() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
   const [activeTab, setActiveTab] = useState<
-    "repo" | "activities" | "access" | "help"
-  >("repo");
+    "repo" | "activities" | "access" | "stock" | "budget"
+  >(() => {
+    if (tabParam === "stock" || tabParam === "budget" || tabParam === "activities" || tabParam === "access") {
+      return tabParam;
+    }
+    return "repo";
+  });
 
   // State
   const [labs, setLabs] = useState<LabModel[]>([]);
@@ -114,7 +98,6 @@ export default function CryoSearchApp() {
   const [accessSubTab, setAccessSubTab] = useState<"received" | "sent">("received");
 
   // ── Invite acceptance ──
-  const searchParams = useSearchParams();
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [invitePreview, setInvitePreview] = useState<CryoInvitePreview | null>(null);
   const [inviteState, setInviteState] = useState<
@@ -749,7 +732,7 @@ export default function CryoSearchApp() {
             onClick={() => setActiveTab("repo")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
               activeTab === "repo"
-                ? "bg-pink-600 text-white shadow-md shadow-pink-500/20"
+                ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             }`}
           >
@@ -764,7 +747,7 @@ export default function CryoSearchApp() {
             onClick={() => setActiveTab("activities")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
               activeTab === "activities"
-                ? "bg-pink-600 text-white shadow-md shadow-pink-500/20"
+                ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             }`}
           >
@@ -780,7 +763,7 @@ export default function CryoSearchApp() {
             onClick={() => setActiveTab("access")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
               activeTab === "access"
-                ? "bg-pink-600 text-white shadow-md shadow-pink-500/20"
+                ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             }`}
           >
@@ -797,20 +780,35 @@ export default function CryoSearchApp() {
             )}
           </button>
 
+
           <button
             type="button"
-            onClick={() => setActiveTab("help")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
-              activeTab === "help"
-                ? "bg-pink-600 text-white shadow-md shadow-pink-500/20"
+            onClick={() => setActiveTab("stock")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "stock"
+                ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
             </svg>
-            <span>FAQ & Info</span>
+            <span>Stock Management</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("budget")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "budget"
+                ? "bg-pink-600 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h1.5m-1.5 0h-1.5m-8.25 0H6m1.5 0H6" />
+            </svg>
+            <span>Budget Management</span>
           </button>
         </div>
 
@@ -1507,88 +1505,22 @@ export default function CryoSearchApp() {
           </div>
         )}
 
+
         {/* ======================================================= */}
-        {/* TAB 4: FAQ & INFO */}
+        {/* TAB 5: STOCK MANAGEMENT */}
         {/* ======================================================= */}
-        {activeTab === "help" && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* FAQs (8 Cols) */}
-            <div className="lg:col-span-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-1 text-base font-bold text-slate-900">
-                Frequently Asked Questions
-              </h2>
-              <p className="mb-6 text-xs text-slate-500">
-                Bench guide and documentation for CryoSearch repository workflows.
-              </p>
+        {activeTab === "stock" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
+            <CryoStockWrapper />
+          </div>
+        )}
 
-              <div className="space-y-3">
-                {FAQ_ITEMS.map((faq, i) => (
-                  <details
-                    key={i}
-                    className="group rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-all open:bg-white open:shadow-xs"
-                  >
-                    <summary className="cursor-pointer text-xs font-bold text-slate-900 list-none flex items-center justify-between">
-                      <span>{faq.q}</span>
-                      <span className="text-slate-400 group-open:rotate-180 transition-transform">
-                        ▼
-                      </span>
-                    </summary>
-                    <div className="mt-3 text-xs text-slate-600 whitespace-pre-line leading-relaxed border-t border-slate-100 pt-3">
-                      {faq.a}
-                    </div>
-                  </details>
-                ))}
-              </div>
-            </div>
-
-            {/* System Info & Reset (4 Cols) */}
-            <div className="lg:col-span-4 space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-900">
-                  About CryoSearch
-                </h3>
-                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  CryoSearch is built by <strong>CellsInVitro</strong> for biotechnology, pharmaceutical, and academic laboratories to eliminate cryovial misplacement and streamline cell banking.
-                </p>
-                <div className="mt-4 border-t border-slate-100 pt-3 text-[11px] text-slate-400 space-y-1">
-                  <div>Version 2.4.0 (Web Edition)</div>
-                  <div>Compatible with CryoSearch Mobile Android/iOS</div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm">
-                <h4 className="text-xs font-bold text-amber-900">
-                  Reset Demo Data
-                </h4>
-                <p className="mt-1 text-[11px] text-amber-700 leading-relaxed">
-                  Clear all labs, boxes, vials, activities, and access lists stored for this account.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm("Clear all CryoSearch data for this account?")) {
-                      const emptyState: CryoSearchState = {
-                        labs: [],
-                        activities: [],
-                        receivedRequests: [],
-                        sentRequests: [],
-                        allowedUsers: [],
-                      };
-                      setLabs(emptyState.labs);
-                      setActivities(emptyState.activities);
-                      setReceivedRequests(emptyState.receivedRequests);
-                      setSentRequests(emptyState.sentRequests);
-                      setAllowedUsers(emptyState.allowedUsers);
-                      persistState(emptyState);
-                      alert("Data cleared!");
-                    }
-                  }}
-                  className="mt-3 rounded-xl border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-bold text-amber-800 shadow-xs hover:bg-amber-100"
-                >
-                  Reset Demo Data
-                </button>
-              </div>
-            </div>
+        {/* ======================================================= */}
+        {/* TAB 6: BUDGET MANAGEMENT */}
+        {/* ======================================================= */}
+        {activeTab === "budget" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
+            <CryoBudgetWrapper />
           </div>
         )}
       </div>
@@ -1705,5 +1637,59 @@ export default function CryoSearchApp() {
         onRevokeAccess={handleRevokeAccess}
       />
     </div>
+  );
+}
+
+function CryoStockWrapper() {
+  const [subTab, setSubTab] = useState<"dashboard" | "inventory" | "issue" | "activity" | "settings">("dashboard");
+
+  return (
+    <LabWorkspaceProvider>
+      <div className="space-y-4">
+        <div className="border-b border-slate-200 bg-white px-6 pt-4 pb-0">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 shadow-sm text-white">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Stock Management</h2>
+              <p className="text-xs text-slate-500">Track reagents, inventory, issue requests & storage</p>
+            </div>
+          </div>
+          <nav className="flex gap-1 overflow-x-auto">
+            {[
+              { id: "dashboard", label: "Dashboard" },
+              { id: "inventory", label: "Inventory" },
+              { id: "issue", label: "Issue Stock" },
+              { id: "activity", label: "Activity Log" },
+              { id: "settings", label: "Settings" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setSubTab(item.id as typeof subTab)}
+                className={`flex-shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  subTab === item.id
+                    ? "border-slate-900 text-slate-900 font-bold"
+                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div>
+          {subTab === "dashboard" && <StockDashboardPage />}
+          {subTab === "inventory" && <StockInventoryPage />}
+          {subTab === "issue" && <StockIssuePage />}
+          {subTab === "activity" && <StockActivityPage />}
+          {subTab === "settings" && <StockSettingsPage />}
+        </div>
+      </div>
+    </LabWorkspaceProvider>
   );
 }
