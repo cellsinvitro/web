@@ -1153,3 +1153,80 @@ stockRoutes.patch("/lab/:labId/members/:memberId/stock-permissions", async (c) =
 
   return c.json(updated);
 });
+
+stockRoutes.post("/lab/:labId/members/add-by-email", async (c) => {
+  const authUser = c.get("user");
+  const userId = authUser.sub;
+  const { labId } = c.req.param();
+
+  await requireStockPermission(labId, userId, "canManageStockSettings");
+
+  const body = await c.req.json().catch(() => null);
+  if (!body || !body.email || !String(body.email).trim()) {
+    throw new HTTPException(400, { message: "Member email is required" });
+  }
+
+  const email = String(body.email).trim().toLowerCase();
+  const role = (body.role === "ADMIN" ? "ADMIN" : "MEMBER") as "ADMIN" | "MEMBER";
+  const perms = body.permissions || {};
+
+  const targetUser = await prisma.user.findUnique({ where: { email } });
+
+  if (targetUser) {
+    const existingMember = await prisma.labMember.findUnique({
+      where: { labId_userId: { labId, userId: targetUser.id } },
+    });
+    if (existingMember) {
+      throw new HTTPException(409, { message: `'${email}' is already an active member of this lab` });
+    }
+
+    const newMember = await prisma.labMember.create({
+      data: {
+        labId,
+        userId: targetUser.id,
+        role,
+        canViewStock: perms.canViewStock !== false,
+        canAddStock: perms.canAddStock !== false,
+        canEditStock: perms.canEditStock === true,
+        canIssueStock: perms.canIssueStock !== false,
+        canRestockStock: perms.canRestockStock === true,
+        canManageStockSettings: perms.canManageStockSettings === true,
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      },
+    });
+
+    return c.json({
+      success: true,
+      added: true,
+      member: newMember,
+      message: `${targetUser.name || email} added to lab as ${role}`,
+    });
+  }
+
+  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const invite = await prisma.labInvite.create({
+    data: {
+      labId,
+      inviterId: userId,
+      inviteeEmail: email,
+      token,
+      status: "PENDING",
+      expiresAt,
+    },
+  });
+
+  return c.json({
+    success: true,
+    invited: true,
+    invite: {
+      id: invite.id,
+      email: invite.inviteeEmail,
+      status: invite.status,
+    },
+    message: `Invitation created for '${email}'`,
+  });
+});

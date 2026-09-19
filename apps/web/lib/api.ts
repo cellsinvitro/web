@@ -2827,3 +2827,29 @@ export async function updateMemberStockPermissions(
     body: JSON.stringify(data),
   });
 }
+
+export async function addStockMemberByEmail(
+  labId: string,
+  payload: {
+    email: string;
+    role?: "MEMBER" | "ADMIN";
+    permissions?: Partial<StockPermissions>;
+  }
+) {
+  return apiFetch<{
+    success: boolean;
+    added?: boolean;
+    invited?: boolean;
+    message: string;
+    member?: {
+      id: string; labId: string; userId: string; role: string;
+      canViewStock: boolean; canAddStock: boolean; canEditStock: boolean;
+      canIssueStock: boolean; canRestockStock: boolean; canManageStockSettings: boolean;
+      user: { id: string; name: string | null; email: string; avatarUrl: string | null };
+    };
+    invite?: { id: string; email: string; status: string };
+  }>(`/stock/lab/${labId}/members/add-by-email`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
