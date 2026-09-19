@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/skeletons/Skeletons";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 
 export default function DashboardLoading() {
-  return <DashboardSkeleton />;
+  return <PageLoadingScreen sublabel="Loading dashboard..." />;
 }

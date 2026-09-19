@@ -18,7 +18,7 @@ import {
   getMaterialFileCountLabel,
   getMaterialTypeSummary,
 } from "@/lib/resources";
-import { DashboardSkeleton } from "@/components/skeletons/Skeletons";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 import EnrolledCoursesList from "@/components/dashboard/EnrolledCoursesList";
 import {
   CourseProgressBars,
@@ -204,7 +204,7 @@ export default function DashboardPage() {
 
   const completedCount = enrollments.filter((e) => e.status === "COMPLETED").length;
 
-  if (loading) return <DashboardSkeleton />;
+  if (loading) return <PageLoadingScreen sublabel="Loading dashboard..." />;
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">

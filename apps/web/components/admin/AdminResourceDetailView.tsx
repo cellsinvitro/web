@@ -21,6 +21,7 @@ import {
   getMaterialTypeSummary,
 } from "@/lib/resources";
 import { useConfirm } from "@/context/ConfirmContext";
+import { AdminSpinner } from "@/components/AdminLoader";
 
 export default function AdminResourceDetailView() {
   const params = useParams<{ id: string }>();
@@ -234,11 +235,12 @@ export default function AdminResourceDetailView() {
       </Link>
 
       {loading ? (
-        <div className="mt-8 space-y-4">
-          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white" />
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="h-80 animate-pulse rounded-2xl border border-slate-200 bg-white" />
-            <div className="h-80 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="mt-8 flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col items-center gap-3">
+            <AdminSpinner size={36} />
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              Loading resource details…
+            </span>
           </div>
         </div>
       ) : error ? (

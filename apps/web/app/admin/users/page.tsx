@@ -11,7 +11,6 @@ import type { AdminUser } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { AdminSpinner } from "@/components/AdminLoader";
-import { Skeleton } from "@/components/ui/Skeleton";
 
 function formatDate(value?: string) {
   if (!value) return "—";
@@ -153,28 +152,14 @@ export default function AdminUsersPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse border-b border-slate-100">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <Skeleton className="h-9 w-9 rounded-full" />
-                          <div className="space-y-1.5">
-                            <Skeleton className="h-4 w-32" />
-                            <Skeleton className="h-3 w-40" />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4"><Skeleton className="h-4 w-16" /></td>
-                      <td className="px-4 py-4"><Skeleton className="h-4 w-24" /></td>
-                      <td className="px-4 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
-                      <td className="px-4 py-4">
-                        <div className="flex gap-2">
-                          <Skeleton className="h-8 w-24 rounded-lg" />
-                          <Skeleton className="h-8 w-16 rounded-lg" />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <AdminSpinner size={36} />
+                        <span className="text-xs text-slate-400">Loading users…</span>
+                      </div>
+                    </td>
+                  </tr>
                 ) : error ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-10 text-center text-red-600">

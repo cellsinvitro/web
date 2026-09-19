@@ -17,6 +17,7 @@ import {
   parseAssaysText,
 } from "@/lib/kits";
 import { useConfirm } from "@/context/ConfirmContext";
+import { AdminSpinner } from "@/components/AdminLoader";
 
 export default function AdminKitDetailView() {
   const params = useParams<{ id: string }>();
@@ -193,7 +194,14 @@ export default function AdminKitDetailView() {
       </Link>
 
       {loading ? (
-        <div className="mt-8 h-80 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="mt-8 flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col items-center gap-3">
+            <AdminSpinner size={36} />
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              Loading kit details…
+            </span>
+          </div>
+        </div>
       ) : error ? (
         <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}

@@ -2,6 +2,7 @@
 
 import { useEffect, useReducer, useState } from "react";
 import Link from "next/link";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 import { fetchBudgets, createBudget, deleteBudget, type Budget } from "@/lib/api";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -384,10 +385,8 @@ export default function BudgetListPage() {
       </div>
 
       {loading ? (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl border border-slate-200 bg-white" />
-          ))}
+        <div className="mt-8">
+          <PageLoadingScreen sublabel="Loading lab budgets..." />
         </div>
       ) : error ? (
         <p className="mt-8 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

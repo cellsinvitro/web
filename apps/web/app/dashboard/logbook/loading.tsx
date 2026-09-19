@@ -1,5 +1,5 @@
-import { LogbookSkeleton } from "@/components/skeletons/Skeletons";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 
 export default function DashboardLogbookLoading() {
-  return <LogbookSkeleton />;
+  return <PageLoadingScreen sublabel="Loading logbook..." />;
 }

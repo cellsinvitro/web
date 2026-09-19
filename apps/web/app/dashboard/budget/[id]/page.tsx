@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 import * as XLSX from "xlsx";
 import {
   fetchBudget,
@@ -1019,21 +1020,7 @@ export default function BudgetDetailPage() {
   );
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
-        <div className="h-7 w-48 animate-pulse rounded-lg bg-slate-200" />
-        <div className="mt-6 grid gap-3 sm:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-xl border border-slate-200 bg-white" />
-          ))}
-        </div>
-        <div className="mt-8 space-y-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-60 animate-pulse rounded-2xl border border-slate-200 bg-white" />
-          ))}
-        </div>
-      </div>
-    );
+    return <PageLoadingScreen sublabel="Loading budget details..." />;
   }
 
   if (error || !budget) {

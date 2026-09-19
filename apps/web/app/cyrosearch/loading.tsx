@@ -1,5 +1,5 @@
-import { CryoSearchSkeleton } from "@/components/skeletons/Skeletons";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 
 export default function CryoSearchLoading() {
-  return <CryoSearchSkeleton />;
+  return <PageLoadingScreen sublabel="Loading CryoSearch..." />;
 }

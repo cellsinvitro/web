@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
+import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import {
   fetchConsultancyConsultants,
@@ -44,18 +46,7 @@ export default function DashboardConsultancyPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-10 w-52 rounded-xl bg-slate-200" />
-          <div className="grid gap-4 md:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-48 rounded-2xl border border-slate-200 bg-white" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <PageLoadingScreen sublabel="Loading consultancy..." />;
   }
 
   return (

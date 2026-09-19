@@ -1,9 +1,5 @@
-import { FormSkeleton } from "@/components/skeletons/Skeletons";
+import PageLoadingScreen from "@/components/PageLoadingScreen";
 
 export default function RegisterLoading() {
-  return (
-    <div className="flex min-h-[70vh] items-center justify-center p-4">
-      <FormSkeleton fields={4} />
-    </div>
-  );
+  return <PageLoadingScreen sublabel="Loading registration..." />;
 }

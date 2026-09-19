@@ -14,7 +14,6 @@ import {
   type ConsultancyConsultant,
 } from "@/lib/api";
 import { AdminSpinner } from "@/components/AdminLoader";
-import { TableSkeleton } from "@/components/skeletons/Skeletons";
 
 const inputClass = "rounded-xl border border-slate-200 px-3 py-2 text-sm";
 
@@ -158,8 +157,11 @@ export default function AdminConsultancyPage() {
 
   if (loading)
     return (
-      <div className="px-5 py-6 sm:px-8 sm:py-8 space-y-6">
-        <TableSkeleton rows={5} columns={5} />
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col items-center gap-3">
+          <AdminSpinner size={36} />
+          <span className="text-xs text-slate-400">Loading consultancy management…</span>
+        </div>
       </div>
     );
 
