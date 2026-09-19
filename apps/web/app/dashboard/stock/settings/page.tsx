@@ -18,11 +18,15 @@ import {
   fetchStockMembers,
   updateMemberStockPermissions,
   addStockMemberByEmail,
+  fetchStockLabInvites,
+  deleteStockLabInvite,
+  resendStockLabInvite,
   type StockSettings,
   type StockCategory,
   type StockTag,
   type StockLocation,
   type StockPermissions,
+  type StockLabInvite,
 } from "@/lib/api";
 
 const PERMISSION_LABELS: Array<{ key: keyof StockPermissions; label: string; desc: string }> = [
@@ -79,6 +83,7 @@ export default function StockSettingsPage() {
   const [tags, setTags] = useState<StockTag[]>([]);
   const [locations, setLocations] = useState<StockLocation[]>([]);
   const [members, setMembers] = useState<Awaited<ReturnType<typeof fetchStockMembers>>["members"]>([]);
+  const [invites, setInvites] = useState<StockLabInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,13 +121,14 @@ export default function StockSettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [initRes, settingsRes, catRes, tagRes, locRes, membersRes] = await Promise.all([
+      const [initRes, settingsRes, catRes, tagRes, locRes, membersRes, invitesRes] = await Promise.all([
         fetchStockInit(labId),
         fetchStockSettings(labId),
         fetchStockCategories(labId),
         fetchStockTags(labId),
         fetchStockLocations(labId),
         fetchStockMembers(labId),
+        fetchStockLabInvites(labId),
       ]);
       setPermissions(initRes.permissions);
       setSettings(settingsRes);
@@ -132,6 +138,7 @@ export default function StockSettingsPage() {
       setTags(tagRes.tags);
       setLocations(locRes.locations);
       setMembers(membersRes.members);
+      setInvites(invitesRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load settings");
     } finally {
@@ -278,20 +285,45 @@ export default function StockSettingsPage() {
         permissions: addPerms,
       });
 
-      if (res.added && res.member) {
-        setMembers((prev) => [...prev, res.member!]);
-        showSuccess(res.message || "Member added to lab");
-      } else if (res.invited) {
-        showSuccess(res.message || "Invitation sent to member");
+      if (res.pending && res.invite) {
+        setInvites((prev) => [res.invite, ...prev]);
+        showSuccess(res.message || `Invitation sent to '${addEmail}'. Status is PENDING until accepted.`);
       }
 
       setShowAddModal(false);
       setAddEmail("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add member");
+      setError(e instanceof Error ? e.message : "Failed to invite member");
     } finally {
       setAddingMember(false);
     }
+  }
+
+  async function handleResendInvite(inviteId: string) {
+    try {
+      const res = await resendStockLabInvite(labId, inviteId);
+      showSuccess(res.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to resend invite");
+    }
+  }
+
+  async function handleRevokeInvite(inviteId: string) {
+    if (!confirm("Cancel / revoke this pending invitation?")) return;
+    try {
+      await deleteStockLabInvite(labId, inviteId);
+      setInvites((prev) => prev.filter((i) => i.id !== inviteId));
+      showSuccess("Invitation cancelled");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to cancel invite");
+    }
+  }
+
+  function handleCopyInviteLink(token: string) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const link = `${origin}/dashboard/stock/invite/accept?token=${token}`;
+    navigator.clipboard.writeText(link);
+    showSuccess("Invite link copied to clipboard!");
   }
 
   // Flatten locations
@@ -638,7 +670,8 @@ export default function StockSettingsPage() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
-                <th className="py-3.5 px-4 text-xs font-bold uppercase tracking-wider text-slate-500">Member</th>
+                <th className="py-3.5 px-4 text-xs font-bold uppercase tracking-wider text-slate-500">Member / Invitee</th>
+                <th className="py-3.5 px-3 text-center text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
                 {PERMISSION_LABELS.map((p) => (
                   <th
                     key={p.key}
@@ -648,9 +681,11 @@ export default function StockSettingsPage() {
                     {p.label}
                   </th>
                 ))}
+                <th className="py-3.5 px-3 text-center text-xs font-bold uppercase tracking-wider text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
+              {/* Active Members */}
               {members.map((member) => {
                 const isPrivileged = member.role === "OWNER" || member.role === "ADMIN";
                 return (
@@ -673,6 +708,11 @@ export default function StockSettingsPage() {
                         </div>
                       </div>
                     </td>
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                        ACTIVE
+                      </span>
+                    </td>
                     {PERMISSION_LABELS.map((p) => {
                       const enabled = isPrivileged || (member[p.key as keyof typeof member] as boolean);
                       return (
@@ -694,6 +734,81 @@ export default function StockSettingsPage() {
                         </td>
                       );
                     })}
+                    <td className="py-3.5 px-3 text-center text-xs text-slate-400">—</td>
+                  </tr>
+                );
+              })}
+
+              {/* Pending Invites */}
+              {invites.map((invite) => {
+                return (
+                  <tr key={invite.id} className="bg-amber-50/30 hover:bg-amber-50/60 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700 shadow-sm border border-amber-200">
+                          ✉
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{invite.inviteeEmail}</p>
+                          <p className="text-[11px] text-slate-400">Invited by {invite.inviter?.name || invite.inviter?.email || "Admin"}</p>
+                          <span className="inline-block rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wider mt-0.5">
+                            {invite.role}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="inline-block rounded-full bg-amber-100 border border-amber-200 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+                        PENDING
+                      </span>
+                    </td>
+                    {PERMISSION_LABELS.map((p) => {
+                      const enabled = invite[p.key as keyof typeof invite] as boolean;
+                      return (
+                        <td key={p.key} className="py-3.5 px-3 text-center opacity-60">
+                          <div
+                            title="Initial configured permission upon acceptance"
+                            className={`mx-auto flex h-6 w-11 items-center rounded-full border cursor-not-allowed ${
+                              enabled ? "border-slate-900 bg-slate-950" : "border-slate-200 bg-slate-100"
+                            }`}
+                          >
+                            <span
+                              className={`h-4 w-4 rounded-full bg-white shadow-md transition-transform ${
+                                enabled ? "translate-x-5" : "translate-x-1"
+                              }`}
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="py-3.5 px-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyInviteLink(invite.token)}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
+                          title="Copy Invite Link"
+                        >
+                          Copy Link
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResendInvite(invite.id)}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
+                          title="Resend Email"
+                        >
+                          Resend
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeInvite(invite.id)}
+                          className="rounded-lg border border-red-200 bg-white px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-colors shadow-2xs"
+                          title="Cancel Invite"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

@@ -2828,6 +2828,25 @@ export async function updateMemberStockPermissions(
   });
 }
 
+export interface StockLabInvite {
+  id: string;
+  labId: string;
+  inviterId: string;
+  inviteeEmail: string;
+  role: "MEMBER" | "ADMIN";
+  canViewStock: boolean;
+  canAddStock: boolean;
+  canEditStock: boolean;
+  canIssueStock: boolean;
+  canRestockStock: boolean;
+  canManageStockSettings: boolean;
+  token: string;
+  status: "PENDING" | "ACCEPTED" | "EXPIRED" | "DECLINED";
+  expiresAt: string;
+  createdAt: string;
+  inviter?: { name: string | null; email: string };
+}
+
 export async function addStockMemberByEmail(
   labId: string,
   payload: {
@@ -2838,18 +2857,48 @@ export async function addStockMemberByEmail(
 ) {
   return apiFetch<{
     success: boolean;
-    added?: boolean;
-    invited?: boolean;
+    pending?: boolean;
     message: string;
-    member?: {
-      id: string; labId: string; userId: string; role: string;
-      canViewStock: boolean; canAddStock: boolean; canEditStock: boolean;
-      canIssueStock: boolean; canRestockStock: boolean; canManageStockSettings: boolean;
-      user: { id: string; name: string | null; email: string; avatarUrl: string | null };
-    };
-    invite?: { id: string; email: string; status: string };
+    invite: StockLabInvite;
   }>(`/stock/lab/${labId}/members/add-by-email`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
+
+export async function fetchStockLabInvites(labId: string) {
+  return apiFetch<StockLabInvite[]>(`/stock/lab/${labId}/invites`);
+}
+
+export async function deleteStockLabInvite(labId: string, inviteId: string) {
+  return apiFetch<{ success: boolean; message: string }>(`/stock/lab/${labId}/invites/${inviteId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function resendStockLabInvite(labId: string, inviteId: string) {
+  return apiFetch<{ success: boolean; message: string }>(`/stock/lab/${labId}/invites/${inviteId}/resend`, {
+    method: "POST",
+  });
+}
+
+export async function previewStockInvite(token: string) {
+  return apiFetch<{
+    id: string;
+    labId: string;
+    labName: string;
+    inviterName: string;
+    email: string;
+    role: string;
+    status: string;
+    isExpired: boolean;
+  }>(`/stock/invites/preview?token=${encodeURIComponent(token)}`);
+}
+
+export async function acceptStockInvite(token: string) {
+  return apiFetch<{ success: boolean; labId: string; labName: string; message: string }>(`/stock/invites/accept`, {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+

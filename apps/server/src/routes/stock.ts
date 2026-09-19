@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { prisma } from "../lib/prisma.js";
+import { sendStockLabInviteEmail } from "../lib/email.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 
 export const stockRoutes = new Hono<{ Variables: AuthVariables }>();
@@ -1170,8 +1171,8 @@ stockRoutes.post("/lab/:labId/members/add-by-email", async (c) => {
   const role = (body.role === "ADMIN" ? "ADMIN" : "MEMBER") as "ADMIN" | "MEMBER";
   const perms = body.permissions || {};
 
+  // Check if target user is ALREADY an active member of this lab
   const targetUser = await prisma.user.findUnique({ where: { email } });
-
   if (targetUser) {
     const existingMember = await prisma.labMember.findUnique({
       where: { labId_userId: { labId, userId: targetUser.id } },
@@ -1179,30 +1180,14 @@ stockRoutes.post("/lab/:labId/members/add-by-email", async (c) => {
     if (existingMember) {
       throw new HTTPException(409, { message: `'${email}' is already an active member of this lab` });
     }
+  }
 
-    const newMember = await prisma.labMember.create({
-      data: {
-        labId,
-        userId: targetUser.id,
-        role,
-        canViewStock: perms.canViewStock !== false,
-        canAddStock: perms.canAddStock !== false,
-        canEditStock: perms.canEditStock === true,
-        canIssueStock: perms.canIssueStock !== false,
-        canRestockStock: perms.canRestockStock === true,
-        canManageStockSettings: perms.canManageStockSettings === true,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
-      },
-    });
-
-    return c.json({
-      success: true,
-      added: true,
-      member: newMember,
-      message: `${targetUser.name || email} added to lab as ${role}`,
-    });
+  // Check if a PENDING invite already exists for this email in this lab
+  const existingInvite = await prisma.labInvite.findFirst({
+    where: { labId, inviteeEmail: email, status: "PENDING" },
+  });
+  if (existingInvite) {
+    throw new HTTPException(409, { message: `An invitation is already pending for '${email}'` });
   }
 
   const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -1213,20 +1198,203 @@ stockRoutes.post("/lab/:labId/members/add-by-email", async (c) => {
       labId,
       inviterId: userId,
       inviteeEmail: email,
+      role,
+      canViewStock: perms.canViewStock !== false,
+      canAddStock: perms.canAddStock !== false,
+      canEditStock: perms.canEditStock === true,
+      canIssueStock: perms.canIssueStock !== false,
+      canRestockStock: perms.canRestockStock === true,
+      canManageStockSettings: perms.canManageStockSettings === true,
       token,
       status: "PENDING",
       expiresAt,
     },
+    include: {
+      lab: { select: { name: true } },
+      inviter: { select: { name: true, email: true } },
+    },
+  });
+
+  const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:3000";
+  const acceptUrl = `${frontendOrigin}/dashboard/stock/invite/accept?token=${token}`;
+
+  await sendStockLabInviteEmail({
+    to: email,
+    inviterName: invite.inviter.name || invite.inviter.email,
+    labName: invite.lab.name,
+    role,
+    acceptUrl,
+  }).catch((err) => console.error("[stock] Failed to send invite email:", err));
+
+  return c.json({
+    success: true,
+    pending: true,
+    invite: {
+      id: invite.id,
+      labId: invite.labId,
+      inviteeEmail: invite.inviteeEmail,
+      role: invite.role,
+      status: invite.status,
+      token: invite.token,
+      expiresAt: invite.expiresAt,
+      createdAt: invite.createdAt,
+      canViewStock: invite.canViewStock,
+      canAddStock: invite.canAddStock,
+      canEditStock: invite.canEditStock,
+      canIssueStock: invite.canIssueStock,
+      canRestockStock: invite.canRestockStock,
+      canManageStockSettings: invite.canManageStockSettings,
+    },
+    message: `Invitation sent to '${email}'. Status is PENDING until accepted.`,
+  });
+});
+
+// GET pending invites for a lab
+stockRoutes.get("/lab/:labId/invites", async (c) => {
+  const authUser = c.get("user");
+  const userId = authUser.sub;
+  const { labId } = c.req.param();
+
+  await requireStockPermission(labId, userId, "canManageStockSettings");
+
+  const invites = await prisma.labInvite.findMany({
+    where: { labId, status: "PENDING" },
+    orderBy: { createdAt: "desc" },
+    include: { inviter: { select: { name: true, email: true } } },
+  });
+
+  return c.json(invites);
+});
+
+// Cancel / Revoke a pending invite
+stockRoutes.delete("/lab/:labId/invites/:inviteId", async (c) => {
+  const authUser = c.get("user");
+  const userId = authUser.sub;
+  const { labId, inviteId } = c.req.param();
+
+  await requireStockPermission(labId, userId, "canManageStockSettings");
+
+  const invite = await prisma.labInvite.findFirst({ where: { id: inviteId, labId } });
+  if (!invite) throw new HTTPException(404, { message: "Invite not found" });
+
+  await prisma.labInvite.delete({ where: { id: inviteId } });
+  return c.json({ success: true, message: "Invitation cancelled" });
+});
+
+// Resend a pending invite email
+stockRoutes.post("/lab/:labId/invites/:inviteId/resend", async (c) => {
+  const authUser = c.get("user");
+  const userId = authUser.sub;
+  const { labId, inviteId } = c.req.param();
+
+  await requireStockPermission(labId, userId, "canManageStockSettings");
+
+  const invite = await prisma.labInvite.findFirst({
+    where: { id: inviteId, labId },
+    include: {
+      lab: { select: { name: true } },
+      inviter: { select: { name: true, email: true } },
+    },
+  });
+
+  if (!invite) throw new HTTPException(404, { message: "Invite not found" });
+
+  const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:3000";
+  const acceptUrl = `${frontendOrigin}/dashboard/stock/invite/accept?token=${invite.token}`;
+
+  await sendStockLabInviteEmail({
+    to: invite.inviteeEmail,
+    inviterName: invite.inviter.name || invite.inviter.email,
+    labName: invite.lab.name,
+    role: invite.role,
+    acceptUrl,
+  });
+
+  return c.json({ success: true, message: `Invitation email resent to '${invite.inviteeEmail}'` });
+});
+
+// Preview invite token (public or auth)
+stockRoutes.get("/invites/preview", async (c) => {
+  const token = c.req.query("token");
+  if (!token) throw new HTTPException(400, { message: "Token is required" });
+
+  const invite = await prisma.labInvite.findUnique({
+    where: { token },
+    include: {
+      lab: { select: { id: true, name: true } },
+      inviter: { select: { name: true, email: true } },
+    },
+  });
+
+  if (!invite) throw new HTTPException(404, { message: "Invalid or expired invitation token" });
+
+  const isExpired = new Date() > invite.expiresAt;
+
+  return c.json({
+    id: invite.id,
+    labId: invite.labId,
+    labName: invite.lab.name,
+    inviterName: invite.inviter.name || invite.inviter.email,
+    email: invite.inviteeEmail,
+    role: invite.role,
+    status: invite.status,
+    isExpired,
+  });
+});
+
+// Accept invite token
+stockRoutes.post("/invites/accept", async (c) => {
+  const authUser = c.get("user");
+  const userId = authUser.sub;
+
+  const body = await c.req.json().catch(() => null);
+  const token = body?.token;
+  if (!token) throw new HTTPException(400, { message: "Token is required" });
+
+  const invite = await prisma.labInvite.findUnique({
+    where: { token },
+    include: { lab: { select: { id: true, name: true } } },
+  });
+
+  if (!invite) throw new HTTPException(404, { message: "Invalid invitation token" });
+  if (invite.status !== "PENDING") {
+    throw new HTTPException(400, { message: `Invitation has already been ${invite.status.toLowerCase()}` });
+  }
+  if (new Date() > invite.expiresAt) {
+    throw new HTTPException(400, { message: "Invitation link has expired" });
+  }
+
+  // Create member record if not exists
+  const existingMember = await prisma.labMember.findUnique({
+    where: { labId_userId: { labId: invite.labId, userId } },
+  });
+
+  if (!existingMember) {
+    await prisma.labMember.create({
+      data: {
+        labId: invite.labId,
+        userId,
+        role: invite.role,
+        canViewStock: invite.canViewStock,
+        canAddStock: invite.canAddStock,
+        canEditStock: invite.canEditStock,
+        canIssueStock: invite.canIssueStock,
+        canRestockStock: invite.canRestockStock,
+        canManageStockSettings: invite.canManageStockSettings,
+      },
+    });
+  }
+
+  // Update invite status
+  await prisma.labInvite.update({
+    where: { id: invite.id },
+    data: { status: "ACCEPTED" },
   });
 
   return c.json({
     success: true,
-    invited: true,
-    invite: {
-      id: invite.id,
-      email: invite.inviteeEmail,
-      status: invite.status,
-    },
-    message: `Invitation created for '${email}'`,
+    labId: invite.labId,
+    labName: invite.lab.name,
+    message: `You have successfully joined ${invite.lab.name}`,
   });
 });

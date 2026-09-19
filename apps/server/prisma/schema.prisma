@@ -915,17 +915,24 @@ model LabMember {
 }
 
 model LabInvite {
-  id           String          @id @default(cuid())
-  labId        String
-  inviterId    String
-  inviteeEmail String
-  token        String          @unique
-  status       LabInviteStatus @default(PENDING)
-  expiresAt    DateTime
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  lab          LabWorkspace    @relation(fields: [labId], references: [id], onDelete: Cascade)
-  inviter      User            @relation("LabInviteInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  id                      String          @id @default(cuid())
+  labId                   String
+  inviterId               String
+  inviteeEmail            String
+  role                    LabMemberRole   @default(MEMBER)
+  canViewStock            Boolean         @default(true)
+  canAddStock             Boolean         @default(true)
+  canEditStock            Boolean         @default(false)
+  canIssueStock           Boolean         @default(true)
+  canRestockStock         Boolean         @default(false)
+  canManageStockSettings  Boolean         @default(false)
+  token                   String          @unique
+  status                  LabInviteStatus @default(PENDING)
+  expiresAt               DateTime
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  lab                     LabWorkspace    @relation(fields: [labId], references: [id], onDelete: Cascade)
+  inviter                 User            @relation("LabInviteInviter", fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@index([labId])
   @@index([inviteeEmail])

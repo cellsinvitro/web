@@ -1495,3 +1495,35 @@ export async function notifyResourceAccess(input: {
     console.error("[email] Error in notifyResourceAccess:", err);
   }
 }
+
+export async function sendStockLabInviteEmail(input: {
+  to: string;
+  inviterName: string;
+  labName: string;
+  role: string;
+  acceptUrl: string;
+}) {
+  const subject = `You've been invited to join ${input.labName} on CellsInVitro`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
+      <h2 style="color: #0f172a; margin-top: 0;">Lab Workspace Invitation</h2>
+      <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+        <strong>${input.inviterName}</strong> has invited you to join the lab workspace <strong>${input.labName}</strong> as a <strong>${input.role}</strong>.
+      </p>
+      <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+        Accept this invitation to start collaborating on lab stock, reagents, inventory tracking, and stock requests.
+      </p>
+      <div style="margin: 28px 0; text-align: center;">
+        <a href="${input.acceptUrl}" style="background-color: #0f172a; color: #ffffff; padding: 12px 28px; text-decoration: none; font-weight: 600; font-size: 14px; border-radius: 12px; display: inline-block;">
+          Accept Invitation
+        </a>
+      </div>
+      <p style="color: #94a3b8; font-size: 12px;">
+        If you cannot click the button above, copy and paste this link into your browser:<br>
+        <a href="${input.acceptUrl}" style="color: #2563eb;">${input.acceptUrl}</a>
+      </p>
+    </div>
+  `;
+  return sendEmail(input.to, subject, html);
+}
+
