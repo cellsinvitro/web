@@ -2475,4 +2475,355 @@ export async function adminCancelBooking(bookingId: string) {
   });
 }
 
+// ─── Stock Management API ──────────────────────────────────────────────────────
 
+export type StockPermissions = {
+  canViewStock: boolean;
+  canAddStock: boolean;
+  canEditStock: boolean;
+  canIssueStock: boolean;
+  canRestockStock: boolean;
+  canManageStockSettings: boolean;
+};
+
+export type StockSettings = {
+  id?: string;
+  labId: string;
+  lowStockThreshold: number;
+  nearExpiryDays: number;
+};
+
+export type StockCategory = {
+  id: string;
+  labId: string;
+  name: string;
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StockTag = {
+  id: string;
+  labId: string;
+  name: string;
+  isDefault: boolean;
+  sortOrder: number;
+};
+
+export type StockLocation = {
+  id: string;
+  labId: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+  isDefault: boolean;
+  parent?: StockLocation | null;
+  children?: StockLocation[];
+};
+
+export type StockItem = {
+  id: string;
+  labId: string;
+  name: string;
+  casNo: string | null;
+  make: string | null;
+  catalogueNo: string | null;
+  packSize: string | null;
+  pricePaise: number;
+  currentQty: number;
+  expiryDate: string | null;
+  categoryId: string | null;
+  hazardStatus: "HAZARDOUS" | "NON_HAZARDOUS";
+  storageTemperature: "AMBIENT" | "FRIDGE_2_8" | "FREEZER_MINUS_20" | "DEEP_FREEZER_MINUS_80";
+  locationId: string | null;
+  remarks: string | null;
+  isArchived: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  // Computed
+  stockValuePaise?: number;
+  status?: string;
+  // Relations
+  category?: { id: string; name: string } | null;
+  location?: { id: string; name: string; parent?: { name: string } | null } | null;
+  tags?: Array<{ id: string; tag: { id: string; name: string } }>;
+  transactionItems?: StockTransactionItem[];
+};
+
+export type StockTransactionItem = {
+  id: string;
+  transactionId: string;
+  itemId: string;
+  quantity: number;
+  previousQty: number;
+  newQty: number;
+  transaction?: {
+    id: string;
+    type: string;
+    createdAt: string;
+    purpose: string | null;
+    reason: string | null;
+    remarks: string | null;
+    createdBy: { id: string; name: string | null };
+  };
+};
+
+export type StockActivityLog = {
+  id: string;
+  labId: string;
+  userId: string;
+  userName: string;
+  action: string;
+  itemId: string | null;
+  itemName: string;
+  quantityDelta: number;
+  previousQty: number;
+  newQty: number;
+  reason: string | null;
+  purpose: string | null;
+  remarks: string | null;
+  createdAt: string;
+};
+
+export type StockDashboardData = {
+  kpis: {
+    totalItems: number;
+    totalStockValuePaise: number;
+    totalLocations: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    expiredCount: number;
+    expiringSoonCount: number;
+    expiredValuePaise: number;
+    hazardousCount: number;
+    nonHazardousCount: number;
+  };
+  charts: {
+    byCategory: Array<{ name: string; count: number; valuePaise: number }>;
+    byStorage: Array<{ storage: string; count: number }>;
+    expiryOverview: { expired: number; days0to30: number; days31to90: number; days90plus: number };
+  };
+  nearExpiryItems: Array<{
+    id: string; name: string; expiryDate: string;
+    currentQty: number; stockValuePaise: number; location: string | null;
+  }>;
+  lowStockItems: Array<{ id: string; name: string; currentQty: number; lowStockThreshold: number }>;
+  settings: { lowStockThreshold: number; nearExpiryDays: number };
+};
+
+// Init
+export async function fetchStockInit(labId: string) {
+  return apiFetch<{ settings: StockSettings; permissions: StockPermissions }>(
+    `/stock/lab/${labId}/init`
+  );
+}
+
+// Dashboard
+export async function fetchStockDashboard(labId: string) {
+  return apiFetch<StockDashboardData>(`/stock/lab/${labId}/dashboard`);
+}
+
+// Items
+export async function fetchStockItems(
+  labId: string,
+  params: {
+    search?: string; categoryId?: string; hazard?: string; storage?: string;
+    locationId?: string; tagId?: string; expiryStatus?: string; availability?: string;
+    sortBy?: string; sortDir?: string; page?: number; limit?: number; archived?: boolean;
+  } = {}
+) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== "" && v !== false) qs.set(k, String(v));
+  });
+  return apiFetch<{ items: StockItem[]; total: number; page: number; limit: number; totalPages: number }>(
+    `/stock/lab/${labId}/items${qs.toString() ? `?${qs}` : ""}`
+  );
+}
+
+export async function createStockItem(labId: string, data: {
+  name: string; casNo?: string; make?: string; catalogueNo?: string; packSize?: string;
+  pricePaise: number; initialQty: number; expiryDate?: string;
+  categoryId?: string; hazardStatus?: string; storageTemperature?: string;
+  locationId?: string; remarks?: string; tagIds?: string[];
+}) {
+  return apiFetch<StockItem>(`/stock/lab/${labId}/items`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchStockItem(labId: string, itemId: string) {
+  return apiFetch<StockItem>(`/stock/lab/${labId}/items/${itemId}`);
+}
+
+export async function updateStockItem(labId: string, itemId: string, data: Partial<{
+  name: string; casNo: string; make: string; catalogueNo: string; packSize: string;
+  pricePaise: number; expiryDate: string; categoryId: string; hazardStatus: string;
+  storageTemperature: string; locationId: string; remarks: string; tagIds: string[];
+}>) {
+  return apiFetch<StockItem>(`/stock/lab/${labId}/items/${itemId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function archiveStockItem(labId: string, itemId: string, archive = true) {
+  return apiFetch<StockItem>(`/stock/lab/${labId}/items/${itemId}/archive`, {
+    method: "PATCH",
+    body: JSON.stringify({ archive }),
+  });
+}
+
+// Transactions
+export async function issueStock(labId: string, data: {
+  items: Array<{ itemId: string; quantity: number }>;
+  purpose?: string; projectName?: string; remarks?: string;
+}) {
+  return apiFetch<{ transaction: { id: string } }>(`/stock/lab/${labId}/transactions/issue`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function restockItem(labId: string, data: {
+  itemId: string; quantity: number; remarks?: string;
+  newExpiryDate?: string; purchasePricePaise?: number; supplier?: string; invoiceNo?: string;
+}) {
+  return apiFetch<{ item: StockItem }>(`/stock/lab/${labId}/transactions/restock`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function stockoutItem(labId: string, data: {
+  itemId: string; quantity: number; reason: string; remarks?: string;
+}) {
+  return apiFetch<{ item: StockItem }>(`/stock/lab/${labId}/transactions/stockout`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adjustStock(labId: string, data: {
+  itemId: string; newQty: number; reason: string; remarks?: string;
+}) {
+  return apiFetch<{ item: StockItem }>(`/stock/lab/${labId}/transactions/adjustment`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// Activity Log
+export async function fetchStockActivity(
+  labId: string,
+  params: { action?: string; itemId?: string; userId?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number } = {}
+) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "") qs.set(k, String(v)); });
+  return apiFetch<{ logs: StockActivityLog[]; total: number; page: number; limit: number; totalPages: number }>(
+    `/stock/lab/${labId}/activity${qs.toString() ? `?${qs}` : ""}`
+  );
+}
+
+// Settings
+export async function fetchStockSettings(labId: string) {
+  return apiFetch<StockSettings>(`/stock/lab/${labId}/settings`);
+}
+
+export async function updateStockSettings(labId: string, data: Partial<{ lowStockThreshold: number; nearExpiryDays: number }>) {
+  return apiFetch<StockSettings>(`/stock/lab/${labId}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+// Locations
+export async function fetchStockLocations(labId: string) {
+  return apiFetch<{ locations: StockLocation[] }>(`/stock/lab/${labId}/locations`);
+}
+
+export async function fetchStockLocationsFlat(labId: string) {
+  return apiFetch<{ locations: StockLocation[] }>(`/stock/lab/${labId}/locations/flat`);
+}
+
+export async function createStockLocation(labId: string, data: { name: string; parentId?: string; sortOrder?: number }) {
+  return apiFetch<StockLocation>(`/stock/lab/${labId}/locations`, {
+    method: "POST", body: JSON.stringify(data),
+  });
+}
+
+export async function updateStockLocation(labId: string, locationId: string, data: { name?: string; parentId?: string; sortOrder?: number }) {
+  return apiFetch<StockLocation>(`/stock/lab/${labId}/locations/${locationId}`, {
+    method: "PATCH", body: JSON.stringify(data),
+  });
+}
+
+export async function deleteStockLocation(labId: string, locationId: string) {
+  return apiFetch<{ success: boolean }>(`/stock/lab/${labId}/locations/${locationId}`, { method: "DELETE" });
+}
+
+// Categories
+export async function fetchStockCategories(labId: string) {
+  return apiFetch<{ categories: StockCategory[] }>(`/stock/lab/${labId}/categories`);
+}
+
+export async function createStockCategory(labId: string, data: { name: string; sortOrder?: number }) {
+  return apiFetch<StockCategory>(`/stock/lab/${labId}/categories`, {
+    method: "POST", body: JSON.stringify(data),
+  });
+}
+
+export async function updateStockCategory(labId: string, categoryId: string, data: { name?: string; sortOrder?: number }) {
+  return apiFetch<StockCategory>(`/stock/lab/${labId}/categories/${categoryId}`, {
+    method: "PATCH", body: JSON.stringify(data),
+  });
+}
+
+export async function deleteStockCategory(labId: string, categoryId: string) {
+  return apiFetch<{ success: boolean }>(`/stock/lab/${labId}/categories/${categoryId}`, { method: "DELETE" });
+}
+
+// Tags
+export async function fetchStockTags(labId: string) {
+  return apiFetch<{ tags: StockTag[] }>(`/stock/lab/${labId}/tags`);
+}
+
+export async function createStockTag(labId: string, data: { name: string; sortOrder?: number }) {
+  return apiFetch<StockTag>(`/stock/lab/${labId}/tags`, {
+    method: "POST", body: JSON.stringify(data),
+  });
+}
+
+export async function updateStockTag(labId: string, tagId: string, data: { name?: string; sortOrder?: number }) {
+  return apiFetch<StockTag>(`/stock/lab/${labId}/tags/${tagId}`, {
+    method: "PATCH", body: JSON.stringify(data),
+  });
+}
+
+export async function deleteStockTag(labId: string, tagId: string) {
+  return apiFetch<{ success: boolean }>(`/stock/lab/${labId}/tags/${tagId}`, { method: "DELETE" });
+}
+
+// Members
+export async function fetchStockMembers(labId: string) {
+  return apiFetch<{ members: Array<{
+    id: string; labId: string; userId: string; role: string;
+    canViewStock: boolean; canAddStock: boolean; canEditStock: boolean;
+    canIssueStock: boolean; canRestockStock: boolean; canManageStockSettings: boolean;
+    user: { id: string; name: string | null; email: string; avatarUrl: string | null };
+  }> }>(`/stock/lab/${labId}/members`);
+}
+
+export async function updateMemberStockPermissions(
+  labId: string,
+  memberId: string,
+  data: Partial<StockPermissions>
+) {
+  return apiFetch<{ id: string }>(`/stock/lab/${labId}/members/${memberId}/stock-permissions`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}

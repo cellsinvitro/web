@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 
 const mobileNavItems = [
   { label: "Overview", href: "/dashboard" },
+  { label: "Log-Book", href: "/dashboard/logbook" },
+  { label: "Stock", href: "/dashboard/stock" },
   { label: "Courses", href: "/dashboard/courses" },
   { label: "Live Classes", href: "/dashboard/live-classes" },
   { label: "Consultancy", href: "/dashboard/consultancy" },
@@ -33,7 +35,7 @@ export default function DashboardMobileNav() {
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                 active
                   ? "bg-slate-950 text-white"
-                  : "bg-slate-100 text-slate-600"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               {item.label}

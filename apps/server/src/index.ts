@@ -24,6 +24,7 @@ import { adminMaintenanceRoutes, maintenanceRoutes } from "./routes/maintenance.
 import { maintenanceMiddleware } from "./middleware/maintenance.js";
 import { budgetRoutes } from "./routes/budget.js";
 import { logbookRoutes } from "./routes/logbook.js";
+import { stockRoutes } from "./routes/stock.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -77,6 +78,7 @@ app.route("/tools", toolsRoutes);
 app.route("/webhooks", liveClassWebhookRoutes);
 app.route("/budgets", budgetRoutes);
 app.route("/logbook", logbookRoutes);
+app.route("/stock", stockRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

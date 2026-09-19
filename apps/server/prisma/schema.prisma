@@ -42,6 +42,8 @@ model User {
   labWorkspacesOwned LabWorkspace[]     @relation("LabWorkspaceOwner")
   labMemberships     LabMember[]
   labInvitesSent     LabInvite[]        @relation("LabInviteInviter")
+  stockItemsCreated  StockItem[]        @relation("StockItemCreator")
+  stockTransactionsCreated StockTransaction[] @relation("StockTransactionCreator")
 }
 
 model MaintenanceRule {
@@ -860,37 +862,52 @@ enum LabInviteStatus {
 }
 
 model LabWorkspace {
-  id          String             @id @default(cuid())
-  name        String
-  description String?
-  ownerId     String
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  owner       User               @relation("LabWorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members     LabMember[]
-  invites     LabInvite[]
-  instruments Instrument[]
-  activities  LogbookActivity[]
-  notebooks   LabNotebookEntry[]
+  id           String             @id @default(cuid())
+  name         String
+  description  String?
+  ownerId      String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  owner        User               @relation("LabWorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      LabMember[]
+  invites      LabInvite[]
+  instruments  Instrument[]
+  activities   LogbookActivity[]
+  notebooks    LabNotebookEntry[]
+  stockSettings    StockSettings?
+  stockCategories  StockCategory[]
+  stockTags        StockTag[]
+  locations        Location[]
+  stockItems       StockItem[]
+  stockTransactions StockTransaction[]
+  stockActivityLogs StockActivityLog[]
 
   @@index([ownerId])
 }
 
 model LabMember {
-  id                   String        @id @default(cuid())
-  labId                String
-  userId               String
-  role                 LabMemberRole @default(MEMBER)
-  canViewLogbook       Boolean       @default(true)
-  canCreateEntries     Boolean       @default(true)
-  canEditOwnEntries    Boolean       @default(true)
-  canEditOthersEntries Boolean       @default(false)
-  canManageInstruments Boolean       @default(false)
-  canGenerateReports   Boolean       @default(false)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  lab                  LabWorkspace  @relation(fields: [labId], references: [id], onDelete: Cascade)
-  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                      String        @id @default(cuid())
+  labId                   String
+  userId                  String
+  role                    LabMemberRole @default(MEMBER)
+  // Logbook permissions
+  canViewLogbook          Boolean       @default(true)
+  canCreateEntries        Boolean       @default(true)
+  canEditOwnEntries       Boolean       @default(true)
+  canEditOthersEntries    Boolean       @default(false)
+  canManageInstruments    Boolean       @default(false)
+  canGenerateReports      Boolean       @default(false)
+  // Stock Management permissions
+  canViewStock            Boolean       @default(false)
+  canAddStock             Boolean       @default(false)
+  canEditStock            Boolean       @default(false)
+  canIssueStock           Boolean       @default(true)
+  canRestockStock         Boolean       @default(false)
+  canManageStockSettings  Boolean       @default(false)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  lab                     LabWorkspace  @relation(fields: [labId], references: [id], onDelete: Cascade)
+  user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([labId, userId])
   @@index([labId])
@@ -1007,3 +1024,196 @@ model LabNotebookEntry {
   @@index([date])
 }
 
+// ─── Stock Management ─────────────────────────────────────────────────────────
+
+enum StockTransactionType {
+  ADD
+  ISSUE
+  RESTOCK
+  STOCKOUT
+  ADJUSTMENT
+  EDIT
+  LOCATION_CHANGE
+}
+
+enum StorageTemperature {
+  AMBIENT
+  FRIDGE_2_8
+  FREEZER_MINUS_20
+  DEEP_FREEZER_MINUS_80
+}
+
+enum HazardStatus {
+  HAZARDOUS
+  NON_HAZARDOUS
+}
+
+/// Per-lab stock configuration (thresholds etc.)
+model StockSettings {
+  id                  String       @id @default(cuid())
+  labId               String       @unique
+  lowStockThreshold   Int          @default(5)
+  nearExpiryDays      Int          @default(90)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  lab                 LabWorkspace @relation(fields: [labId], references: [id], onDelete: Cascade)
+}
+
+/// Per-lab item type categories (Chemical, Culture Ware, etc.)
+model StockCategory {
+  id         String       @id @default(cuid())
+  labId      String
+  name       String
+  isDefault  Boolean      @default(false)
+  sortOrder  Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  lab        LabWorkspace @relation(fields: [labId], references: [id], onDelete: Cascade)
+  items      StockItem[]
+
+  @@unique([labId, name])
+  @@index([labId, sortOrder])
+}
+
+/// Per-lab experimental use tags (Cell Culture, DNA, RNA, etc.)
+model StockTag {
+  id         String         @id @default(cuid())
+  labId      String
+  name       String
+  isDefault  Boolean        @default(false)
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  lab        LabWorkspace   @relation(fields: [labId], references: [id], onDelete: Cascade)
+  items      StockItemTag[]
+
+  @@unique([labId, name])
+  @@index([labId, sortOrder])
+}
+
+/// Self-referencing hierarchical location tree (Main Store > Shelf A > Rack 1)
+model Location {
+  id         String       @id @default(cuid())
+  labId      String
+  name       String
+  parentId   String?
+  sortOrder  Int          @default(0)
+  isDefault  Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  lab        LabWorkspace @relation(fields: [labId], references: [id], onDelete: Cascade)
+  parent     Location?    @relation("LocationTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children   Location[]   @relation("LocationTree")
+  stockItems StockItem[]
+
+  @@index([labId])
+  @@index([parentId])
+}
+
+/// Core inventory record — quantity only changes via transactions
+model StockItem {
+  id                 String              @id @default(cuid())
+  labId              String
+  name               String
+  casNo              String?
+  make               String?
+  catalogueNo        String?
+  packSize           String?
+  pricePaise         Int                 @default(0)  // price per unit in paise (₹ × 100)
+  currentQty         Int                 @default(0)
+  expiryDate         DateTime?
+  categoryId         String?
+  hazardStatus       HazardStatus        @default(NON_HAZARDOUS)
+  storageTemperature StorageTemperature  @default(AMBIENT)
+  locationId         String?
+  remarks            String?
+  isArchived         Boolean             @default(false)
+  createdById        String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  lab                LabWorkspace        @relation(fields: [labId], references: [id], onDelete: Cascade)
+  category           StockCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  location           Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  createdBy          User                @relation("StockItemCreator", fields: [createdById], references: [id])
+  tags               StockItemTag[]
+  transactionItems   StockTransactionItem[]
+  activityLogs       StockActivityLog[]
+
+  @@index([labId, isArchived])
+  @@index([labId, categoryId])
+  @@index([labId, locationId])
+  @@index([expiryDate])
+}
+
+/// Many-to-many join between StockItem and StockTag
+model StockItemTag {
+  id         String    @id @default(cuid())
+  itemId     String
+  tagId      String
+  item       StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tag        StockTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, tagId])
+  @@index([itemId])
+  @@index([tagId])
+}
+
+/// A stock-changing operation (may contain multiple items for ISSUE)
+model StockTransaction {
+  id          String               @id @default(cuid())
+  labId       String
+  type        StockTransactionType
+  createdById String
+  purpose     String?              // e.g. "DNA Extraction"
+  projectName String?
+  reason      String?              // e.g. "Expired" for STOCKOUT
+  remarks     String?
+  createdAt   DateTime             @default(now())
+  lab         LabWorkspace         @relation(fields: [labId], references: [id], onDelete: Cascade)
+  createdBy   User                 @relation("StockTransactionCreator", fields: [createdById], references: [id])
+  items       StockTransactionItem[]
+
+  @@index([labId, createdAt])
+  @@index([labId, type])
+  @@index([createdById])
+}
+
+/// One line item within a StockTransaction
+model StockTransactionItem {
+  id            String           @id @default(cuid())
+  transactionId String
+  itemId        String
+  quantity      Int
+  previousQty   Int
+  newQty        Int
+  transaction   StockTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  item          StockItem        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@index([itemId])
+}
+
+/// Immutable audit trail — one entry per stock-changing event
+model StockActivityLog {
+  id            String               @id @default(cuid())
+  labId         String
+  userId        String
+  userName      String
+  action        StockTransactionType
+  itemId        String?
+  itemName      String               // snapshot at time of action
+  quantityDelta Int
+  previousQty   Int
+  newQty        Int
+  reason        String?
+  purpose       String?
+  remarks       String?
+  createdAt     DateTime             @default(now())
+  lab           LabWorkspace         @relation(fields: [labId], references: [id], onDelete: Cascade)
+  item          StockItem?           @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([labId, createdAt])
+  @@index([labId, userId])
+  @@index([labId, itemId])
+  @@index([labId, action])
+}
