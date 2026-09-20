@@ -12,7 +12,7 @@ import type {
   LabModel,
   ReceivedRequest,
   SentRequest,
-} from "./cryosearch/types";
+} from "./cyrosearch/types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
@@ -455,13 +455,15 @@ export async function fetchAdminUser(userId: string) {
 }
 
 export async function fetchAdminUserHistory(userId: string) {
-  const data = await apiFetch<{ history: Array<{
-    id: string;
-    title: string;
-    description: string;
-    timestamp: string;
-    type: string;
-  }> }>(`/admin/users/${userId}/history`);
+  const data = await apiFetch<{
+    history: Array<{
+      id: string;
+      title: string;
+      description: string;
+      timestamp: string;
+      type: string;
+    }>
+  }>(`/admin/users/${userId}/history`);
   return data.history;
 }
 
@@ -2809,12 +2811,14 @@ export async function deleteStockTag(labId: string, tagId: string) {
 
 // Members
 export async function fetchStockMembers(labId: string) {
-  return apiFetch<{ members: Array<{
-    id: string; labId: string; userId: string; role: string;
-    canViewStock: boolean; canAddStock: boolean; canEditStock: boolean;
-    canIssueStock: boolean; canRestockStock: boolean; canManageStockSettings: boolean;
-    user: { id: string; name: string | null; email: string; avatarUrl: string | null };
-  }> }>(`/stock/lab/${labId}/members`);
+  return apiFetch<{
+    members: Array<{
+      id: string; labId: string; userId: string; role: string;
+      canViewStock: boolean; canAddStock: boolean; canEditStock: boolean;
+      canIssueStock: boolean; canRestockStock: boolean; canManageStockSettings: boolean;
+      user: { id: string; name: string | null; email: string; avatarUrl: string | null };
+    }>
+  }>(`/stock/lab/${labId}/members`);
 }
 
 export async function updateMemberStockPermissions(
@@ -2825,6 +2829,12 @@ export async function updateMemberStockPermissions(
   return apiFetch<{ id: string }>(`/stock/lab/${labId}/members/${memberId}/stock-permissions`, {
     method: "PATCH",
     body: JSON.stringify(data),
+  });
+}
+
+export async function removeStockMember(labId: string, memberId: string) {
+  return apiFetch<{ success: boolean; message: string }>(`/stock/lab/${labId}/members/${memberId}`, {
+    method: "DELETE",
   });
 }
 

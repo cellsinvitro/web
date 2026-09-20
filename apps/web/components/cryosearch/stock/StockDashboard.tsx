@@ -74,7 +74,15 @@ const CATEGORY_COLORS = [
   "#6366f1", "#dc2626", "#0891b2", "#78716c",
 ];
 
-export default function StockDashboardPage() {
+export type StockDashboardProps = {
+  onNavigate?: (
+    subTab: "inventory" | "issue" | "activity" | "settings",
+    filters?: { expiryStatus?: string; availability?: string; showAdd?: boolean }
+  ) => void;
+  onSelectItem?: (itemId: string) => void;
+};
+
+export default function StockDashboard({ onNavigate, onSelectItem }: StockDashboardProps) {
   const { activeLab } = useLabWorkspace();
   const [permissions, setPermissions] = useState<StockPermissions | null>(null);
   const [data, setData] = useState<StockDashboardData | null>(null);
@@ -279,9 +287,13 @@ export default function StockDashboardPage() {
                 {data?.nearExpiryItems.length ?? 0}
               </span>
             </h3>
-            <Link href="/dashboard/stock/inventory?expiryStatus=EXPIRING_SOON" className="text-xs font-medium text-slate-900 hover:underline">
+            <button
+              type="button"
+              onClick={() => onNavigate?.("inventory", { expiryStatus: "EXPIRING_SOON" })}
+              className="text-xs font-medium text-slate-900 hover:underline"
+            >
               View all
-            </Link>
+            </button>
           </div>
           {(data?.nearExpiryItems.length ?? 0) === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">No items expiring soon 🎉</p>
@@ -290,9 +302,13 @@ export default function StockDashboardPage() {
               {data!.nearExpiryItems.map((item) => (
                 <div key={item.id} className="flex items-center justify-between py-2.5">
                   <div>
-                    <Link href={`/dashboard/stock/inventory/${item.id}`} className="text-sm font-medium text-slate-800 hover:text-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => onSelectItem?.(item.id)}
+                      className="text-sm font-medium text-slate-800 hover:text-slate-700 text-left cursor-pointer"
+                    >
                       {item.name}
-                    </Link>
+                    </button>
                     <p className="text-xs text-slate-500">
                       Expires: {formatDate(item.expiryDate)} · Qty: {item.currentQty}
                       {item.location ? ` · ${item.location}` : ""}
@@ -314,9 +330,13 @@ export default function StockDashboardPage() {
                 {data?.lowStockItems.length ?? 0}
               </span>
             </h3>
-            <Link href="/dashboard/stock/inventory?availability=LOW_STOCK" className="text-xs font-medium text-slate-900 hover:underline">
+            <button
+              type="button"
+              onClick={() => onNavigate?.("inventory", { availability: "LOW_STOCK" })}
+              className="text-xs font-medium text-slate-900 hover:underline"
+            >
               View all
-            </Link>
+            </button>
           </div>
           {(data?.lowStockItems.length ?? 0) === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">All items are adequately stocked ✓</p>
@@ -325,9 +345,13 @@ export default function StockDashboardPage() {
               {data!.lowStockItems.map((item) => (
                 <div key={item.id} className="flex items-center justify-between py-2.5">
                   <div>
-                    <Link href={`/dashboard/stock/inventory/${item.id}`} className="text-sm font-medium text-slate-800 hover:text-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => onSelectItem?.(item.id)}
+                      className="text-sm font-medium text-slate-800 hover:text-slate-700 text-left cursor-pointer"
+                    >
                       {item.name}
-                    </Link>
+                    </button>
                     <p className="text-xs text-slate-500">
                       {item.currentQty} remaining · threshold: {item.lowStockThreshold}
                     </p>
@@ -342,18 +366,30 @@ export default function StockDashboardPage() {
 
       {/* Quick Action Bar */}
       <section className="flex flex-wrap gap-3">
-        <Link href="/dashboard/stock/inventory?showAdd=1" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors">
+        <button
+          type="button"
+          onClick={() => onNavigate?.("inventory", { showAdd: true })}
+          className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors cursor-pointer"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           Add Stock
-        </Link>
-        <Link href="/dashboard/stock/issue" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate?.("issue")}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors cursor-pointer"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
           Issue Stock
-        </Link>
-        <Link href="/dashboard/stock/activity" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate?.("activity")}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors cursor-pointer"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
           Activity Log
-        </Link>
+        </button>
       </section>
     </div>
   );

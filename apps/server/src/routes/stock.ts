@@ -1155,6 +1155,46 @@ stockRoutes.patch("/lab/:labId/members/:memberId/stock-permissions", async (c) =
   return c.json(updated);
 });
 
+// Remove a member (ADMIN or MEMBER) from the lab workspace
+stockRoutes.delete("/lab/:labId/members/:memberId", async (c) => {
+  const authUser = c.get("user");
+  const userId = authUser.sub;
+  const { labId, memberId } = c.req.param();
+
+  await requireStockPermission(labId, userId, "canManageStockSettings");
+
+  const workspace = await prisma.labWorkspace.findUnique({ where: { id: labId }, select: { ownerId: true } });
+  const requester = await prisma.labMember.findUnique({ where: { labId_userId: { labId, userId } } });
+
+  if (workspace?.ownerId !== userId && requester?.role !== "OWNER" && requester?.role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only OWNER or ADMIN can remove members" });
+  }
+
+  const targetMember = await prisma.labMember.findFirst({
+    where: { id: memberId, labId },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+
+  if (!targetMember) {
+    throw new HTTPException(404, { message: "Member not found" });
+  }
+
+  if (targetMember.role === "OWNER" || workspace?.ownerId === targetMember.userId) {
+    throw new HTTPException(403, { message: "Cannot remove the workspace owner" });
+  }
+
+  if (targetMember.userId === userId) {
+    throw new HTTPException(400, { message: "You cannot remove yourself using this action" });
+  }
+
+  await prisma.labMember.delete({ where: { id: memberId } });
+
+  return c.json({
+    success: true,
+    message: `Member '${targetMember.user.name || targetMember.user.email}' removed from lab`,
+  });
+});
+
 stockRoutes.post("/lab/:labId/members/add-by-email", async (c) => {
   const authUser = c.get("user");
   const userId = authUser.sub;
@@ -1216,7 +1256,7 @@ stockRoutes.post("/lab/:labId/members/add-by-email", async (c) => {
   });
 
   const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:3000";
-  const acceptUrl = `${frontendOrigin}/dashboard/stock/invite/accept?token=${token}`;
+  const acceptUrl = `${frontendOrigin}/cyrosearch/invite/accept?token=${token}`;
 
   await sendStockLabInviteEmail({
     to: email,
@@ -1300,7 +1340,7 @@ stockRoutes.post("/lab/:labId/invites/:inviteId/resend", async (c) => {
   if (!invite) throw new HTTPException(404, { message: "Invite not found" });
 
   const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:3000";
-  const acceptUrl = `${frontendOrigin}/dashboard/stock/invite/accept?token=${invite.token}`;
+  const acceptUrl = `${frontendOrigin}/cyrosearch/invite/accept?token=${invite.token}`;
 
   await sendStockLabInviteEmail({
     to: invite.inviteeEmail,

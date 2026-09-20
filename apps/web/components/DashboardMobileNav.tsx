@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const mobileNavItems = [
   { label: "Overview", href: "/dashboard" },
   { label: "Log-Book", href: "/dashboard/logbook" },
-  { label: "Stock", href: "/dashboard/stock" },
+  { label: "CyroSearch", href: "/cyrosearch" },
   { label: "Courses", href: "/dashboard/courses" },
   { label: "Live Classes", href: "/dashboard/live-classes" },
   { label: "Consultancy", href: "/dashboard/consultancy" },

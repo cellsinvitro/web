@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useLabWorkspace } from "@/context/LabWorkspaceContext";
 import {
   fetchStockInit,
@@ -12,7 +11,6 @@ import {
   fetchStockTags,
   createStockItem,
   updateStockItem,
-  archiveStockItem,
   issueStock,
   restockItem,
   stockoutItem,
@@ -175,7 +173,6 @@ function AddEditModal({
 
         <form id="stock-item-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="space-y-6 p-6">
-            {/* Basic Information */}
             <section>
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Basic Information</h3>
               <div className="space-y-3">
@@ -200,23 +197,22 @@ function AddEditModal({
                   </div>
                   <div>
                     <label className={labelCls}>Pack Size</label>
-                    <input className={inputCls} value={form.packSize} onChange={(e) => set("packSize", e.target.value)} placeholder="e.g. 500 mL, 100 tubes" />
+                    <input className={inputCls} value={form.packSize} onChange={(e) => set("packSize", e.target.value)} placeholder="e.g. 500 mL, 100 rxns" />
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* Purchase Information */}
             <section>
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Purchase Information</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Pricing & Stock</h3>
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={labelCls}>Price (₹)</label>
-                  <input type="number" min="0" step="0.01" className={inputCls} value={form.priceRupees} onChange={(e) => set("priceRupees", e.target.value)} placeholder="0.00" />
+                  <label className={labelCls}>Price (₹) *</label>
+                  <input type="number" step="0.01" min="0" className={inputCls} value={form.priceRupees} onChange={(e) => set("priceRupees", e.target.value)} placeholder="0.00" required />
                 </div>
                 {!item && (
                   <div>
-                    <label className={labelCls}>Initial Quantity</label>
+                    <label className={labelCls}>Initial Qty</label>
                     <input type="number" min="0" className={inputCls} value={form.initialQty} onChange={(e) => set("initialQty", e.target.value)} placeholder="0" />
                   </div>
                 )}
@@ -227,98 +223,70 @@ function AddEditModal({
               </div>
             </section>
 
-            {/* Classification */}
             <section>
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Classification</h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={labelCls}>Item Type</label>
-                    <select className={inputCls} value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
-                      <option value="">— Select category —</option>
-                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Hazard</label>
-                    <select className={inputCls} value={form.hazardStatus} onChange={(e) => set("hazardStatus", e.target.value)}>
-                      <option value="NON_HAZARDOUS">Non-Hazardous</option>
-                      <option value="HAZARDOUS">Hazardous</option>
-                    </select>
-                  </div>
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Categorization & Storage</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Category</label>
+                  <select className={inputCls} value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
+                    <option value="">Uncategorized</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Storage Temperature</label>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {[
-                      { v: "AMBIENT", l: "Ambient" },
-                      { v: "FRIDGE_2_8", l: "2–8°C" },
-                      { v: "FREEZER_MINUS_20", l: "−20°C" },
-                      { v: "DEEP_FREEZER_MINUS_80", l: "−80°C" },
-                    ].map(({ v, l }) => (
-                      <label key={v} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${form.storageTemperature === v ? "border-slate-800 bg-slate-50 text-slate-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
-                        <input type="radio" name="storage" value={v} checked={form.storageTemperature === v} onChange={(e) => set("storageTemperature", e.target.value)} className="sr-only" />
-                        {l}
-                      </label>
-                    ))}
-                  </div>
+                  <label className={labelCls}>Storage Condition</label>
+                  <select className={inputCls} value={form.storageTemperature} onChange={(e) => set("storageTemperature", e.target.value)}>
+                    {Object.entries(STORAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Hazard Status</label>
+                  <select className={inputCls} value={form.hazardStatus} onChange={(e) => set("hazardStatus", e.target.value)}>
+                    <option value="NON_HAZARDOUS">Non-Hazardous</option>
+                    <option value="HAZARDOUS">⚠️ Hazardous</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Location</label>
+                  <select className={inputCls} value={form.locationId} onChange={(e) => set("locationId", e.target.value)}>
+                    <option value="">No Location</option>
+                    {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                  </select>
                 </div>
               </div>
             </section>
 
-            {/* Experimental Use */}
             {tags.length > 0 && (
               <section>
-                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Experimental Use</h3>
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Tags</h3>
                 <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleTag(tag.id)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${form.tagIds.includes(tag.id) ? "border-slate-800 bg-slate-50 text-slate-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-                    >
-                      {form.tagIds.includes(tag.id) ? "✓ " : ""}{tag.name}
-                    </button>
-                  ))}
+                  {tags.map((t) => {
+                    const active = form.tagIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id} type="button" onClick={() => toggleTag(t.id)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                      >
+                        {t.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             )}
 
-            {/* Storage Location */}
-            <section>
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Storage Location</h3>
-              <div>
-                <label className={labelCls}>Location</label>
-                <select className={inputCls} value={form.locationId} onChange={(e) => set("locationId", e.target.value)}>
-                  <option value="">— Select location —</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.parent ? `${loc.parent.name} › ` : ""}{loc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </section>
+            <div>
+              <label className={labelCls}>Remarks / Notes</label>
+              <textarea rows={3} className={inputCls} value={form.remarks} onChange={(e) => set("remarks", e.target.value)} placeholder="Special storage notes, supplier details…" />
+            </div>
 
-            {/* Remarks */}
-            <section>
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Additional</h3>
-              <div>
-                <label className={labelCls}>Remarks</label>
-                <textarea rows={2} className={inputCls} value={form.remarks} onChange={(e) => set("remarks", e.target.value)} placeholder="Any additional notes…" />
-              </div>
-            </section>
+            {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
           </div>
         </form>
 
-        {error && (
-          <div className="mx-6 mb-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-        )}
-
-        <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
-          <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
-          <button type="submit" form="stock-item-form" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
+        <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+          <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+          <button type="submit" form="stock-item-form" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 transition-colors">
             {submitting ? "Saving…" : item ? "Save Changes" : "Add Item"}
           </button>
         </div>
@@ -330,23 +298,26 @@ function AddEditModal({
 // ─── Quick Issue Modal ────────────────────────────────────────────────────────
 
 function IssueModal({ labId, item, onClose, onDone }: { labId: string; item: StockItem; onClose: () => void; onDone: () => void }) {
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState("1");
   const [purpose, setPurpose] = useState("");
-  const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleIssue(e: React.FormEvent) {
     e.preventDefault();
-    if (qty <= 0 || qty > item.currentQty) { setError("Invalid quantity"); return; }
+    const q = parseInt(qty);
+    if (isNaN(q) || q <= 0 || q > item.currentQty) { setError(`Quantity must be between 1 and ${item.currentQty}`); return; }
     setSubmitting(true);
     setError(null);
     try {
-      await issueStock(labId, { items: [{ itemId: item.id, quantity: qty }], purpose, remarks });
+      await issueStock(labId, { items: [{ itemId: item.id, quantity: q }], purpose });
       onDone();
       onClose();
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to issue"); }
-    finally { setSubmitting(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to issue");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputCls = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:border-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition-colors";
@@ -359,30 +330,22 @@ function IssueModal({ labId, item, onClose, onDone }: { labId: string; item: Sto
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
         </div>
         <form onSubmit={handleIssue} className="p-6 space-y-4">
-          <div className="rounded-xl bg-slate-50 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-800">{item.name}</p>
+          <div className="rounded-xl bg-slate-50 p-3 text-sm">
+            <p className="font-semibold text-slate-800">{item.name}</p>
             <p className="text-xs text-slate-500">Available: {item.currentQty} unit(s)</p>
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Quantity to Issue</label>
-            <div className="flex items-center gap-3">
-              <button type="button" onClick={() => setQty(Math.max(1, qty - 1))} className="h-10 w-10 rounded-xl border border-slate-200 text-lg font-bold text-slate-600 hover:bg-slate-50">−</button>
-              <input type="number" min={1} max={item.currentQty} value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} className="h-10 w-20 rounded-xl border border-slate-200 text-center text-sm font-bold text-slate-900 focus:border-slate-800 focus:outline-none" />
-              <button type="button" onClick={() => setQty(Math.min(item.currentQty, qty + 1))} className="h-10 w-10 rounded-xl border border-slate-200 text-lg font-bold text-slate-600 hover:bg-slate-50">+</button>
-            </div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Quantity to Issue *</label>
+            <input type="number" min={1} max={item.currentQty} value={qty} onChange={(e) => setQty(e.target.value)} className={inputCls} required />
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Purpose / Experiment</label>
-            <input className={inputCls} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="e.g. DNA Extraction, PCR setup…" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Remarks</label>
-            <input className={inputCls} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional notes" />
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Purpose / Project</label>
+            <input value={purpose} onChange={(e) => setPurpose(e.target.value)} className={inputCls} placeholder="e.g. Experiment #42" />
           </div>
           {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
-            <button type="submit" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
+            <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+            <button type="submit" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
               {submitting ? "Issuing…" : "Confirm Issue"}
             </button>
           </div>
@@ -395,21 +358,35 @@ function IssueModal({ labId, item, onClose, onDone }: { labId: string; item: Sto
 // ─── Restock Modal ────────────────────────────────────────────────────────────
 
 function RestockModal({ labId, item, onClose, onDone }: { labId: string; item: StockItem; onClose: () => void; onDone: () => void }) {
-  const [qty, setQty] = useState(1);
+  const [addQty, setAddQty] = useState("1");
+  const [newPrice, setNewPrice] = useState(String(item.pricePaise / 100));
+  const [newExpiry, setNewExpiry] = useState(item.expiryDate ? item.expiryDate.split("T")[0] : "");
   const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handle(e: React.FormEvent) {
+  async function handleRestock(e: React.FormEvent) {
     e.preventDefault();
-    if (qty <= 0) { setError("Quantity must be > 0"); return; }
+    const q = parseInt(addQty);
+    if (isNaN(q) || q <= 0) { setError("Quantity must be positive"); return; }
+    const pricePaise = Math.round(parseFloat(newPrice || "0") * 100);
     setSubmitting(true);
     setError(null);
     try {
-      await restockItem(labId, { itemId: item.id, quantity: qty, remarks });
-      onDone(); onClose();
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
-    finally { setSubmitting(false); }
+      await restockItem(labId, {
+        itemId: item.id,
+        quantity: q,
+        purchasePricePaise: isNaN(pricePaise) ? undefined : pricePaise,
+        newExpiryDate: newExpiry || undefined,
+        remarks,
+      });
+      onDone();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to restock");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputCls = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:border-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition-colors";
@@ -418,27 +395,37 @@ function RestockModal({ labId, item, onClose, onDone }: { labId: string; item: S
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-base font-bold text-slate-900">Restock</h2>
+          <h2 className="text-base font-bold text-slate-900">Restock Item</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
         </div>
-        <form onSubmit={handle} className="p-6 space-y-4">
-          <div className="rounded-xl bg-slate-50 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-800">{item.name}</p>
-            <p className="text-xs text-slate-500">Current stock: {item.currentQty} unit(s)</p>
+        <form onSubmit={handleRestock} className="p-6 space-y-4">
+          <div className="rounded-xl bg-slate-50 p-3 text-sm">
+            <p className="font-semibold text-slate-800">{item.name}</p>
+            <p className="text-xs text-slate-500">Current Qty: {item.currentQty}</p>
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Quantity to Add</label>
-            <input type="number" min={1} value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} className={inputCls} />
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Add Quantity *</label>
+            <input type="number" min={1} value={addQty} onChange={(e) => setAddQty(e.target.value)} className={inputCls} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Unit Price (₹)</label>
+              <input type="number" step="0.01" min="0" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">New Expiry Date</label>
+              <input type="date" value={newExpiry} onChange={(e) => setNewExpiry(e.target.value)} className={inputCls} />
+            </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Remarks</label>
-            <input className={inputCls} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Purchased from Sigma-Aldrich" />
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Remarks / PO Number</label>
+            <input value={remarks} onChange={(e) => setRemarks(e.target.value)} className={inputCls} placeholder="e.g. PO #1042" />
           </div>
           {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
-            <button type="submit" disabled={submitting} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-              {submitting ? "Restocking…" : `+${qty} units`}
+            <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+            <button type="submit" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
+              {submitting ? "Restocking…" : "Confirm Restock"}
             </button>
           </div>
         </form>
@@ -450,23 +437,27 @@ function RestockModal({ labId, item, onClose, onDone }: { labId: string; item: S
 // ─── Stockout Modal ───────────────────────────────────────────────────────────
 
 function StockoutModal({ labId, item, onClose, onDone }: { labId: string; item: StockItem; onClose: () => void; onDone: () => void }) {
-  const [qty, setQty] = useState(1);
-  const [reason, setReason] = useState("");
+  const [qty, setQty] = useState(String(item.currentQty));
+  const [reason, setReason] = useState<string>(STOCKOUT_REASONS[0] || "Other");
   const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handle(e: React.FormEvent) {
+  async function handleStockout(e: React.FormEvent) {
     e.preventDefault();
-    if (!reason) { setError("Reason is required"); return; }
-    if (qty <= 0 || qty > item.currentQty) { setError("Invalid quantity"); return; }
+    const q = parseInt(qty);
+    if (isNaN(q) || q <= 0 || q > item.currentQty) { setError(`Quantity must be between 1 and ${item.currentQty}`); return; }
     setSubmitting(true);
     setError(null);
     try {
-      await stockoutItem(labId, { itemId: item.id, quantity: qty, reason, remarks });
-      onDone(); onClose();
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
-    finally { setSubmitting(false); }
+      await stockoutItem(labId, { itemId: item.id, quantity: q, reason, remarks });
+      onDone();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to stockout");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputCls = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:border-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition-colors";
@@ -475,34 +466,33 @@ function StockoutModal({ labId, item, onClose, onDone }: { labId: string; item: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-base font-bold text-slate-900">Stockout / Removal</h2>
+          <h2 className="text-base font-bold text-slate-900">Mark Stockout</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
         </div>
-        <form onSubmit={handle} className="p-6 space-y-4">
-          <div className="rounded-xl bg-red-50 px-4 py-3 border border-red-100">
-            <p className="text-sm font-semibold text-slate-800">{item.name}</p>
+        <form onSubmit={handleStockout} className="p-6 space-y-4">
+          <div className="rounded-xl bg-slate-50 p-3 text-sm">
+            <p className="font-semibold text-slate-800">{item.name}</p>
             <p className="text-xs text-slate-500">Available: {item.currentQty} unit(s)</p>
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Quantity to Remove</label>
-            <input type="number" min={1} max={item.currentQty} value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} className={inputCls} />
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Quantity to Remove *</label>
+            <input type="number" min={1} max={item.currentQty} value={qty} onChange={(e) => setQty(e.target.value)} className={inputCls} required />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Reason *</label>
-            <select value={reason} onChange={(e) => setReason(e.target.value)} className={inputCls} required>
-              <option value="">— Select reason —</option>
+            <select value={reason} onChange={(e) => setReason(e.target.value)} className={inputCls}>
               {STOCKOUT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Remarks</label>
-            <input className={inputCls} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Details…" />
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Remarks / Details</label>
+            <input value={remarks} onChange={(e) => setRemarks(e.target.value)} className={inputCls} placeholder="Optional notes…" />
           </div>
           {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
-            <button type="submit" disabled={submitting} className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
-              {submitting ? "Removing…" : "Confirm Stockout"}
+            <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+            <button type="submit" disabled={submitting} className="rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+              {submitting ? "Processing…" : "Confirm Stockout"}
             </button>
           </div>
         </form>
@@ -511,12 +501,16 @@ function StockoutModal({ labId, item, onClose, onDone }: { labId: string; item: 
   );
 }
 
-// ─── Main Inventory Page ──────────────────────────────────────────────────────
+// ─── Main Inventory Content ───────────────────────────────────────────────────
 
-function InventoryContent() {
+export type StockInventoryProps = {
+  filters?: { expiryStatus?: string; availability?: string; showAdd?: boolean; showEdit?: string };
+  onSelectItem?: (itemId: string) => void;
+};
+
+function InventoryContent({ filters, onSelectItem }: StockInventoryProps) {
   const { activeLab } = useLabWorkspace();
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const [permissions, setPermissions] = useState<StockPermissions | null>(null);
   const [items, setItems] = useState<StockItem[]>([]);
@@ -527,175 +521,209 @@ function InventoryContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters & search
+  // Filters
   const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterHazard, setFilterHazard] = useState("");
-  const [filterStorage, setFilterStorage] = useState("");
-  const [filterLocation, setFilterLocation] = useState("");
-  const [filterExpiry, setFilterExpiry] = useState(searchParams.get("expiryStatus") ?? "");
-  const [filterAvail, setFilterAvail] = useState(searchParams.get("availability") ?? "");
-  const [sortBy, setSortBy] = useState("updatedAt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [categoryId, setCategoryId] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [hazardStatus, setHazardStatus] = useState("");
+  const [storageTemperature, setStorageTemperature] = useState("");
+  const [expiryStatus, setExpiryStatus] = useState(filters?.expiryStatus || searchParams.get("expiryStatus") || "");
+  const [availability, setAvailability] = useState(filters?.availability || searchParams.get("availability") || "");
+  const [isArchived, setIsArchived] = useState(false);
+  const [sortBy, setSortBy] = useState("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
 
   // Modals
-  const [showAdd, setShowAdd] = useState(searchParams.get("showAdd") === "1");
+  const [showAdd, setShowAdd] = useState(filters?.showAdd || searchParams.get("showAdd") === "1");
   const [editItem, setEditItem] = useState<StockItem | null>(null);
   const [issueItem, setIssueItem] = useState<StockItem | null>(null);
   const [restockItem_, setRestockItem] = useState<StockItem | null>(null);
   const [stockoutItem_, setStockoutItem] = useState<StockItem | null>(null);
 
-  const loadMeta = useCallback(async (labId: string) => {
-    const [initRes, catRes, locRes, tagRes] = await Promise.all([
-      fetchStockInit(labId),
-      fetchStockCategories(labId),
-      fetchStockLocationsFlat(labId),
-      fetchStockTags(labId),
-    ]);
-    setPermissions(initRes.permissions);
-    setCategories(catRes.categories);
-    setLocations(locRes.locations);
-    setTags(tagRes.tags);
-  }, []);
+  const labId = activeLab?.id;
 
-  const loadItems = useCallback(async (labId: string) => {
-    try {
-      const res = await fetchStockItems(labId, {
-        search, categoryId: filterCategory, hazard: filterHazard,
-        storage: filterStorage, locationId: filterLocation,
-        expiryStatus: filterExpiry, availability: filterAvail,
-        sortBy, sortDir, page, limit: 50,
-      });
-      setItems(res.items);
-      setTotal(res.total);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load items");
-    }
-  }, [search, filterCategory, filterHazard, filterStorage, filterLocation, filterExpiry, filterAvail, sortBy, sortDir, page]);
-
-  useEffect(() => {
-    if (!activeLab) return;
+  const loadData = useCallback(async () => {
+    if (!labId) return;
     setLoading(true);
     setError(null);
-    Promise.all([loadMeta(activeLab.id), loadItems(activeLab.id)])
-      .finally(() => setLoading(false));
-  }, [activeLab?.id, loadMeta, loadItems]);
+    try {
+      const [initData, catData, locData, tagData, itemsData] = await Promise.all([
+        fetchStockInit(labId),
+        fetchStockCategories(labId),
+        fetchStockLocationsFlat(labId),
+        fetchStockTags(labId),
+        fetchStockItems(labId, {
+          search, categoryId, locationId,
+          hazard: hazardStatus || undefined,
+          storage: storageTemperature || undefined,
+          expiryStatus: expiryStatus || undefined,
+          availability: availability || undefined,
+          archived: isArchived || undefined,
+          sortBy, sortDir, page, limit: 50,
+        }),
+      ]);
+      setPermissions(initData.permissions);
+      setCategories(catData.categories);
+      setLocations(locData.locations);
+      setTags(tagData.tags);
+      setItems(itemsData.items);
+      setTotal(itemsData.total);
+
+      // Check showEdit param
+      const editId = filters?.showEdit || searchParams.get("showEdit");
+      if (editId) {
+        const found = itemsData.items.find((i) => i.id === editId);
+        if (found) setEditItem(found);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load inventory");
+    } finally {
+      setLoading(false);
+    }
+  }, [labId, search, categoryId, locationId, hazardStatus, storageTemperature, expiryStatus, availability, isArchived, sortBy, sortDir, page, filters, searchParams]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const refreshItems = () => {
+    if (!labId) return;
+    fetchStockItems(labId, {
+      search, categoryId, locationId,
+      hazard: hazardStatus || undefined,
+      storage: storageTemperature || undefined,
+      expiryStatus: expiryStatus || undefined,
+      availability: availability || undefined,
+      archived: isArchived || undefined,
+      sortBy, sortDir, page, limit: 50,
+    }).then((res) => { setItems(res.items); setTotal(res.total); });
+  };
 
   if (!activeLab) return (
-    <div className="py-16 text-center text-sm text-slate-500">No lab workspace. <Link href="/dashboard/logbook" className="text-slate-900 underline">Set one up</Link></div>
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <p className="text-slate-500">No lab workspace selected.</p>
+    </div>
   );
 
-  const labId = activeLab.id;
-
-  const refreshItems = () => loadItems(labId);
+  const activeFilterCount = [categoryId, locationId, hazardStatus, storageTemperature, expiryStatus, availability, isArchived].filter(Boolean).length;
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[200px] flex-1">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
-          <input
-            type="search"
-            placeholder="Search by name, CAS, catalogue, manufacturer…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-900 focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-          />
+      {/* Action Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Inventory Items</h2>
+          <p className="text-xs text-slate-500">{total} item{total !== 1 ? "s" : ""} found</p>
         </div>
-        {permissions?.canAddStock && (
-          <button
-            id="add-stock-btn"
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            Add Stock
-          </button>
-        )}
+        <div className="flex gap-2">
+          {permissions?.canAddStock && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              Add Item
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Filters row */}
-      <div className="flex flex-wrap gap-2">
-        <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 focus:border-slate-800 focus:outline-none">
-          <option value="">All Types</option>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select value={filterHazard} onChange={(e) => { setFilterHazard(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 focus:border-slate-800 focus:outline-none">
-          <option value="">All Hazard</option>
-          <option value="HAZARDOUS">Hazardous</option>
-          <option value="NON_HAZARDOUS">Non-Hazardous</option>
-        </select>
-        <select value={filterStorage} onChange={(e) => { setFilterStorage(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 focus:border-slate-800 focus:outline-none">
-          <option value="">All Storage</option>
-          <option value="AMBIENT">Ambient</option>
-          <option value="FRIDGE_2_8">2–8°C</option>
-          <option value="FREEZER_MINUS_20">−20°C</option>
-          <option value="DEEP_FREEZER_MINUS_80">−80°C</option>
-        </select>
-        <select value={filterExpiry} onChange={(e) => { setFilterExpiry(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 focus:border-slate-800 focus:outline-none">
-          <option value="">All Expiry</option>
-          <option value="EXPIRED">Expired</option>
-          <option value="EXPIRING_SOON">Expiring Soon</option>
-          <option value="VALID">Valid</option>
-        </select>
-        <select value={filterAvail} onChange={(e) => { setFilterAvail(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 focus:border-slate-800 focus:outline-none">
-          <option value="">All Availability</option>
-          <option value="IN_STOCK">In Stock</option>
-          <option value="LOW_STOCK">Low Stock</option>
-          <option value="OUT_OF_STOCK">Out of Stock</option>
-        </select>
-        {(filterCategory || filterHazard || filterStorage || filterExpiry || filterAvail || search) && (
-          <button onClick={() => { setFilterCategory(""); setFilterHazard(""); setFilterStorage(""); setFilterExpiry(""); setFilterAvail(""); setSearch(""); setPage(1); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50">
-            Clear filters
-          </button>
-        )}
-        <div className="ml-auto text-xs text-slate-500 self-center">{total} item{total !== 1 ? "s" : ""}</div>
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px]">
+            <input
+              type="search"
+              placeholder="Search by name, CAS, make, catalog…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs text-slate-900 focus:border-slate-800 focus:bg-white focus:outline-none"
+            />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+          </div>
+
+          <select value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+            <option value="">All Categories</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          <select value={availability} onChange={(e) => { setAvailability(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+            <option value="">All Stock Levels</option>
+            <option value="IN_STOCK">In Stock</option>
+            <option value="LOW_STOCK">Low Stock</option>
+            <option value="OUT_OF_STOCK">Out of Stock</option>
+          </select>
+
+          <select value={expiryStatus} onChange={(e) => { setExpiryStatus(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+            <option value="">All Expiry</option>
+            <option value="EXPIRING_SOON">Expiring Soon</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="VALID">Valid</option>
+          </select>
+
+          <select value={storageTemperature} onChange={(e) => { setStorageTemperature(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+            <option value="">All Storage</option>
+            {Object.entries(STORAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+
+          <select value={hazardStatus} onChange={(e) => { setHazardStatus(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+            <option value="">All Hazards</option>
+            <option value="NON_HAZARDOUS">Non-Hazardous</option>
+            <option value="HAZARDOUS">Hazardous</option>
+          </select>
+
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => {
+                setCategoryId(""); setLocationId(""); setHazardStatus("");
+                setStorageTemperature(""); setExpiryStatus(""); setAvailability("");
+                setIsArchived(false); setSearch(""); setPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
+            >
+              Clear filters ({activeFilterCount})
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
       {loading ? (
         <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-100" />)}
+          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100" />)}
         </div>
       ) : error ? (
-        <div className="rounded-xl bg-red-50 px-4 py-6 text-center text-sm text-red-700">{error}</div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">{error}</div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 py-16 text-center">
           <p className="text-slate-400">No stock items found.</p>
-          {permissions?.canAddStock && (
-            <button onClick={() => setShowAdd(true)} className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Add first item</button>
-          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
+          <table className="w-full text-left text-sm text-slate-600">
+            <thead className="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <tr>
                 {[
-                  { key: "name", label: "Item" },
-                  { key: null, label: "CAS No." },
-                  { key: null, label: "Make" },
-                  { key: null, label: "Pack" },
+                  { key: "name", label: "Item Name" },
+                  { key: "casNo", label: "CAS No." },
+                  { key: "make", label: "Make" },
+                  { key: "packSize", label: "Pack Size" },
                   { key: "expiryDate", label: "Expiry" },
-                  { key: "pricePaise", label: "Price" },
+                  { key: "pricePaise", label: "Unit Price" },
                   { key: "currentQty", label: "Qty" },
-                  { key: null, label: "Value" },
-                  { key: null, label: "Storage" },
-                  { key: null, label: "Status" },
-                  { key: null, label: "Actions" },
-                ].map((col) => (
-                  <th key={col.label} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  { key: "stockValuePaise", label: "Value" },
+                  { key: "storageTemperature", label: "Storage" },
+                  { key: "status", label: "Status" },
+                  { key: "", label: "Actions" },
+                ].map((col, idx) => (
+                  <th key={idx} className="px-4 py-3">
                     {col.key ? (
                       <button
                         onClick={() => {
-                          if (sortBy === col.key) setSortDir(sortDir === "asc" ? "desc" : "asc");
-                          else { setSortBy(col.key!); setSortDir("asc"); }
+                          if (sortBy === col.key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                          else { setSortBy(col.key); setSortDir("asc"); }
                         }}
-                        className="flex items-center gap-1 hover:text-slate-800"
+                        className="flex items-center gap-1 font-semibold hover:text-slate-700"
                       >
                         {col.label}
                         {sortBy === col.key && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
@@ -709,9 +737,13 @@ function InventoryContent() {
               {items.map((item) => (
                 <tr key={item.id} className="group hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
-                    <Link href={`/dashboard/stock/inventory/${item.id}`} className="font-medium text-slate-800 hover:text-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => onSelectItem?.(item.id)}
+                      className="font-medium text-slate-800 hover:text-slate-700 text-left cursor-pointer"
+                    >
                       {item.name}
-                    </Link>
+                    </button>
                     {item.category && <p className="text-xs text-slate-400">{item.category.name}</p>}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">{item.casNo ?? "—"}</td>
@@ -729,9 +761,14 @@ function InventoryContent() {
                   <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <Link href={`/dashboard/stock/inventory/${item.id}`} title="View" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => onSelectItem?.(item.id)}
+                        title="View"
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                      >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                      </Link>
+                      </button>
                       {permissions?.canEditStock && (
                         <button onClick={() => setEditItem(item)} title="Edit" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
@@ -773,23 +810,23 @@ function InventoryContent() {
       {/* Modals */}
       {(showAdd || editItem) && (
         <AddEditModal
-          labId={labId} item={editItem}
+          labId={labId!} item={editItem}
           categories={categories} locations={locations} tags={tags}
           onClose={() => { setShowAdd(false); setEditItem(null); }}
           onSaved={refreshItems}
         />
       )}
-      {issueItem && <IssueModal labId={labId} item={issueItem} onClose={() => setIssueItem(null)} onDone={refreshItems} />}
-      {restockItem_ && <RestockModal labId={labId} item={restockItem_} onClose={() => setRestockItem(null)} onDone={refreshItems} />}
-      {stockoutItem_ && <StockoutModal labId={labId} item={stockoutItem_} onClose={() => setStockoutItem(null)} onDone={refreshItems} />}
+      {issueItem && <IssueModal labId={labId!} item={issueItem} onClose={() => setIssueItem(null)} onDone={refreshItems} />}
+      {restockItem_ && <RestockModal labId={labId!} item={restockItem_} onClose={() => setRestockItem(null)} onDone={refreshItems} />}
+      {stockoutItem_ && <StockoutModal labId={labId!} item={stockoutItem_} onClose={() => setStockoutItem(null)} onDone={refreshItems} />}
     </div>
   );
 }
 
-export default function InventoryPage() {
+export default function StockInventory({ filters, onSelectItem }: StockInventoryProps) {
   return (
     <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-slate-100" />}>
-      <InventoryContent />
+      <InventoryContent filters={filters} onSelectItem={onSelectItem} />
     </Suspense>
   );
 }

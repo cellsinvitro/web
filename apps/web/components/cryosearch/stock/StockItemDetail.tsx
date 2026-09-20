@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useLabWorkspace } from "@/context/LabWorkspaceContext";
 import {
   fetchStockItem,
@@ -51,8 +50,13 @@ function StatusBadge({ status }: { status?: string }) {
   );
 }
 
-export default function StockItemDetailPage({ params }: { params: Promise<{ itemId: string }> }) {
-  const { itemId } = use(params);
+export type StockItemDetailProps = {
+  itemId: string;
+  onBack?: () => void;
+  onEdit?: (itemId: string) => void;
+};
+
+export default function StockItemDetail({ itemId, onBack, onEdit }: StockItemDetailProps) {
   const { activeLab } = useLabWorkspace();
   const [item, setItem] = useState<StockItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,7 +133,7 @@ export default function StockItemDetailPage({ params }: { params: Promise<{ item
   if (error || !item) return (
     <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
       <p className="text-sm text-red-700">{error ?? "Item not found"}</p>
-      <Link href="/dashboard/stock/inventory" className="mt-3 inline-block text-sm font-medium text-slate-900 underline">Back to Inventory</Link>
+      <button onClick={onBack} className="mt-3 inline-block text-sm font-medium text-slate-900 underline cursor-pointer">Back to Inventory</button>
     </div>
   );
 
@@ -140,7 +144,7 @@ export default function StockItemDetailPage({ params }: { params: Promise<{ item
       {/* Breadcrumb + Actions */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <nav className="flex items-center gap-2 text-sm text-slate-500">
-          <Link href="/dashboard/stock/inventory" className="hover:text-slate-700">Inventory</Link>
+          <button onClick={onBack} className="hover:text-slate-700 cursor-pointer">Inventory</button>
           <span>/</span>
           <span className="font-medium text-slate-800">{item.name}</span>
           {item.isArchived && (
@@ -148,9 +152,9 @@ export default function StockItemDetailPage({ params }: { params: Promise<{ item
           )}
         </nav>
         <div className="flex gap-2">
-          <Link href={`/dashboard/stock/inventory?showEdit=${item.id}`} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</Link>
-          <button onClick={() => setShowAdjust(true)} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100">Adjust Qty</button>
-          <button onClick={handleArchive} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <button onClick={() => onEdit?.(item.id)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">Edit</button>
+          <button onClick={() => setShowAdjust(true)} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 cursor-pointer">Adjust Qty</button>
+          <button onClick={handleArchive} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 cursor-pointer">
             {item.isArchived ? "Restore" : "Archive"}
           </button>
         </div>

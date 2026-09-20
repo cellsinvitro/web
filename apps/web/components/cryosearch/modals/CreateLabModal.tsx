@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import CellLineColorPicker from "../CellLineColorPicker";
-import { ColorCodeConverter, ColorDef, CELL_LINE_COLORS } from "@/lib/cryosearch/types";
+import { ColorCodeConverter, ColorDef, CELL_LINE_COLORS } from "@/lib/cyrosearch/types";
 
 interface CreateLabModalProps {
   isOpen: boolean;

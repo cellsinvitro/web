@@ -30,7 +30,7 @@ function formatDateTime(dateStr: string) {
   return new Date(dateStr).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default function ActivityLogPage() {
+export default function StockActivity() {
   const { activeLab } = useLabWorkspace();
   const [logs, setLogs] = useState<StockActivityLog[]>([]);
   const [total, setTotal] = useState(0);

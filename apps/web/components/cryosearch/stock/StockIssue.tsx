@@ -21,7 +21,7 @@ type IssueLineItem = {
   quantity: number;
 };
 
-export default function IssueStockPage() {
+export default function StockIssue() {
   const { activeLab } = useLabWorkspace();
   const [permissions, setPermissions] = useState<StockPermissions | null>(null);
   const [allItems, setAllItems] = useState<StockItem[]>([]);
@@ -162,7 +162,7 @@ export default function IssueStockPage() {
                   key={item.id}
                   type="button"
                   onClick={() => addToBasket(item)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50 first:rounded-t-xl last:rounded-b-xl transition-colors"
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50 first:rounded-t-xl last:rounded-b-xl transition-colors cursor-pointer"
                 >
                   <div>
                     <p className="text-sm font-semibold text-slate-800">{item.name}</p>
@@ -264,7 +264,7 @@ export default function IssueStockPage() {
               type="submit"
               disabled={submitting || basket.length === 0}
               id="confirm-issue-btn"
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer"
             >
               {submitting ? "Issuing…" : "Confirm Issue"}
               {!submitting && (

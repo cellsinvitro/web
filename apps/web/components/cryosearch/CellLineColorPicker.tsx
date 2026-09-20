@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CELL_LINE_COLORS, ColorDef } from "@/lib/cryosearch/types";
+import { CELL_LINE_COLORS, ColorDef } from "@/lib/cyrosearch/types";
 
 interface CellLineColorPickerProps {
   selectedColorCode: number;
@@ -46,11 +46,10 @@ export default function CellLineColorPicker({
               type="button"
               onClick={() => onSelectColor(c)}
               title={`${c.name} (#${c.code})`}
-              className={`group relative flex h-10 w-10 items-center justify-center rounded-xl border transition-all hover:scale-110 active:scale-95 ${
-                isSelected
+              className={`group relative flex h-10 w-10 items-center justify-center rounded-xl border transition-all hover:scale-110 active:scale-95 ${isSelected
                   ? "ring-2 ring-slate-900 ring-offset-2 scale-105 shadow-md"
                   : "hover:shadow-sm"
-              }`}
+                }`}
               style={{
                 backgroundColor: c.hex,
                 borderColor: isSelected ? "#0f172a" : c.border,

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AllowedUsersModel } from "@/lib/cryosearch/types";
+import { AllowedUsersModel } from "@/lib/cyrosearch/types";
 
 interface AllowedUsersModalProps {
   isOpen: boolean;

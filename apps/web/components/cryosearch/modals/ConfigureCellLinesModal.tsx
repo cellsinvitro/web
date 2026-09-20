@@ -7,7 +7,7 @@ import {
   ColorCodeConverter,
   ColorDef,
   CELL_LINE_COLORS,
-} from "@/lib/cryosearch/types";
+} from "@/lib/cyrosearch/types";
 
 interface ConfigureCellLinesModalProps {
   isOpen: boolean;

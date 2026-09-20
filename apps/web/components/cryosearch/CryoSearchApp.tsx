@@ -13,7 +13,7 @@ import {
   AllowedUsersModel,
   ColorCodeConverter,
   CELL_LINE_COLORS,
-} from "@/lib/cryosearch/types";
+} from "@/lib/cyrosearch/types";
 import {
   fetchCryoSearchState,
   saveCryoSearchState,
@@ -34,11 +34,12 @@ import AllowedUsersModal from "./modals/AllowedUsersModal";
 
 import { LabWorkspaceProvider } from "@/context/LabWorkspaceContext";
 import CryoBudgetWrapper from "./CryoBudgetWrapper";
-import StockDashboardPage from "@/app/dashboard/stock/dashboard/page";
-import StockInventoryPage from "@/app/dashboard/stock/inventory/page";
-import StockIssuePage from "@/app/dashboard/stock/issue/page";
-import StockActivityPage from "@/app/dashboard/stock/activity/page";
-import StockSettingsPage from "@/app/dashboard/stock/settings/page";
+import StockDashboard from "./stock/StockDashboard";
+import StockInventory from "./stock/StockInventory";
+import StockItemDetail from "./stock/StockItemDetail";
+import StockIssue from "./stock/StockIssue";
+import StockActivity from "./stock/StockActivity";
+import StockSettings from "./stock/StockSettings";
 
 export default function CryoSearchApp() {
   const searchParams = useSearchParams();
@@ -134,7 +135,7 @@ export default function CryoSearchApp() {
         setInviteError(err instanceof Error ? err.message : "Invalid invite link");
         setInviteState("error");
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAcceptInvite = useCallback(async () => {
@@ -730,11 +731,10 @@ export default function CryoSearchApp() {
           <button
             type="button"
             onClick={() => setActiveTab("repo")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
-              activeTab === "repo"
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "repo"
                 ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
+              }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
@@ -745,11 +745,10 @@ export default function CryoSearchApp() {
           <button
             type="button"
             onClick={() => setActiveTab("activities")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
-              activeTab === "activities"
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "activities"
                 ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
+              }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <circle cx="12" cy="12" r="10" />
@@ -761,11 +760,10 @@ export default function CryoSearchApp() {
           <button
             type="button"
             onClick={() => setActiveTab("access")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
-              activeTab === "access"
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "access"
                 ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
+              }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -784,11 +782,10 @@ export default function CryoSearchApp() {
           <button
             type="button"
             onClick={() => setActiveTab("stock")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${
-              activeTab === "stock"
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${activeTab === "stock"
                 ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
+              }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
@@ -799,11 +796,10 @@ export default function CryoSearchApp() {
           <button
             type="button"
             onClick={() => setActiveTab("budget")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${
-              activeTab === "budget"
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${activeTab === "budget"
                 ? "bg-pink-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
+              }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h1.5m-1.5 0h-1.5m-8.25 0H6m1.5 0H6" />
@@ -824,22 +820,20 @@ export default function CryoSearchApp() {
                 <button
                   type="button"
                   onClick={() => setRepoMode("my")}
-                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
-                    repoMode === "my"
+                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "my"
                       ? "bg-pink-600 text-white shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   My-Repo
                 </button>
                 <button
                   type="button"
                   onClick={() => setRepoMode("shared")}
-                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
-                    repoMode === "shared"
+                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "shared"
                       ? "bg-pink-600 text-white shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   Shared-Repo
                 </button>
@@ -1281,11 +1275,10 @@ export default function CryoSearchApp() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                              isStored
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${isStored
                                 ? "bg-emerald-100 text-emerald-700"
                                 : "bg-rose-100 text-rose-700"
-                            }`}
+                              }`}
                           >
                             {act.activityType}
                           </span>
@@ -1296,8 +1289,8 @@ export default function CryoSearchApp() {
                         <span className="text-[11px] text-slate-400">
                           {act.storedExtractedOn
                             ? new Date(
-                                parseInt(act.storedExtractedOn, 10)
-                              ).toLocaleString()
+                              parseInt(act.storedExtractedOn, 10)
+                            ).toLocaleString()
                             : ""}
                         </span>
                       </div>
@@ -1384,22 +1377,20 @@ export default function CryoSearchApp() {
               <button
                 type="button"
                 onClick={() => setAccessSubTab("received")}
-                className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
-                  accessSubTab === "received"
+                className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${accessSubTab === "received"
                     ? "bg-white text-slate-900 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Received Requests ({receivedRequests.length})
               </button>
               <button
                 type="button"
                 onClick={() => setAccessSubTab("sent")}
-                className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
-                  accessSubTab === "sent"
+                className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${accessSubTab === "sent"
                     ? "bg-white text-slate-900 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Sent Requests ({sentRequests.length})
               </button>
@@ -1486,13 +1477,12 @@ export default function CryoSearchApp() {
                         </div>
 
                         <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                            req.requestStatus === "Approved"
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${req.requestStatus === "Approved"
                               ? "bg-emerald-100 text-emerald-700"
                               : req.requestStatus === "Denied"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
+                                ? "bg-red-100 text-red-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
                         >
                           {req.requestStatus}
                         </span>
@@ -1580,11 +1570,11 @@ export default function CryoSearchApp() {
           onOpenBox={
             selectedItemForOptions.type === "Box"
               ? () => {
-                  setSelectedBox(selectedItemForOptions.raw);
-                  setActiveLabForCellLines(
-                    getLabByBox(selectedItemForOptions.raw)
-                  );
-                }
+                setSelectedBox(selectedItemForOptions.raw);
+                setActiveLabForCellLines(
+                  getLabByBox(selectedItemForOptions.raw)
+                );
+              }
               : undefined
           }
           onRename={(newName) =>
@@ -1597,21 +1587,21 @@ export default function CryoSearchApp() {
           onAddChild={
             selectedItemForOptions.type !== "Box"
               ? () => {
-                  setAddDocParent({
-                    type: selectedItemForOptions.type as DocParentType,
-                    name: selectedItemForOptions.name,
-                    id: selectedItemForOptions.id,
-                  });
-                  setIsAddDocOpen(true);
-                }
+                setAddDocParent({
+                  type: selectedItemForOptions.type as DocParentType,
+                  name: selectedItemForOptions.name,
+                  id: selectedItemForOptions.id,
+                });
+                setIsAddDocOpen(true);
+              }
               : undefined
           }
           onConfigureCellLines={
             selectedItemForOptions.type === "Lab"
               ? () => {
-                  setTargetLabForConfig(selectedItemForOptions.raw);
-                  setIsConfigCellLinesOpen(true);
-                }
+                setTargetLabForConfig(selectedItemForOptions.raw);
+                setIsConfigCellLinesOpen(true);
+              }
               : undefined
           }
           onDelete={() =>
@@ -1642,6 +1632,21 @@ export default function CryoSearchApp() {
 
 function CryoStockWrapper() {
   const [subTab, setSubTab] = useState<"dashboard" | "inventory" | "issue" | "activity" | "settings">("dashboard");
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [inventoryFilters, setInventoryFilters] = useState<{ expiryStatus?: string; availability?: string; showAdd?: boolean; showEdit?: string } | undefined>(undefined);
+
+  const handleNavigate = (
+    targetSubTab: "inventory" | "issue" | "activity" | "settings",
+    filters?: { expiryStatus?: string; availability?: string; showAdd?: boolean }
+  ) => {
+    setSelectedItemId(null);
+    if (filters) setInventoryFilters(filters);
+    setSubTab(targetSubTab);
+  };
+
+  const handleSelectItem = (itemId: string) => {
+    setSelectedItemId(itemId);
+  };
 
   return (
     <LabWorkspaceProvider>
@@ -1669,9 +1674,12 @@ function CryoStockWrapper() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setSubTab(item.id as typeof subTab)}
+                onClick={() => {
+                  setSelectedItemId(null);
+                  setSubTab(item.id as typeof subTab);
+                }}
                 className={`flex-shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                  subTab === item.id
+                  subTab === item.id && !selectedItemId
                     ? "border-slate-900 text-slate-900 font-bold"
                     : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
                 }`}
@@ -1683,11 +1691,29 @@ function CryoStockWrapper() {
         </div>
 
         <div>
-          {subTab === "dashboard" && <StockDashboardPage />}
-          {subTab === "inventory" && <StockInventoryPage />}
-          {subTab === "issue" && <StockIssuePage />}
-          {subTab === "activity" && <StockActivityPage />}
-          {subTab === "settings" && <StockSettingsPage />}
+          {selectedItemId ? (
+            <StockItemDetail
+              itemId={selectedItemId}
+              onBack={() => setSelectedItemId(null)}
+              onEdit={(id) => {
+                setSelectedItemId(null);
+                setInventoryFilters({ showEdit: id });
+                setSubTab("inventory");
+              }}
+            />
+          ) : (
+            <>
+              {subTab === "dashboard" && (
+                <StockDashboard onNavigate={handleNavigate} onSelectItem={handleSelectItem} />
+              )}
+              {subTab === "inventory" && (
+                <StockInventory filters={inventoryFilters} onSelectItem={handleSelectItem} />
+              )}
+              {subTab === "issue" && <StockIssue />}
+              {subTab === "activity" && <StockActivity />}
+              {subTab === "settings" && <StockSettings />}
+            </>
+          )}
         </div>
       </div>
     </LabWorkspaceProvider>

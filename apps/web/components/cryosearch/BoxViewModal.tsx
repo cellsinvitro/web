@@ -7,7 +7,7 @@ import {
   ColorCodeConverter,
   LabActivityModel,
   CELL_LINE_COLORS,
-} from "@/lib/cryosearch/types";
+} from "@/lib/cyrosearch/types";
 
 interface BoxViewModalProps {
   isOpen: boolean;
@@ -283,11 +283,10 @@ export default function BoxViewModal({
                 setViewMode("view");
                 setSelectedCellIndices([]);
               }}
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "view"
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${viewMode === "view"
                   ? "bg-slate-900 text-white shadow-sm"
                   : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-              }`}
+                }`}
             >
               Inspect Mode
             </button>
@@ -298,11 +297,10 @@ export default function BoxViewModal({
                 setViewMode("store");
                 setSelectedCellIndices([]);
               }}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "store"
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${viewMode === "store"
                   ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
                   : "bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
-              }`}
+                }`}
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
                 <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
@@ -316,11 +314,10 @@ export default function BoxViewModal({
                 setViewMode("revive");
                 setSelectedCellIndices([]);
               }}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "revive"
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${viewMode === "revive"
                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
                   : "bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
-              }`}
+                }`}
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
                 <path
@@ -377,38 +374,33 @@ export default function BoxViewModal({
                       key={cell.boxIndex}
                       type="button"
                       onClick={() => handleCellClick(cell)}
-                      className={`relative flex aspect-square flex-col justify-between rounded-md border p-1 text-left transition-all hover:scale-105 active:scale-95 ${
-                        isInspected
+                      className={`relative flex aspect-square flex-col justify-between rounded-md border p-1 text-left transition-all hover:scale-105 active:scale-95 ${isInspected
                           ? "ring-2 ring-slate-900 ring-offset-1 z-10 scale-105"
                           : ""
-                      } ${
-                        isSelected
+                        } ${isSelected
                           ? "ring-2 ring-blue-500 text-white shadow-md"
                           : ""
-                      } ${
-                        cell.isEmpty
+                        } ${cell.isEmpty
                           ? "bg-white/80 hover:bg-slate-50"
                           : "shadow-xs"
-                      }`}
+                        }`}
                       style={{
                         backgroundColor: bgColor,
                         borderColor: isSelected ? "#1d4ed8" : borderColor,
                       }}
-                      title={`Cell #${cell.boxIndex} ${
-                        cell.isEmpty
+                      title={`Cell #${cell.boxIndex} ${cell.isEmpty
                           ? "(Vacant)"
                           : `- ${name} (Passage ${cell.passage})`
-                      }`}
+                        }`}
                     >
                       {/* Cell Line Name on top */}
                       <span
-                        className={`truncate text-[9px] font-bold leading-tight ${
-                          isSelected
+                        className={`truncate text-[9px] font-bold leading-tight ${isSelected
                             ? "text-white"
                             : cell.isEmpty
-                            ? "text-slate-400"
-                            : "text-slate-950"
-                        }`}
+                              ? "text-slate-400"
+                              : "text-slate-950"
+                          }`}
                       >
                         {cell.isEmpty ? "-" : name}
                       </span>
@@ -420,8 +412,8 @@ export default function BoxViewModal({
                             isSelected
                               ? "text-white/90 font-bold"
                               : cell.isEmpty
-                              ? "opacity-0"
-                              : "text-slate-700 font-bold"
+                                ? "opacity-0"
+                                : "text-slate-700 font-bold"
                           }
                         >
                           P{cell.passage}
@@ -495,8 +487,8 @@ export default function BoxViewModal({
                           {activeInspectedCell.isEmpty
                             ? "Vacant / Empty Slot"
                             : ColorCodeConverter.parseCellLine(
-                                activeInspectedCell.name
-                              ).name}
+                              activeInspectedCell.name
+                            ).name}
                         </span>
                       </div>
                     </div>
@@ -524,8 +516,8 @@ export default function BoxViewModal({
                       <div className="font-medium text-slate-700">
                         {activeInspectedCell.storedOn
                           ? new Date(
-                              parseInt(activeInspectedCell.storedOn, 10)
-                            ).toLocaleDateString()
+                            parseInt(activeInspectedCell.storedOn, 10)
+                          ).toLocaleDateString()
                           : "-"}
                       </div>
                     </div>
@@ -540,11 +532,10 @@ export default function BoxViewModal({
                           key={star}
                           viewBox="0 0 20 20"
                           fill="currentColor"
-                          className={`h-4 w-4 ${
-                            star <= (activeInspectedCell.ratingsWhenStored || 0)
+                          className={`h-4 w-4 ${star <= (activeInspectedCell.ratingsWhenStored || 0)
                               ? "text-amber-400"
                               : "text-slate-200"
-                          }`}
+                            }`}
                         >
                           <path
                             fillRule="evenodd"
@@ -744,11 +735,10 @@ export default function BoxViewModal({
                         <svg
                           viewBox="0 0 20 20"
                           fill="currentColor"
-                          className={`h-6 w-6 ${
-                            star <= storeRatings
+                          className={`h-6 w-6 ${star <= storeRatings
                               ? "text-amber-400"
                               : "text-slate-200 hover:text-amber-200"
-                          }`}
+                            }`}
                         >
                           <path
                             fillRule="evenodd"

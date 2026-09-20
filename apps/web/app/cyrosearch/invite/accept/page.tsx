@@ -76,7 +76,7 @@ export default function AcceptStockInvitePage() {
             onClick={() => router.push("/cyrosearch?tab=stock")}
             className="mt-6 rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800"
           >
-            Go to Stock Management
+            Go to CyroSearch Stock Management
           </button>
         </div>
       </div>
@@ -105,7 +105,7 @@ export default function AcceptStockInvitePage() {
             onClick={() => router.push("/cyrosearch?tab=stock")}
             className="mt-6 rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800"
           >
-            Go to Stock Management
+            Go to CyroSearch Stock Management
           </button>
         </div>
       </div>
