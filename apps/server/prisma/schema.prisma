@@ -44,6 +44,8 @@ model User {
   labInvitesSent     LabInvite[]        @relation("LabInviteInviter")
   stockItemsCreated  StockItem[]        @relation("StockItemCreator")
   stockTransactionsCreated StockTransaction[] @relation("StockTransactionCreator")
+  notebookTasksAssigned  NotebookTask[]   @relation("NotebookTaskAssignee")
+  notebookTasksCreated   NotebookTask[]   @relation("NotebookTaskAssigner")
 }
 
 model MaintenanceRule {
@@ -874,6 +876,8 @@ model LabWorkspace {
   instruments  Instrument[]
   activities   LogbookActivity[]
   notebooks    LabNotebookEntry[]
+  notebookTasks    NotebookTask[]
+  notebookActivityLogs NotebookActivityLog[]
   stockSettings    StockSettings?
   stockCategories  StockCategory[]
   stockTags        StockTag[]
@@ -1016,19 +1020,78 @@ model LogbookActivity {
 }
 
 model LabNotebookEntry {
+  id          String        @id @default(cuid())
+  labId       String?
+  userId      String
+  userName    String
+  date        DateTime
+  /// Plain-text fallback (legacy). New entries store rich content in richContent.
+  content     String        @db.Text
+  /// JSON-serialised array of NotebookBlock objects (rich editor state)
+  richContent Json?
+  /// Entry-level time annotation (HH:MM, e.g. "09:30")
+  entryTime   String?
+  /// Short summary / title shown on calendar popup
+  summary     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lab         LabWorkspace? @relation(fields: [labId], references: [id], onDelete: Cascade)
+  activityLogs NotebookActivityLog[]
+
+  @@index([labId])
+  @@index([userId])
+  @@index([date])
+}
+
+/// Assigned task from admin to a specific user
+model NotebookTask {
+  id            String           @id @default(cuid())
+  labId         String?
+  assignedToId  String           // target user
+  assignedById  String           // admin/owner who assigned
+  title         String
+  description   String?          @db.Text
+  dueDate       DateTime?
+  status        NotebookTaskStatus @default(PENDING)
+  completedAt   DateTime?
+  completedNote String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  assignedTo    User             @relation("NotebookTaskAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedBy    User             @relation("NotebookTaskAssigner", fields: [assignedById], references: [id], onDelete: Cascade)
+  lab           LabWorkspace?    @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@index([labId])
+  @@index([assignedToId])
+  @@index([assignedById])
+  @@index([status])
+}
+
+/// Immutable audit trail for notebook-specific actions
+model NotebookActivityLog {
   id        String        @id @default(cuid())
   labId     String?
   userId    String
   userName  String
-  date      DateTime
-  content   String        @db.Text
+  action    String        // e.g. ENTRY_CREATED, ENTRY_UPDATED, TASK_ASSIGNED, TASK_COMPLETED
+  details   String
+  entryId   String?       // related LabNotebookEntry (nullable)
+  targetUserId String?    // for task-related actions
   createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   lab       LabWorkspace? @relation(fields: [labId], references: [id], onDelete: Cascade)
+  entry     LabNotebookEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
 
-  @@index([labId])
-  @@index([date])
+  @@index([labId, createdAt])
+  @@index([userId])
+  @@index([targetUserId])
+}
+
+enum NotebookTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 // ─── Stock Management ─────────────────────────────────────────────────────────
