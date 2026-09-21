@@ -1037,10 +1037,42 @@ logbookRoutes.get("/reports", async (c) => {
 // LAB NOTEBOOK ENDPOINTS
 // ─────────────────────────────────────────────
 
+// Helper: write notebook activity log (fire-and-forget)
+async function logNotebookActivity(
+  userId: string,
+  userName: string,
+  action: string,
+  details: string,
+  labId?: string | null,
+  entryId?: string | null,
+  targetUserId?: string | null,
+) {
+  try {
+    await prisma.notebookActivityLog.create({
+      data: {
+        userId,
+        userName,
+        action,
+        details,
+        labId: labId || null,
+        entryId: entryId || null,
+        targetUserId: targetUserId || null,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to write notebook activity:", err);
+  }
+}
+
+// GET /logbook/notebook — fetch single entry by date (own entry only)
 logbookRoutes.get("/notebook", async (c) => {
   const authUser = c.get("user");
   const requestedLabId = c.req.query("labId");
-  const { lab } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
+  if (!permissions.canViewLogbook) {
+    throw new HTTPException(403, { message: "You do not have permission to view the notebook" });
+  }
 
   const dateStr = c.req.query("date") || getTodayString();
   const dateObj = new Date(`${dateStr}T00:00:00.000Z`);
@@ -1053,35 +1085,44 @@ logbookRoutes.get("/notebook", async (c) => {
     },
   });
 
-  return c.json({
-    date: dateStr,
-    entry: entry || null,
-  });
+  return c.json({ date: dateStr, entry: entry || null });
 });
 
+// POST /logbook/notebook — create or update own entry for a date (rich content)
 logbookRoutes.post("/notebook", async (c) => {
   const authUser = c.get("user");
   const requestedLabId = c.req.query("labId");
-  const { lab } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
+  const dbUser = await getUserWithRole(authUser.sub);
+  const displayName = dbUser.name || dbUser.email;
 
   const body = await c.req.json().catch(() => null);
-
   if (!body || body.content === undefined) {
     throw new HTTPException(400, { message: "Content required" });
   }
 
   const dateStr = body.date || getTodayString();
   const dateObj = new Date(`${dateStr}T00:00:00.000Z`);
-  const dbUser = await getUserWithRole(authUser.sub);
-  const displayName = dbUser.name || dbUser.email;
 
+  // Find existing entry for this user+lab+date
   const existing = await prisma.labNotebookEntry.findFirst({
-    where: {
-      date: dateObj,
-      userId: authUser.sub,
-      labId: lab.id,
-    },
+    where: { date: dateObj, userId: authUser.sub, labId: lab.id },
   });
+
+  const isNew = !existing;
+
+  if (existing) {
+    // Editing own entry — requires canEditOwnEntries
+    if (!permissions.canEditOwnEntries) {
+      throw new HTTPException(403, { message: "You do not have permission to edit notebook entries" });
+    }
+  } else {
+    // Creating new entry — requires canCreateEntries
+    if (!permissions.canCreateEntries) {
+      throw new HTTPException(403, { message: "You do not have permission to create notebook entries" });
+    }
+  }
 
   let entry;
   if (existing) {
@@ -1089,6 +1130,9 @@ logbookRoutes.post("/notebook", async (c) => {
       where: { id: existing.id },
       data: {
         content: String(body.content),
+        richContent: body.richContent ?? undefined,
+        entryTime: body.entryTime ? String(body.entryTime) : undefined,
+        summary: body.summary ? String(body.summary).slice(0, 200) : undefined,
         userName: displayName,
       },
     });
@@ -1099,12 +1143,470 @@ logbookRoutes.post("/notebook", async (c) => {
         userId: authUser.sub,
         userName: displayName,
         content: String(body.content),
+        richContent: body.richContent ?? undefined,
+        entryTime: body.entryTime ? String(body.entryTime) : null,
+        summary: body.summary ? String(body.summary).slice(0, 200) : null,
         labId: lab.id,
       },
     });
   }
 
+  await logNotebookActivity(
+    authUser.sub,
+    displayName,
+    isNew ? "ENTRY_CREATED" : "ENTRY_UPDATED",
+    `${isNew ? "Created" : "Updated"} notebook entry for ${dateStr}`,
+    lab.id,
+    entry.id,
+  );
+
   return c.json({ entry });
+});
+
+// GET /logbook/notebook/history — list all dates with entries for the current user
+logbookRoutes.get("/notebook/history", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const { lab, permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
+  if (!permissions.canViewLogbook) {
+    throw new HTTPException(403, { message: "Access denied" });
+  }
+
+  const entries = await prisma.labNotebookEntry.findMany({
+    where: { userId: authUser.sub, OR: [{ labId: lab.id }, { labId: null }] },
+    select: {
+      id: true,
+      date: true,
+      summary: true,
+      entryTime: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: { date: "desc" },
+    take: 365,
+  });
+
+  const history = entries.map((e) => ({
+    id: e.id,
+    date: e.date.toISOString().split("T")[0],
+    summary: e.summary,
+    entryTime: e.entryTime,
+    createdAt: e.createdAt.toISOString(),
+    updatedAt: e.updatedAt.toISOString(),
+  }));
+
+  return c.json({ history });
+});
+
+// POST /logbook/notebook/image — upload image for a notebook entry (multipart)
+logbookRoutes.post("/notebook/image", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const { permissions } = await resolveLabAndPermissions(authUser.sub, requestedLabId);
+
+  if (!permissions.canCreateEntries && !permissions.canEditOwnEntries) {
+    throw new HTTPException(403, { message: "No permission to upload notebook images" });
+  }
+
+  const formData = await c.req.formData().catch(() => null);
+  if (!formData) throw new HTTPException(400, { message: "Multipart form data required" });
+
+  const file = formData.get("image");
+  if (!file || !(file instanceof File)) {
+    throw new HTTPException(400, { message: "image field required" });
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    throw new HTTPException(413, { message: "Image must be under 5 MB" });
+  }
+
+  const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  if (!allowed.includes(file.type)) {
+    throw new HTTPException(415, { message: "Only JPEG, PNG, GIF, WEBP images are allowed" });
+  }
+
+  const { uploadImageToCloudinary, toCloudinaryStorageKey, getCloudinaryImageUrl } = await import("../lib/cloudinary.js");
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const result = await uploadImageToCloudinary(buffer);
+  const storageKey = toCloudinaryStorageKey(result.public_id);
+  const url = getCloudinaryImageUrl(result.public_id);
+
+  return c.json({ url, storageKey, publicId: result.public_id });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN NOTEBOOK MULTI-USER VIEW
+// ─────────────────────────────────────────────
+
+// GET /logbook/notebook/admin/users — get up to 4 users' notebooks (admin only)
+logbookRoutes.get("/notebook/admin/users", async (c) => {
+  const authUser = c.get("user");
+  const dbUser = await getUserWithRole(authUser.sub);
+  if (dbUser.role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Super Administrators can view multi-user notebooks" });
+  }
+
+  // userIds=id1,id2,id3,id4 (max 4)
+  const userIdsParam = c.req.query("userIds") || "";
+  const dateStr = c.req.query("date") || getTodayString();
+  const labId = c.req.query("labId");
+
+  const userIds = userIdsParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+
+  if (userIds.length === 0) {
+    return c.json({ notebooks: [] });
+  }
+
+  const dateObj = new Date(`${dateStr}T00:00:00.000Z`);
+
+  const entries = await prisma.labNotebookEntry.findMany({
+    where: {
+      userId: { in: userIds },
+      date: dateObj,
+      ...(labId ? { labId } : {}),
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+    },
+  });
+
+  // Also fetch user info for users with no entry that day
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, name: true, email: true, avatarUrl: true },
+  });
+
+  const notebooks = users.map((u) => {
+    const entry = entries.find((e) => e.userId === u.id) || null;
+    return {
+      userId: u.id,
+      userName: u.name || u.email,
+      userEmail: u.email,
+      avatarUrl: u.avatarUrl,
+      entry: entry
+        ? {
+            id: entry.id,
+            date: entry.date.toISOString().split("T")[0],
+            content: entry.content,
+            richContent: entry.richContent,
+            entryTime: entry.entryTime,
+            summary: entry.summary,
+            createdAt: entry.createdAt.toISOString(),
+            updatedAt: entry.updatedAt.toISOString(),
+          }
+        : null,
+    };
+  });
+
+  return c.json({ notebooks, date: dateStr });
+});
+
+// GET /logbook/notebook/admin/history — history for a specific user (admin only)
+logbookRoutes.get("/notebook/admin/history", async (c) => {
+  const authUser = c.get("user");
+  const dbUser = await getUserWithRole(authUser.sub);
+  if (dbUser.role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Super Administrators can view user notebook history" });
+  }
+
+  const targetUserId = c.req.query("userId");
+  if (!targetUserId) throw new HTTPException(400, { message: "userId required" });
+
+  const labId = c.req.query("labId");
+
+  const entries = await prisma.labNotebookEntry.findMany({
+    where: {
+      userId: targetUserId,
+      ...(labId ? { labId } : {}),
+    },
+    select: {
+      id: true,
+      date: true,
+      summary: true,
+      entryTime: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: { date: "desc" },
+    take: 365,
+  });
+
+  return c.json({
+    history: entries.map((e) => ({
+      id: e.id,
+      date: e.date.toISOString().split("T")[0],
+      summary: e.summary,
+      entryTime: e.entryTime,
+      createdAt: e.createdAt.toISOString(),
+      updatedAt: e.updatedAt.toISOString(),
+    })),
+  });
+});
+
+// ─────────────────────────────────────────────
+// NOTEBOOK TASKS ENDPOINTS
+// ─────────────────────────────────────────────
+
+// GET /logbook/notebook/tasks — get tasks (admin: all in lab; user: own assigned tasks)
+logbookRoutes.get("/notebook/tasks", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  let labId: string | null = requestedLabId || null;
+
+  if (!labId) {
+    const activeLab = await ensureUserLabWorkspace(authUser.sub);
+    labId = activeLab.id;
+  }
+
+  const isAdmin = dbUser.role === "ADMIN";
+
+  const tasks = await prisma.notebookTask.findMany({
+    where: {
+      ...(labId ? { labId } : {}),
+      ...(isAdmin ? {} : { assignedToId: authUser.sub }),
+    },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedBy: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return c.json({
+    tasks: tasks.map((t) => ({
+      id: t.id,
+      labId: t.labId,
+      title: t.title,
+      description: t.description,
+      dueDate: t.dueDate ? t.dueDate.toISOString().split("T")[0] : null,
+      status: t.status,
+      completedAt: t.completedAt ? t.completedAt.toISOString() : null,
+      completedNote: t.completedNote,
+      createdAt: t.createdAt.toISOString(),
+      assignedTo: {
+        id: t.assignedTo.id,
+        name: t.assignedTo.name || t.assignedTo.email,
+        email: t.assignedTo.email,
+        avatarUrl: t.assignedTo.avatarUrl,
+      },
+      assignedBy: {
+        id: t.assignedBy.id,
+        name: t.assignedBy.name || t.assignedBy.email,
+        email: t.assignedBy.email,
+      },
+    })),
+  });
+});
+
+// POST /logbook/notebook/tasks — assign a new task (admin/owner only)
+logbookRoutes.post("/notebook/tasks", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  // Resolve lab; also checks membership
+  let labId: string | null = requestedLabId || null;
+  if (labId) {
+    const { isOwner, role: memberRole } = await resolveLabAndPermissions(authUser.sub, labId);
+    if (dbUser.role !== "ADMIN" && !isOwner && memberRole !== "ADMIN") {
+      throw new HTTPException(403, { message: "Only Admin or Lab Owner can assign tasks" });
+    }
+  } else {
+    const activeLab = await ensureUserLabWorkspace(authUser.sub);
+    labId = activeLab.id;
+    if (dbUser.role !== "ADMIN" && activeLab.ownerId !== authUser.sub) {
+      throw new HTTPException(403, { message: "Only Admin or Lab Owner can assign tasks" });
+    }
+  }
+
+  const body = await c.req.json().catch(() => null);
+  if (!body || !body.assignedToId || !body.title) {
+    throw new HTTPException(400, { message: "assignedToId and title are required" });
+  }
+
+  // Verify target user exists
+  const targetUser = await prisma.user.findUnique({
+    where: { id: String(body.assignedToId) },
+    select: { id: true, name: true, email: true },
+  });
+  if (!targetUser) throw new HTTPException(404, { message: "Assigned user not found" });
+
+  const task = await prisma.notebookTask.create({
+    data: {
+      labId,
+      assignedToId: targetUser.id,
+      assignedById: authUser.sub,
+      title: String(body.title).trim(),
+      description: body.description ? String(body.description).trim() : null,
+      dueDate: body.dueDate ? new Date(`${body.dueDate}T00:00:00.000Z`) : null,
+      status: "PENDING",
+    },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedBy: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  const displayName = dbUser.name || dbUser.email;
+  const targetName = targetUser.name || targetUser.email;
+
+  await logNotebookActivity(
+    authUser.sub,
+    displayName,
+    "TASK_ASSIGNED",
+    `Task "${task.title}" assigned to ${targetName}`,
+    labId,
+    null,
+    targetUser.id,
+  );
+
+  return c.json({ task });
+});
+
+// PATCH /logbook/notebook/tasks/:taskId — update status (complete by assignee; admin can cancel/edit)
+logbookRoutes.patch("/notebook/tasks/:taskId", async (c) => {
+  const authUser = c.get("user");
+  const taskId = c.req.param("taskId");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  const task = await prisma.notebookTask.findUnique({
+    where: { id: taskId },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true } },
+    },
+  });
+  if (!task) throw new HTTPException(404, { message: "Task not found" });
+
+  const body = await c.req.json().catch(() => null);
+  if (!body) throw new HTTPException(400, { message: "Request body required" });
+
+  const isAdmin = dbUser.role === "ADMIN";
+  const isAssignee = task.assignedToId === authUser.sub;
+
+  // Only the assigned user can mark as completed; admin can do anything
+  if (body.status === "COMPLETED") {
+    if (!isAssignee && !isAdmin) {
+      throw new HTTPException(403, { message: "Only the assigned user can mark this task as completed" });
+    }
+  } else if (!isAdmin) {
+    // Non-admin, non-assignee cannot change status to anything except COMPLETED
+    if (!isAssignee) {
+      throw new HTTPException(403, { message: "You do not have permission to update this task" });
+    }
+    // Assignee can only set IN_PROGRESS or COMPLETED
+    if (body.status && !["IN_PROGRESS", "COMPLETED"].includes(body.status)) {
+      throw new HTTPException(403, { message: "You can only mark tasks as In Progress or Completed" });
+    }
+  }
+
+  const displayName = dbUser.name || dbUser.email;
+
+  const updated = await prisma.notebookTask.update({
+    where: { id: taskId },
+    data: {
+      ...(body.status !== undefined && { status: body.status }),
+      ...(body.status === "COMPLETED" && {
+        completedAt: new Date(),
+        completedNote: body.completedNote ? String(body.completedNote).trim() : null,
+      }),
+      ...(isAdmin && body.title !== undefined && { title: String(body.title).trim() }),
+      ...(isAdmin && body.description !== undefined && { description: body.description ? String(body.description).trim() : null }),
+      ...(isAdmin && body.dueDate !== undefined && { dueDate: body.dueDate ? new Date(`${body.dueDate}T00:00:00.000Z`) : null }),
+    },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedBy: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (body.status === "COMPLETED") {
+    await logNotebookActivity(
+      authUser.sub,
+      displayName,
+      "TASK_COMPLETED",
+      `Task "${task.title}" marked as completed`,
+      task.labId,
+      null,
+      task.assignedToId,
+    );
+  }
+
+  return c.json({ task: updated });
+});
+
+// DELETE /logbook/notebook/tasks/:taskId — cancel/delete task (admin only)
+logbookRoutes.delete("/notebook/tasks/:taskId", async (c) => {
+  const authUser = c.get("user");
+  const taskId = c.req.param("taskId");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  if (dbUser.role !== "ADMIN") {
+    // Check if lab owner
+    const task = await prisma.notebookTask.findUnique({ where: { id: taskId } });
+    if (!task) throw new HTTPException(404, { message: "Task not found" });
+    if (task.labId) {
+      const lab = await prisma.labWorkspace.findUnique({ where: { id: task.labId } });
+      if (!lab || lab.ownerId !== authUser.sub) {
+        throw new HTTPException(403, { message: "Only Admin or Lab Owner can delete tasks" });
+      }
+    } else {
+      throw new HTTPException(403, { message: "Only Admin can delete tasks" });
+    }
+  }
+
+  await prisma.notebookTask.delete({ where: { id: taskId } });
+  return c.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
+// NOTEBOOK ACTIVITY LOG ENDPOINTS
+// ─────────────────────────────────────────────
+
+// GET /logbook/notebook/activity — admin gets full log; user gets own actions only
+logbookRoutes.get("/notebook/activity", async (c) => {
+  const authUser = c.get("user");
+  const requestedLabId = c.req.query("labId");
+  const dbUser = await getUserWithRole(authUser.sub);
+
+  const isAdmin = dbUser.role === "ADMIN";
+
+  let labId: string | null = requestedLabId || null;
+  if (!labId && !isAdmin) {
+    const activeLab = await ensureUserLabWorkspace(authUser.sub);
+    labId = activeLab.id;
+  }
+
+  const logs = await prisma.notebookActivityLog.findMany({
+    where: {
+      ...(labId ? { labId } : {}),
+      // Non-admin users only see their own actions
+      ...(!isAdmin ? { userId: authUser.sub } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+
+  return c.json({
+    logs: logs.map((l) => ({
+      id: l.id,
+      userId: l.userId,
+      userName: l.userName,
+      action: l.action,
+      details: l.details,
+      labId: l.labId,
+      entryId: l.entryId,
+      targetUserId: l.targetUserId,
+      createdAt: l.createdAt.toISOString(),
+    })),
+    isAdmin,
+  });
 });
 
 // ─────────────────────────────────────────────

@@ -2190,14 +2190,83 @@ export type LogbookReportRow = {
   remarks: string;
 };
 
+// ─── Notebook block types (rich editor) ──────────────────────────────────────
+
+export type NotebookBlockType = "text" | "image";
+
+export type NotebookTextBlock = {
+  type: "text";
+  id: string;
+  content: string; // HTML from contentEditable
+};
+
+export type NotebookImageBlock = {
+  type: "image";
+  id: string;
+  url: string;
+  storageKey?: string;
+  caption?: string;
+  width?: number; // percentage of container
+};
+
+export type NotebookBlock = NotebookTextBlock | NotebookImageBlock;
+
 export type LabNotebookEntry = {
   id: string;
   userId: string;
   userName: string;
   date: string;
   content: string;
+  richContent?: NotebookBlock[] | null;
+  entryTime?: string | null;
+  summary?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type NotebookHistoryItem = {
+  id: string;
+  date: string;
+  summary: string | null;
+  entryTime: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NotebookTaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export type NotebookTask = {
+  id: string;
+  labId: string | null;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  status: NotebookTaskStatus;
+  completedAt: string | null;
+  completedNote: string | null;
+  createdAt: string;
+  assignedTo: { id: string; name: string; email: string; avatarUrl: string | null };
+  assignedBy: { id: string; name: string; email: string };
+};
+
+export type NotebookActivityLog = {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  labId: string | null;
+  entryId: string | null;
+  targetUserId: string | null;
+  createdAt: string;
+};
+
+export type AdminNotebookUserView = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  avatarUrl: string | null;
+  entry: Omit<LabNotebookEntry, "userId" | "userName"> | null;
 };
 
 export async function fetchUserLabs() {
@@ -2386,13 +2455,122 @@ export async function fetchLabNotebookEntry(date?: string, labId?: string) {
   return apiFetch<{ date: string; entry: LabNotebookEntry | null }>(`/logbook/notebook${queryString}`);
 }
 
-export async function saveLabNotebookEntry(content: string, date?: string, labId?: string) {
+export async function saveLabNotebookEntry(
+  content: string,
+  date?: string,
+  labId?: string,
+  richContent?: NotebookBlock[] | null,
+  entryTime?: string | null,
+  summary?: string | null,
+) {
   const query = labId ? `?labId=${labId}` : "";
   const data = await apiFetch<{ entry: LabNotebookEntry }>(`/logbook/notebook${query}`, {
     method: "POST",
-    body: JSON.stringify({ content, date }),
+    body: JSON.stringify({ content, date, richContent, entryTime, summary }),
   });
   return data.entry;
+}
+
+export async function fetchNotebookHistory(labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ history: NotebookHistoryItem[] }>(`/logbook/notebook/history${query}`);
+  return data.history;
+}
+
+export async function uploadNotebookImage(file: File, labId?: string): Promise<{ url: string; storageKey: string; publicId: string }> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const query = labId ? `?labId=${labId}` : "";
+
+  const { getAccessToken } = await import("@/lib/auth-storage");
+  const token = getAccessToken();
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+
+  const res = await fetch(`${API_URL}/logbook/notebook/image${query}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error((err as { error: string }).error || "Upload failed");
+  }
+  return res.json();
+}
+
+// ── Notebook Tasks ─────────────────────────────────────────────────────────────
+
+export async function fetchNotebookTasks(labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ tasks: NotebookTask[] }>(`/logbook/notebook/tasks${query}`);
+  return data.tasks;
+}
+
+export async function createNotebookTask(input: {
+  assignedToId: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+}, labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ task: NotebookTask }>(`/logbook/notebook/tasks${query}`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return data.task;
+}
+
+export async function updateNotebookTask(
+  taskId: string,
+  input: {
+    status?: NotebookTaskStatus;
+    completedNote?: string;
+    title?: string;
+    description?: string;
+    dueDate?: string | null;
+  },
+) {
+  const data = await apiFetch<{ task: NotebookTask }>(`/logbook/notebook/tasks/${taskId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.task;
+}
+
+export async function deleteNotebookTask(taskId: string) {
+  return apiFetch<{ success: true }>(`/logbook/notebook/tasks/${taskId}`, {
+    method: "DELETE",
+  });
+}
+
+// ── Notebook Activity Log ─────────────────────────────────────────────────────
+
+export async function fetchNotebookActivityLog(labId?: string) {
+  const query = labId ? `?labId=${labId}` : "";
+  const data = await apiFetch<{ logs: NotebookActivityLog[]; isAdmin: boolean }>(`/logbook/notebook/activity${query}`);
+  return data;
+}
+
+// ── Admin multi-user notebook view ────────────────────────────────────────────
+
+export async function fetchAdminNotebookUsers(userIds: string[], date?: string, labId?: string) {
+  const query = new URLSearchParams();
+  query.set("userIds", userIds.join(","));
+  if (date) query.set("date", date);
+  if (labId) query.set("labId", labId);
+  const data = await apiFetch<{ notebooks: AdminNotebookUserView[]; date: string }>(
+    `/logbook/notebook/admin/users?${query.toString()}`
+  );
+  return data;
+}
+
+export async function fetchAdminNotebookHistory(userId: string, labId?: string) {
+  const query = new URLSearchParams();
+  query.set("userId", userId);
+  if (labId) query.set("labId", labId);
+  const data = await apiFetch<{ history: NotebookHistoryItem[] }>(`/logbook/notebook/admin/history?${query.toString()}`);
+  return data.history;
 }
 
 export type AdminLogbookStats = {
