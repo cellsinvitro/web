@@ -12,6 +12,8 @@ export default function LogbookHeader({
   canGenerateReports = false,
   isAdmin = false,
   onAddInstrument,
+  activeSubTab,
+  onSubTabChange,
 }: {
   title?: string;
   subtitle?: string;
@@ -19,6 +21,8 @@ export default function LogbookHeader({
   canGenerateReports?: boolean;
   isAdmin?: boolean;
   onAddInstrument?: () => void;
+  activeSubTab?: string;
+  onSubTabChange?: (tabKey: string) => void;
 }) {
   const pathname = usePathname();
   const { labs, activeLab, setActiveLabId, createNewLab } = useLabWorkspace();
@@ -31,13 +35,13 @@ export default function LogbookHeader({
   const [createError, setCreateError] = useState<string | null>(null);
 
   const tabs = [
-    { label: "Instruments", href: "/dashboard/logbook" },
-    { label: "Lab Notebook", href: "/dashboard/logbook/notebook" },
+    { key: "instruments", label: "Instruments", href: "/dashboard/logbook" },
+    { key: "notebook", label: "Lab Notebook", href: "/dashboard/logbook/notebook" },
     ...(canGenerateReports || isAdmin
-      ? [{ label: "Reports", href: "/dashboard/logbook/reports" }]
+      ? [{ key: "reports", label: "Reports", href: "/dashboard/logbook/reports" }]
       : []),
-    { label: "Activity Log", href: "/dashboard/logbook/activity" },
-    { label: "Team & Permissions", href: "/dashboard/logbook/team" },
+    { key: "activity", label: "Activity Log", href: "/dashboard/logbook/activity" },
+    { key: "team", label: "Team & Permissions", href: "/dashboard/logbook/team" },
   ];
 
   const handleCreateLabSubmit = async (e: React.FormEvent) => {
@@ -186,10 +190,28 @@ export default function LogbookHeader({
       <div className="flex overflow-x-auto border-b border-slate-200 no-scrollbar">
         <div className="flex gap-2 pb-px">
           {tabs.map((tab) => {
-            const isActive =
-              tab.href === "/dashboard/logbook"
-                ? pathname === "/dashboard/logbook"
-                : pathname.startsWith(tab.href);
+            const isActive = activeSubTab
+              ? activeSubTab === tab.key
+              : tab.href === "/dashboard/logbook"
+              ? pathname === "/dashboard/logbook"
+              : pathname.startsWith(tab.href);
+
+            if (onSubTabChange) {
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => onSubTabChange(tab.key)}
+                  className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "border-slate-950 text-slate-950 font-bold"
+                      : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            }
 
             return (
               <Link

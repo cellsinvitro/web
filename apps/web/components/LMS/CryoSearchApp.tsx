@@ -34,6 +34,7 @@ import AllowedUsersModal from "./modals/AllowedUsersModal";
 
 import { LabWorkspaceProvider } from "@/context/LabWorkspaceContext";
 import CryoBudgetWrapper from "./CryoBudgetWrapper";
+import CryoLabLogbookWrapper from "./CryoLabLogbookWrapper";
 import StockDashboard from "./stock/StockDashboard";
 import StockInventory from "./stock/StockInventory";
 import StockItemDetail from "./stock/StockItemDetail";
@@ -46,9 +47,9 @@ export default function CryoSearchApp() {
   const tabParam = searchParams.get("tab");
 
   const [activeTab, setActiveTab] = useState<
-    "repo" | "activities" | "access" | "stock" | "budget"
+    "repo" | "access" | "stock" | "budget" | "logbook"
   >(() => {
-    if (tabParam === "stock" || tabParam === "budget" || tabParam === "activities" || tabParam === "access") {
+    if (tabParam === "stock" || tabParam === "budget" || tabParam === "access" || tabParam === "logbook") {
       return tabParam;
     }
     return "repo";
@@ -732,37 +733,36 @@ export default function CryoSearchApp() {
             type="button"
             onClick={() => setActiveTab("repo")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "repo"
-                ? "bg-pink-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              ? "bg-pink-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
             </svg>
-            <span>Repository</span>
+            <span>CryoSearch</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("activities")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "activities"
-                ? "bg-pink-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            onClick={() => setActiveTab("logbook")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "logbook"
+              ? "bg-pink-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
             </svg>
-            <span>Activities</span>
+            <span>Log Book</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("access")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "access"
-                ? "bg-pink-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              ? "bg-pink-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
@@ -783,8 +783,8 @@ export default function CryoSearchApp() {
             type="button"
             onClick={() => setActiveTab("stock")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${activeTab === "stock"
-                ? "bg-pink-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              ? "bg-pink-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
@@ -797,8 +797,8 @@ export default function CryoSearchApp() {
             type="button"
             onClick={() => setActiveTab("budget")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${activeTab === "budget"
-                ? "bg-pink-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              ? "bg-pink-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
@@ -821,8 +821,8 @@ export default function CryoSearchApp() {
                   type="button"
                   onClick={() => setRepoMode("my")}
                   className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "my"
-                      ? "bg-pink-600 text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
+                    ? "bg-pink-600 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   My-Repo
@@ -831,8 +831,8 @@ export default function CryoSearchApp() {
                   type="button"
                   onClick={() => setRepoMode("shared")}
                   className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "shared"
-                      ? "bg-pink-600 text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
+                    ? "bg-pink-600 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   Shared-Repo
@@ -1226,113 +1226,7 @@ export default function CryoSearchApp() {
           </div>
         )}
 
-        {/* ======================================================= */}
-        {/* TAB 2: LAB ACTIVITIES LOG */}
-        {/* ======================================================= */}
-        {activeTab === "activities" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">
-                  Lab Activity Log
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Audit trail of cryovial storage and revival events.
-                </p>
-              </div>
 
-              {activities.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm("Clear activity history log?")) {
-                      updateActivitiesState([]);
-                    }
-                  }}
-                  className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Clear History
-                </button>
-              )}
-            </div>
-
-            {activities.length === 0 ? (
-              <div className="py-16 text-center text-xs text-slate-400">
-                No activity recorded yet. Stored and revived cryovials will appear here.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {activities.map((act, index) => {
-                  const isStored = act.activityType === "Stored";
-                  const { name, color } = ColorCodeConverter.parseCellLine(
-                    act.cellLine || ""
-                  );
-                  return (
-                    <div
-                      key={index}
-                      className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-all hover:bg-slate-50"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${isStored
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-rose-100 text-rose-700"
-                              }`}
-                          >
-                            {act.activityType}
-                          </span>
-                          <span className="text-xs font-bold text-slate-900">
-                            {act.doneByName}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-slate-400">
-                          {act.storedExtractedOn
-                            ? new Date(
-                              parseInt(act.storedExtractedOn, 10)
-                            ).toLocaleString()
-                            : ""}
-                        </span>
-                      </div>
-
-                      {/* Path */}
-                      <div className="text-xs font-medium text-slate-600">
-                        {act.labName} &gt; {act.containerName} &gt; {act.rackName} &gt;{" "}
-                        <span className="font-bold text-slate-900">{act.boxName}</span>{" "}
-                        (Slots: {act.boxCells.join(", ")})
-                      </div>
-
-                      {/* Cell Details */}
-                      {act.cellLine && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full border border-black/20"
-                            style={{ backgroundColor: color.hex }}
-                          />
-                          <span className="font-semibold text-slate-800">
-                            {name}
-                          </span>
-                          {act.elementPassage && (
-                            <span className="rounded bg-slate-200 px-1.5 py-0.2 text-[10px] font-bold text-slate-700">
-                              {act.elementPassage}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Feedback / Remarks */}
-                      {act.feedbackWhenExtracted && (
-                        <div className="mt-1 rounded-lg bg-white p-2 text-xs italic text-slate-600 border border-slate-200/60">
-                          &ldquo;{act.feedbackWhenExtracted}&rdquo;
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ======================================================= */}
         {/* TAB 3: ACCESS REQUESTS */}
@@ -1378,8 +1272,8 @@ export default function CryoSearchApp() {
                 type="button"
                 onClick={() => setAccessSubTab("received")}
                 className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${accessSubTab === "received"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
                   }`}
               >
                 Received Requests ({receivedRequests.length})
@@ -1388,8 +1282,8 @@ export default function CryoSearchApp() {
                 type="button"
                 onClick={() => setAccessSubTab("sent")}
                 className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${accessSubTab === "sent"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
                   }`}
               >
                 Sent Requests ({sentRequests.length})
@@ -1478,10 +1372,10 @@ export default function CryoSearchApp() {
 
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${req.requestStatus === "Approved"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : req.requestStatus === "Denied"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-amber-100 text-amber-700"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : req.requestStatus === "Denied"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-amber-100 text-amber-700"
                             }`}
                         >
                           {req.requestStatus}
@@ -1511,6 +1405,15 @@ export default function CryoSearchApp() {
         {activeTab === "budget" && (
           <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
             <CryoBudgetWrapper />
+          </div>
+        )}
+
+        {/* ======================================================= */}
+        {/* TAB 7: LOG BOOK */}
+        {/* ======================================================= */}
+        {activeTab === "logbook" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
+            <CryoLabLogbookWrapper />
           </div>
         )}
       </div>
@@ -1678,11 +1581,10 @@ function CryoStockWrapper() {
                   setSelectedItemId(null);
                   setSubTab(item.id as typeof subTab);
                 }}
-                className={`flex-shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                  subTab === item.id && !selectedItemId
+                className={`flex-shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${subTab === item.id && !selectedItemId
                     ? "border-slate-900 text-slate-900 font-bold"
                     : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
-                }`}
+                  }`}
               >
                 {item.label}
               </button>

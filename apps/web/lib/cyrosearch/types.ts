@@ -210,3 +210,36 @@ export class ColorCodeConverter {
     return `${name.trim()}%CLC%${code}`;
   }
 }
+
+// -------------------------------------------------------------
+// CRYO LOGBOOK TYPES
+// -------------------------------------------------------------
+export type CryoLogCategory =
+  | "LN2 & Temperature"
+  | "Storage & Retrieval"
+  | "Dewar Maintenance"
+  | "Thaw Recovery"
+  | "Quality & Audit"
+  | "General Note";
+
+export type CryoLogPriority = "Normal" | "Attention" | "Critical";
+
+export interface CryoLogbookEntry {
+  id: string;
+  title: string;
+  category: CryoLogCategory;
+  priority: CryoLogPriority;
+  performedBy: string;
+  performedByRole?: string;
+  timestamp: string; // ISO string
+  labName?: string;
+  containerName?: string;
+  dewarName?: string;
+  boxOrVialRef?: string;
+  temperatureCelsius?: number; // e.g. -196
+  ln2LevelPercent?: number; // e.g. 85
+  observations: string;
+  tags: string[];
+  actionRequired?: boolean;
+}
+

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthGuard from "@/components/AuthGuard";
-import CryoSearchApp from "@/components/cryosearch/CryoSearchApp";
+import CryoSearchApp from "@/components/LMS/CryoSearchApp";
 import GlobalLoader from "@/components/GlobalLoader";
 
 export const metadata: Metadata = {

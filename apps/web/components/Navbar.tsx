@@ -10,7 +10,7 @@ import { isAdmin } from "@/lib/admin";
 const navItems = [
   { label: "Courses", href: "/courses" },
   { label: "Tools", href: "/tools" },
-  { label: "CyroSearch", href: "/cyrosearch" },
+  { label: "LMS", href: "/LMS" },
   { label: "Resource Library", href: "/resources" },
   { label: "Research Kits", href: "/kits" },
   { label: "Contact", href: "/contact" },
