@@ -137,6 +137,24 @@ function resolveItem(
 // State endpoints (existing, unchanged)
 // ─────────────────────────────────────────────
 
+async function hasRepoAccess(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role === "ADMIN") return true;
+
+  const access = await prisma.lmsAccess.findFirst({
+    where: {
+      userId,
+      section: { in: ["lms_repo", "lms_full"] },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+  });
+
+  return !!access;
+}
+
 cryoSearchRoutes.use("*", requireAuth);
 
 cryoSearchRoutes.get("/state", async (c) => {
@@ -147,6 +165,13 @@ cryoSearchRoutes.get("/state", async (c) => {
 
 cryoSearchRoutes.put("/state", async (c) => {
   const userId = c.get("user").sub;
+
+  if (!(await hasRepoAccess(userId))) {
+    throw new HTTPException(403, {
+      message: "CryoSearch Repository access requires an active subscription.",
+    });
+  }
+
   const body = await c.req.json().catch(() => null);
 
   if (!body || typeof body !== "object") {

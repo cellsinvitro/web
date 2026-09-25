@@ -46,6 +46,7 @@ model User {
   stockTransactionsCreated StockTransaction[] @relation("StockTransactionCreator")
   notebookTasksAssigned  NotebookTask[]   @relation("NotebookTaskAssignee")
   notebookTasksCreated   NotebookTask[]   @relation("NotebookTaskAssigner")
+  lmsAccesses            LmsAccess[]
 }
 
 model MaintenanceRule {
@@ -127,6 +128,35 @@ model ResourceLibrarySetting {
   originalPrice Int?
   currency  String   @default("INR")
   updatedAt DateTime @updatedAt
+}
+
+model LmsSetting {
+  id                    String   @id @default("default")
+  repoPrice             Int      @default(149900)
+  stockPrice            Int      @default(149900)
+  budgetPrice           Int      @default(149900)
+  logbookPrice          Int      @default(199900)
+  twoSectionDiscountPct  Int      @default(15)
+  threeSectionDiscountPct Int      @default(25)
+  fullAccessPrice       Int      @default(399900)
+  currency              String   @default("INR")
+  updatedAt             DateTime @updatedAt
+}
+
+model LmsAccess {
+  id          String   @id @default(cuid())
+  userId      String
+  section     String   // "lms_repo" | "lms_stock" | "lms_budget" | "lms_logbook" | "lms_full"
+  grantedBy   String   @default("PAYMENT") // "PAYMENT" | "ADMIN"
+  paymentId   String?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment     Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, section])
+  @@index([userId])
 }
 
 model StudyMaterial {
@@ -384,6 +414,8 @@ model Payment {
   studyMaterial       StudyMaterial?       @relation(fields: [studyMaterialId], references: [id])
   studyMaterialFile   StudyMaterialFile?   @relation(fields: [studyMaterialFileId], references: [id])
   resourceAccesses    ResourceAccess[]
+  lmsSections         String[]
+  lmsAccesses         LmsAccess[]
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   kitOrderEvents      KitOrderEvent[]
 

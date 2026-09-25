@@ -25,6 +25,8 @@ import { maintenanceMiddleware } from "./middleware/maintenance.js";
 import { budgetRoutes } from "./routes/budget.js";
 import { logbookRoutes } from "./routes/logbook.js";
 import { stockRoutes } from "./routes/stock.js";
+import { lmsRoutes } from "./routes/lms.js";
+import { adminLmsRoutes } from "./routes/admin-lms.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -59,6 +61,7 @@ app.route("/auth", authRoutes);
 app.route("/admin/materials", adminMaterialsRoutes);
 app.route("/admin/kits", adminKitsRoutes);
 app.route("/admin/kit-modules", adminKitModulesRoutes);
+app.route("/admin/lms", adminLmsRoutes);
 app.route("/admin", adminCoursesRoutes);
 app.route("/admin", adminConsultancyRoutes);
 app.route("/admin", adminOrdersRoutes);
@@ -79,6 +82,8 @@ app.route("/webhooks", liveClassWebhookRoutes);
 app.route("/budgets", budgetRoutes);
 app.route("/logbook", logbookRoutes);
 app.route("/stock", stockRoutes);
+app.route("/lms", lmsRoutes);
+
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

@@ -20,6 +20,7 @@ import {
   sendCryoInvite,
   getCryoInvitePreview,
   acceptCryoInvite,
+  fetchLmsUserAccess,
   type CryoInvitePreview,
   type CryoSearchState,
 } from "@/lib/api";
@@ -31,6 +32,7 @@ import AddNewDocModal, { DocParentType } from "./modals/AddNewDocModal";
 import ItemOptionsModal, { ItemType } from "./modals/ItemOptionsModal";
 import SendRequestModal from "./modals/SendRequestModal";
 import AllowedUsersModal from "./modals/AllowedUsersModal";
+import LmsPurchaseModal from "./LmsPurchaseModal";
 
 import { LabWorkspaceProvider } from "@/context/LabWorkspaceContext";
 import CryoBudgetWrapper from "./CryoBudgetWrapper";
@@ -62,6 +64,55 @@ export default function CryoSearchApp() {
   const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
   const [allowedUsers, setAllowedUsers] = useState<AllowedUsersModel[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // LMS Section Access & Paywall
+  const [userAccess, setUserAccess] = useState<{
+    isAdmin: boolean;
+    hasFullAccess: boolean;
+    sections: string[];
+  } | null>(null);
+
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [purchaseTargetSection, setPurchaseTargetSection] = useState<string | undefined>(undefined);
+
+  const loadUserAccess = useCallback(async () => {
+    try {
+      const res = await fetchLmsUserAccess();
+      setUserAccess(res);
+    } catch {
+      setUserAccess({ isAdmin: false, hasFullAccess: false, sections: ["lms_access"] });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUserAccess();
+  }, [loadUserAccess]);
+
+  const isSectionUnlocked = useCallback(
+    (key: string) => {
+      if (!userAccess) return false;
+      if (userAccess.isAdmin || userAccess.hasFullAccess) return true;
+      return userAccess.sections.includes(key);
+    },
+    [userAccess]
+  );
+
+  const handleTabSelect = (tab: "repo" | "access" | "stock" | "budget" | "logbook") => {
+    const sectionMap: Record<string, string> = {
+      repo: "lms_repo",
+      stock: "lms_stock",
+      budget: "lms_budget",
+      logbook: "lms_logbook",
+      access: "lms_access",
+    };
+
+    const targetKey = sectionMap[tab];
+    setActiveTab(tab);
+    if (targetKey && targetKey !== "lms_access" && userAccess && !isSectionUnlocked(targetKey)) {
+      setPurchaseTargetSection(targetKey);
+      setIsPurchaseModalOpen(true);
+    }
+  };
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -728,10 +779,10 @@ export default function CryoSearchApp() {
         )}
 
         {/* Navigation Tabs matching the 5 mobile icons */}
-        <div className="mb-6 flex overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm scrollbar-none">
+        <div className="mb-6 flex overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm scrollbar-none items-center">
           <button
             type="button"
-            onClick={() => setActiveTab("repo")}
+            onClick={() => handleTabSelect("repo")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "repo"
               ? "bg-pink-600 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -741,11 +792,12 @@ export default function CryoSearchApp() {
               <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
             </svg>
             <span>CryoSearch</span>
+            {!isSectionUnlocked("lms_repo") && <span className="text-[11px] opacity-75">🔒</span>}
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("logbook")}
+            onClick={() => handleTabSelect("logbook")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "logbook"
               ? "bg-pink-600 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -755,11 +807,12 @@ export default function CryoSearchApp() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
             </svg>
             <span>Log Book</span>
+            {!isSectionUnlocked("lms_logbook") && <span className="text-[11px] opacity-75">🔒</span>}
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("access")}
+            onClick={() => handleTabSelect("access")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${activeTab === "access"
               ? "bg-pink-600 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -778,10 +831,9 @@ export default function CryoSearchApp() {
             )}
           </button>
 
-
           <button
             type="button"
-            onClick={() => setActiveTab("stock")}
+            onClick={() => handleTabSelect("stock")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${activeTab === "stock"
               ? "bg-pink-600 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -791,11 +843,12 @@ export default function CryoSearchApp() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
             </svg>
             <span>Stock Management</span>
+            {!isSectionUnlocked("lms_stock") && <span className="text-[11px] opacity-75">🔒</span>}
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("budget")}
+            onClick={() => handleTabSelect("budget")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap ${activeTab === "budget"
               ? "bg-pink-600 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -805,13 +858,29 @@ export default function CryoSearchApp() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h1.5m-1.5 0h-1.5m-8.25 0H6m1.5 0H6" />
             </svg>
             <span>Budget Management</span>
+            {!isSectionUnlocked("lms_budget") && <span className="text-[11px] opacity-75">🔒</span>}
           </button>
         </div>
+
 
         {/* ======================================================= */}
         {/* TAB 1: REPOSITORY (My-Repo / Shared-Repo / Search) */}
         {/* ======================================================= */}
         {activeTab === "repo" && (
+          !userAccess ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+              <GlobalLoader fullScreen={false} sublabel="Verifying CryoSearch access..." />
+            </div>
+          ) : !isSectionUnlocked("lms_repo") ? (
+            <LockedSectionCard
+              sectionKey="lms_repo"
+              onUnlock={() => {
+                setPurchaseTargetSection("lms_repo");
+                setIsPurchaseModalOpen(true);
+              }}
+              onViewFreeSection={() => setActiveTab("access")}
+            />
+          ) : (
           <div>
             {/* Search & Mode Bar */}
             <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -1224,6 +1293,7 @@ export default function CryoSearchApp() {
               </div>
             )}
           </div>
+          )
         )}
 
 
@@ -1394,27 +1464,72 @@ export default function CryoSearchApp() {
         {/* TAB 5: STOCK MANAGEMENT */}
         {/* ======================================================= */}
         {activeTab === "stock" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
-            <CryoStockWrapper />
-          </div>
+          !userAccess ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+              <GlobalLoader fullScreen={false} sublabel="Verifying Stock Management access..." />
+            </div>
+          ) : !isSectionUnlocked("lms_stock") ? (
+            <LockedSectionCard
+              sectionKey="lms_stock"
+              onUnlock={() => {
+                setPurchaseTargetSection("lms_stock");
+                setIsPurchaseModalOpen(true);
+              }}
+              onViewFreeSection={() => setActiveTab("access")}
+            />
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
+              <CryoStockWrapper />
+            </div>
+          )
         )}
 
         {/* ======================================================= */}
         {/* TAB 6: BUDGET MANAGEMENT */}
         {/* ======================================================= */}
         {activeTab === "budget" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
-            <CryoBudgetWrapper />
-          </div>
+          !userAccess ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+              <GlobalLoader fullScreen={false} sublabel="Verifying Budget Management access..." />
+            </div>
+          ) : !isSectionUnlocked("lms_budget") ? (
+            <LockedSectionCard
+              sectionKey="lms_budget"
+              onUnlock={() => {
+                setPurchaseTargetSection("lms_budget");
+                setIsPurchaseModalOpen(true);
+              }}
+              onViewFreeSection={() => setActiveTab("access")}
+            />
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
+              <CryoBudgetWrapper />
+            </div>
+          )
         )}
 
         {/* ======================================================= */}
         {/* TAB 7: LOG BOOK */}
         {/* ======================================================= */}
         {activeTab === "logbook" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
-            <CryoLabLogbookWrapper />
-          </div>
+          !userAccess ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+              <GlobalLoader fullScreen={false} sublabel="Verifying Logbook access..." />
+            </div>
+          ) : !isSectionUnlocked("lms_logbook") ? (
+            <LockedSectionCard
+              sectionKey="lms_logbook"
+              onUnlock={() => {
+                setPurchaseTargetSection("lms_logbook");
+                setIsPurchaseModalOpen(true);
+              }}
+              onViewFreeSection={() => setActiveTab("access")}
+            />
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
+              <CryoLabLogbookWrapper />
+            </div>
+          )
         )}
       </div>
 
@@ -1529,6 +1644,175 @@ export default function CryoSearchApp() {
         onClose={() => setIsAllowedUsersOpen(false)}
         onRevokeAccess={handleRevokeAccess}
       />
+
+      <LmsPurchaseModal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
+        targetSection={purchaseTargetSection}
+        onSuccess={(unlockedSections) => {
+          loadUserAccess();
+          if (unlockedSections.includes("lms_repo")) setActiveTab("repo");
+          else if (unlockedSections.includes("lms_stock")) setActiveTab("stock");
+          else if (unlockedSections.includes("lms_budget")) setActiveTab("budget");
+          else if (unlockedSections.includes("lms_logbook")) setActiveTab("logbook");
+        }}
+      />
+    </div>
+  );
+}
+
+function LockedSectionCard({
+  sectionKey,
+  onUnlock,
+  onViewFreeSection,
+}: {
+  sectionKey: "lms_repo" | "lms_logbook" | "lms_stock" | "lms_budget";
+  onUnlock: () => void;
+  onViewFreeSection: () => void;
+}) {
+  const config = {
+    lms_repo: {
+      badge: "Premium Module · Cell Banking & Storage",
+      title: "CryoSearch Repository & Storage is Locked",
+      description:
+        "Unlock interactive 2D visual rack & box layout, cryovial inventory management, dewar tracking, color code mapping, and bench solution calculators.",
+      features: [
+        "Interactive 2D Grid Storage & Rack Matrix",
+        "Cell line color code mapping & cryovial barcodes",
+        "Dewar location & LN2 tank management",
+        "Collaborative repository access request workflow",
+      ],
+      price: "₹1,499",
+      icon: (
+        <svg className="h-8 w-8 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+        </svg>
+      ),
+    },
+    lms_logbook: {
+      badge: "Premium Module · Electronic Lab Notebook",
+      title: "Lab Logbook & Protocols is Locked",
+      description:
+        "Unlock electronic lab notebook entries, experiment protocol documentation, instrument run logs, and workspace permissions.",
+      features: [
+        "Collaborative ELN entry & protocol editor",
+        "Instrument run logs & maintenance history",
+        "Workspace team roles & granular access permissions",
+        "Activity timelines & export capabilities",
+      ],
+      price: "₹1,999",
+      icon: (
+        <svg className="h-8 w-8 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
+        </svg>
+      ),
+    },
+    lms_stock: {
+      badge: "Premium Module · Lab Inventory",
+      title: "Stock Management is Locked",
+      description:
+        "Unlock reagent & chemical inventory tracking, automatic low stock deficit alerts, and stock issue transaction logs.",
+      features: [
+        "Reagent, consumable & chemical inventory tracking",
+        "Automatic stock deficit & expiration alerts",
+        "Stock issue transactions & usage history",
+        "Storage location & vendor management",
+      ],
+      price: "₹1,499",
+      icon: (
+        <svg className="h-8 w-8 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+        </svg>
+      ),
+    },
+    lms_budget: {
+      badge: "Premium Module · Lab Finance",
+      title: "Budget Management is Locked",
+      description:
+        "Unlock lab budget head management, grant allocation tracking, expense submission forms, and financial utilization analytics.",
+      features: [
+        "Custom budget heads & grant allocation tracking",
+        "Expense submission & approval workflows",
+        "Real-time budget utilization reports & analytics",
+        "Exportable financial summary logs",
+      ],
+      price: "₹1,499",
+      icon: (
+        <svg className="h-8 w-8 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h1.5m-1.5 0h-1.5m-8.25 0H6m1.5 0H6" />
+        </svg>
+      ),
+    },
+  }[sectionKey];
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 shadow-sm text-center">
+      {/* Background glow overlay */}
+      <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-64 w-96 rounded-full bg-pink-500/10 blur-3xl" />
+
+      <div className="relative mx-auto max-w-xl flex flex-col items-center">
+        {/* Top Icon Badge */}
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-50 text-pink-600 shadow-xs border border-pink-100">
+          {config.icon}
+        </div>
+
+        <span className="mb-3 inline-block rounded-full bg-slate-100 px-3.5 py-1 text-xs font-semibold text-slate-700">
+          {config.badge}
+        </span>
+
+        <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          {config.title}
+        </h3>
+
+        <p className="mt-3 text-sm text-slate-600 leading-relaxed max-w-lg">
+          {config.description}
+        </p>
+
+        {/* Feature List */}
+        <div className="mt-6 w-full rounded-2xl border border-slate-100 bg-slate-50/80 p-5 text-left">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+            What&apos;s Included in this Module
+          </p>
+          <ul className="space-y-2 text-xs text-slate-700">
+            {config.features.map((feat, idx) => (
+              <li key={idx} className="flex items-center gap-2">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                  ✓
+                </span>
+                <span>{feat}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Bundle Banner */}
+        <div className="mt-6 w-full rounded-2xl bg-linear-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-200 p-4 text-xs text-slate-800 flex items-center justify-between gap-4">
+          <div className="text-left">
+            <span className="font-bold text-pink-700">✨ Bundle Offer:</span> Get all 4 LMS modules for <strong className="text-slate-950">₹3,999</strong> (Save ₹2,497)
+          </div>
+          <span className="rounded-full bg-pink-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shrink-0">
+            Best Value
+          </span>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md">
+          <button
+            type="button"
+            onClick={onUnlock}
+            className="w-full sm:w-auto flex-1 rounded-xl bg-slate-950 px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 transition-all transform active:scale-95"
+          >
+            Unlock Access ({config.price})
+          </button>
+          <button
+            type="button"
+            onClick={onViewFreeSection}
+            className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all"
+          >
+            Access Requests (Free)
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

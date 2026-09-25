@@ -3090,3 +3090,128 @@ export async function acceptStockInvite(token: string) {
   });
 }
 
+// ─── LMS Paid Sections & Access API ─────────────────────────────────────────
+
+export type LmsSettings = {
+  repoPrice: number;
+  stockPrice: number;
+  budgetPrice: number;
+  logbookPrice: number;
+  twoSectionDiscountPct: number;
+  threeSectionDiscountPct: number;
+  fullAccessPrice: number;
+  currency: string;
+  razorpayKeyId?: string | null;
+  isRazorpayConfigured: boolean;
+};
+
+export type LmsUserAccess = {
+  isAdmin: boolean;
+  hasFullAccess: boolean;
+  sections: string[];
+};
+
+export async function fetchLmsSettings() {
+  return apiFetch<{ settings: LmsSettings }>("/lms/settings");
+}
+
+export async function fetchLmsUserAccess() {
+  return apiFetch<LmsUserAccess>("/lms/access");
+}
+
+export async function createLmsOrder(input: {
+  sections: string[];
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+}) {
+  return apiFetch<{
+    isDevMode?: boolean;
+    completed?: boolean;
+    orderId?: string;
+    amount?: number;
+    currency?: string;
+    keyId?: string | null;
+    paymentId: string;
+    itemTitle?: string;
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+    message?: string;
+  }>("/lms/create-order", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function verifyLmsPayment(input: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  return apiFetch<{ success: boolean; message: string; unlockedSections: string[] }>("/lms/verify-payment", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+// ─── Admin LMS API ─────────────────────────────────────────────────────────
+
+export async function fetchAdminLmsSettings() {
+  return apiFetch<{ settings: LmsSettings }>("/admin/lms/settings");
+}
+
+export async function updateAdminLmsSettings(input: Partial<LmsSettings>) {
+  return apiFetch<{ settings: LmsSettings; message: string }>("/admin/lms/settings", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export type AdminLmsUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  createdAt: string;
+  lmsAccesses: Array<{
+    id: string;
+    section: string;
+    grantedBy: string;
+    createdAt: string;
+  }>;
+};
+
+export async function fetchAdminLmsUsers(search?: string) {
+  const query = search ? `?search=${encodeURIComponent(search)}` : "";
+  return apiFetch<{ users: AdminLmsUser[] }>(`/admin/lms/users${query}`);
+}
+
+export async function grantAdminLmsAccess(input: {
+  userId: string;
+  section: string;
+  action: "GRANT" | "REVOKE";
+}) {
+  return apiFetch<{ success: boolean; message: string }>("/admin/lms/grant-access", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchAdminLmsPayments() {
+  return apiFetch<{
+    payments: Array<{
+      id: string;
+      userId: string;
+      amount: number;
+      currency: string;
+      status: string;
+      lmsSections: string[];
+      createdAt: string;
+      completedAt: string | null;
+      user: { name: string | null; email: string };
+    }>;
+  }>("/admin/lms/payments");
+}
+
+

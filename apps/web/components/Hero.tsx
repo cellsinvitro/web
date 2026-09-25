@@ -1,23 +1,88 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 export default function Hero() {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Force DOM muted properties (fixes React hydration autoplay bug)
+    video.muted = true;
+    video.defaultMuted = true;
+
+    const attemptPlay = () => {
+      video.play().catch((err) => {
+        console.warn("Hero video autoplay delayed or blocked:", err);
+      });
+    };
+
+    attemptPlay();
+
+    // Listen for early user interaction to trigger playback if autoplay was blocked by browser
+    const handleUserInteraction = () => {
+      if (video.paused) {
+        attemptPlay();
+      }
+      window.removeEventListener("touchstart", handleUserInteraction);
+      window.removeEventListener("pointerdown", handleUserInteraction);
+      window.removeEventListener("scroll", handleUserInteraction);
+    };
+
+    window.addEventListener("touchstart", handleUserInteraction, { passive: true });
+    window.addEventListener("pointerdown", handleUserInteraction, { passive: true });
+    window.addEventListener("scroll", handleUserInteraction, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleUserInteraction);
+      window.removeEventListener("pointerdown", handleUserInteraction);
+      window.removeEventListener("scroll", handleUserInteraction);
+    };
+  }, []);
+
   return (
     <section
       id="home"
       className="relative min-h-screen overflow-hidden bg-white"
     >
-      {/* Full-screen cell video */}
-      <div className="absolute inset-0">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          className="absolute inset-0 h-full w-full object-cover"
-        >
-          <source src="/videos/cell-division.mp4" type="video/mp4" />
-        </video>
+      {/* Background Media Container */}
+      <div className="absolute inset-0 bg-slate-900">
+        {/* Poster Image / Fallback Background */}
+        <div
+          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
+            isVideoLoaded ? "opacity-30" : "opacity-90"
+          }`}
+          style={{ backgroundImage: `url('/images/hero-poster.jpg')` }}
+        />
+
+        {/* Video Element with Autoplay Resilience */}
+        {!hasError && (
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster="/images/hero-poster.jpg"
+            onLoadedData={() => setIsVideoLoaded(true)}
+            onPlaying={() => setIsVideoLoaded(true)}
+            onError={() => {
+              console.warn("Hero video failed to load, falling back to background poster.");
+              setHasError(true);
+            }}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
+              isVideoLoaded ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <source src="/videos/cell-division.mp4" type="video/mp4" />
+          </video>
+        )}
 
         {/* Soft readability overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/10" />
@@ -73,4 +138,4 @@ export default function Hero() {
       </div>
     </section>
   );
-}
+}

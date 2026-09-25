@@ -1527,3 +1527,104 @@ export async function sendStockLabInviteEmail(input: {
   return sendEmail(input.to, subject, html);
 }
 
+export async function notifyLmsPaymentCompleted(input: {
+  paymentId: string;
+}) {
+  try {
+    const payment = await prisma.payment.findUnique({
+      where: { id: input.paymentId },
+      include: { user: { select: { name: true, email: true } } },
+    });
+
+    if (!payment || !payment.user?.email) {
+      console.warn(`[email] notifyLmsPaymentCompleted skipped: payment ${input.paymentId} invalid or missing user email`);
+      return;
+    }
+
+    const sectionLabels: Record<string, string> = {
+      lms_repo: "Repository & Cryo Storage",
+      lms_stock: "Stock Inventory",
+      lms_budget: "Budget Management",
+      lms_logbook: "Lab Logbook & Protocols",
+      lms_full: "Full LMS Pass (All Sections)",
+    };
+
+    const sectionsUnlocked = payment.lmsSections.map((s) => sectionLabels[s] || s);
+    const userName = payment.customerName || payment.user.name || "Researcher";
+    const amountStr = `${payment.currency} ${(payment.amount / 100).toFixed(2)}`;
+    const lmsUrl = `${FRONTEND_ORIGIN}/LMS`;
+
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px 28px; text-align: center; color: #ffffff;">
+          <h1 style="font-size: 24px; font-weight: 800; margin: 0 0 6px 0; letter-spacing: -0.3px;">CellsInVitro LMS Access</h1>
+          <p style="color: #94a3b8; font-size: 14px; margin: 0;">Payment Confirmation &amp; Access Unlocked</p>
+        </div>
+
+        <div style="padding: 32px 28px;">
+          <h2 style="font-size: 18px; color: #0f172a; margin: 0 0 16px 0;">Hello ${userName},</h2>
+          <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+            Thank you for your purchase! Your payment has been confirmed and access to your selected LMS section(s) is now active.
+          </p>
+
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Order Reference:</td>
+                <td style="padding: 6px 0; font-weight: 700; color: #0f172a; text-align: right;">${payment.id.slice(-10).toUpperCase()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Unlocked Section(s):</td>
+                <td style="padding: 6px 0; font-weight: 600; color: #0f172a; text-align: right;">
+                  ${sectionsUnlocked.join(", ")}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Total Paid:</td>
+                <td style="padding: 6px 0; font-weight: 700; color: #2563eb; text-align: right;">${amountStr}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="text-align: center; margin: 28px 0 12px 0;">
+            <a href="${lmsUrl}" style="display: inline-block; padding: 14px 36px; background-color: #2563eb; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 10px;">
+              Launch LMS Suite &rarr;
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
+          CellsInVitro &bull; LMS Laboratory Management Suite
+        </div>
+      </div>
+    `;
+
+    await sendEmail(
+      payment.user.email,
+      `LMS Access Confirmed: ${sectionsUnlocked.join(", ")}`,
+      html
+    );
+
+    // Notify Admins
+    const adminEmails = await collectAdminEmails();
+    for (const adminEmail of adminEmails) {
+      await sendEmail(
+        adminEmail,
+        `[LMS PAYMENT] ${userName} purchased ${sectionsUnlocked.join(", ")}`,
+        `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h3>New LMS Purchase</h3>
+            <p><strong>User:</strong> ${userName} (${payment.user.email})</p>
+            <p><strong>Sections:</strong> ${sectionsUnlocked.join(", ")}</p>
+            <p><strong>Amount:</strong> ${amountStr}</p>
+            <p><strong>Payment ID:</strong> ${payment.id}</p>
+          </div>
+        `
+      );
+    }
+  } catch (err) {
+    console.error("[email] Error in notifyLmsPaymentCompleted:", err);
+  }
+}
+
+

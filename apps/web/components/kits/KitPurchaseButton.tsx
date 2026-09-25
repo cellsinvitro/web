@@ -139,7 +139,21 @@ export default function KitPurchaseButton({
           contact: customer.phone,
         },
         theme: { color: "#0f172a" },
-handler: async (response: RazorpayResponse) => {
+        method: {
+          netbanking: true,
+          card: true,
+          upi: true,
+          wallet: true,
+          qr: true,
+        },
+        config: {
+          display: {
+            preferences: {
+              show_default_blocks: true,
+            },
+          },
+        },
+        handler: async (response: RazorpayResponse) => {
             try {
               await verifyPayment({ paymentId: order.paymentId!, ...response });
               onSuccess?.();

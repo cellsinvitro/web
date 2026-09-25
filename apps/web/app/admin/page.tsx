@@ -6,6 +6,8 @@ import { fetchAdminStats } from "@/lib/api";
 import type { AdminOverviewData } from "@/lib/api";
 import { AdminSpinner } from "@/components/AdminLoader";
 
+import AdminLmsTab from "@/components/admin/AdminLmsTab";
+
 function formatBytes(bytes?: number) {
   if (!bytes || bytes === 0) return "0 B";
   const k = 1024;
@@ -112,7 +114,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "users" | "resources" | "kits" | "courses" | "enrollments" | "payments"
+    "overview" | "users" | "resources" | "kits" | "courses" | "enrollments" | "payments" | "lms"
   >("overview");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -434,6 +436,7 @@ export default function AdminDashboardPage() {
             { id: "courses", label: `🎓 Courses (${filteredCourses.length})` },
             { id: "enrollments", label: `📜 Enrollments (${filteredEnrollments.length})` },
             { id: "payments", label: `💳 Payments (${filteredPayments.length})` },
+            { id: "lms", label: "🔒 LMS Sections" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1097,6 +1100,8 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           )}
+
+          {activeTab === "lms" && <AdminLmsTab />}
         </>
       )}
     </div>

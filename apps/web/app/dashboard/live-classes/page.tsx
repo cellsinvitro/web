@@ -37,7 +37,33 @@ export default function LiveClassesPage() {
       const order = await createLiveClassPaymentOrder(item.id);
       if (order.free) { setClasses((current) => current.map((entry) => entry.id === item.id ? { ...entry, isEnrolled: true } : entry)); return; }
       if (!order.orderId || !order.paymentId || !order.keyId || !(await loadRazorpay()) || !window.Razorpay) throw new Error("Payment gateway could not be loaded");
-      const checkout = new window.Razorpay({ key: order.keyId, amount: order.amount, currency: order.currency, name: "CellsInVitro", description: item.title, order_id: order.orderId, theme: { color: "#0f172a" }, handler: async (response: RazorpayResponse) => { await verifyLiveClassPayment(item.id, { paymentId: order.paymentId!, ...response }); setClasses((current) => current.map((entry) => entry.id === item.id ? { ...entry, isEnrolled: true } : entry)); } });
+      const checkout = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "CellsInVitro",
+        description: item.title,
+        order_id: order.orderId,
+        theme: { color: "#0f172a" },
+        method: {
+          netbanking: true,
+          card: true,
+          upi: true,
+          wallet: true,
+          qr: true,
+        },
+        config: {
+          display: {
+            preferences: {
+              show_default_blocks: true,
+            },
+          },
+        },
+        handler: async (response: RazorpayResponse) => {
+          await verifyLiveClassPayment(item.id, { paymentId: order.paymentId!, ...response });
+          setClasses((current) => current.map((entry) => entry.id === item.id ? { ...entry, isEnrolled: true } : entry));
+        }
+      });
       checkout.open();
     } catch (err) { setError(err instanceof Error ? err.message : "Payment failed"); }
     finally { setPaying(null); }

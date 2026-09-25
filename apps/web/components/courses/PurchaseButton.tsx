@@ -93,6 +93,20 @@ export default function PurchaseButton({
           }
         },
         theme: { color: "#0f172a" },
+        method: {
+          netbanking: true,
+          card: true,
+          upi: true,
+          wallet: true,
+          qr: true,
+        },
+        config: {
+          display: {
+            preferences: {
+              show_default_blocks: true,
+            },
+          },
+        },
       });
 
       rzp.open();
