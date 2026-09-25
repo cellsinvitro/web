@@ -209,15 +209,32 @@ export type CryoSearchState = {
   allowedUsers: AllowedUsersModel[];
 };
 
-export async function fetchCryoSearchState() {
-  return apiFetch<CryoSearchState>("/cryosearch/state");
+export type CryoAdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  hasCryoState: boolean;
+  labCount: number;
+  updatedAt: string | null;
+};
+
+export async function fetchCryoSearchState(targetUserId?: string) {
+  const query = targetUserId ? `?targetUserId=${encodeURIComponent(targetUserId)}` : "";
+  return apiFetch<CryoSearchState>(`/cryosearch/state${query}`);
 }
 
-export async function saveCryoSearchState(state: CryoSearchState) {
-  return apiFetch<CryoSearchState>("/cryosearch/state", {
+export async function saveCryoSearchState(state: CryoSearchState, targetUserId?: string) {
+  const query = targetUserId ? `?targetUserId=${encodeURIComponent(targetUserId)}` : "";
+  return apiFetch<CryoSearchState>(`/cryosearch/state${query}`, {
     method: "PUT",
     body: JSON.stringify(state),
   });
+}
+
+export async function fetchCryoAdminUsers() {
+  return apiFetch<CryoAdminUser[]>("/cryosearch/admin/users");
 }
 
 // ─────────────────────────────────────────────
@@ -3113,6 +3130,13 @@ export type LmsUserAccess = {
 
 export async function fetchLmsSettings() {
   return apiFetch<{ settings: LmsSettings }>("/lms/settings");
+}
+
+export async function updateLmsSettings(settings: Partial<LmsSettings>) {
+  return apiFetch<{ success: boolean; settings: LmsSettings }>("/lms/settings", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
 }
 
 export async function fetchLmsUserAccess() {

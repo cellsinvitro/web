@@ -54,6 +54,75 @@ lmsRoutes.get("/settings", async (c) => {
   });
 });
 
+// PUT /api/lms/settings - Admin endpoint to update LMS module prices & discounts
+lmsRoutes.put("/settings", requireAuth, async (c) => {
+  const userId = c.get("user").sub;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  if (user?.role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Admin privileges required to update LMS pricing" });
+  }
+
+  const body = await c.req.json<{
+    repoPrice?: number;
+    stockPrice?: number;
+    budgetPrice?: number;
+    logbookPrice?: number;
+    twoSectionDiscountPct?: number;
+    threeSectionDiscountPct?: number;
+    fullAccessPrice?: number;
+    currency?: string;
+  }>();
+
+  if (!body) {
+    throw new HTTPException(400, { message: "Invalid request payload" });
+  }
+
+  const updated = await prisma.lmsSetting.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      repoPrice: body.repoPrice ?? 149900,
+      stockPrice: body.stockPrice ?? 149900,
+      budgetPrice: body.budgetPrice ?? 149900,
+      logbookPrice: body.logbookPrice ?? 199900,
+      twoSectionDiscountPct: body.twoSectionDiscountPct ?? 15,
+      threeSectionDiscountPct: body.threeSectionDiscountPct ?? 25,
+      fullAccessPrice: body.fullAccessPrice ?? 399900,
+      currency: body.currency ?? "INR",
+    },
+    update: {
+      ...(body.repoPrice !== undefined && { repoPrice: Math.max(0, Math.round(body.repoPrice)) }),
+      ...(body.stockPrice !== undefined && { stockPrice: Math.max(0, Math.round(body.stockPrice)) }),
+      ...(body.budgetPrice !== undefined && { budgetPrice: Math.max(0, Math.round(body.budgetPrice)) }),
+      ...(body.logbookPrice !== undefined && { logbookPrice: Math.max(0, Math.round(body.logbookPrice)) }),
+      ...(body.twoSectionDiscountPct !== undefined && { twoSectionDiscountPct: Math.max(0, Math.min(100, Math.round(body.twoSectionDiscountPct))) }),
+      ...(body.threeSectionDiscountPct !== undefined && { threeSectionDiscountPct: Math.max(0, Math.min(100, Math.round(body.threeSectionDiscountPct))) }),
+      ...(body.fullAccessPrice !== undefined && { fullAccessPrice: Math.max(0, Math.round(body.fullAccessPrice)) }),
+      ...(body.currency && { currency: body.currency.trim().toUpperCase() }),
+    },
+  });
+
+  return c.json({
+    success: true,
+    settings: {
+      repoPrice: updated.repoPrice,
+      stockPrice: updated.stockPrice,
+      budgetPrice: updated.budgetPrice,
+      logbookPrice: updated.logbookPrice,
+      twoSectionDiscountPct: updated.twoSectionDiscountPct,
+      threeSectionDiscountPct: updated.threeSectionDiscountPct,
+      fullAccessPrice: updated.fullAccessPrice,
+      currency: updated.currency,
+      razorpayKeyId: getRazorpayKeyId(),
+      isRazorpayConfigured: isRazorpayConfigured(),
+    },
+  });
+});
+
 // GET /api/lms/access - Fetch logged-in user's unlocked LMS sections
 lmsRoutes.get("/access", requireAuth, async (c) => {
   const userId = c.get("user").sub;

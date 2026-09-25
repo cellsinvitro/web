@@ -21,8 +21,10 @@ import {
   getCryoInvitePreview,
   acceptCryoInvite,
   fetchLmsUserAccess,
+  fetchCryoAdminUsers,
   type CryoInvitePreview,
   type CryoSearchState,
+  type CryoAdminUser,
 } from "@/lib/api";
 import GlobalLoader from "@/components/GlobalLoader";
 import BoxViewModal from "./BoxViewModal";
@@ -33,6 +35,7 @@ import ItemOptionsModal, { ItemType } from "./modals/ItemOptionsModal";
 import SendRequestModal from "./modals/SendRequestModal";
 import AllowedUsersModal from "./modals/AllowedUsersModal";
 import LmsPurchaseModal from "./LmsPurchaseModal";
+import AdminPricingModal from "./modals/AdminPricingModal";
 
 import { LabWorkspaceProvider } from "@/context/LabWorkspaceContext";
 import CryoBudgetWrapper from "./CryoBudgetWrapper";
@@ -72,8 +75,14 @@ export default function CryoSearchApp() {
     sections: string[];
   } | null>(null);
 
+  // Admin Master Control State
+  const [adminUsers, setAdminUsers] = useState<CryoAdminUser[]>([]);
+  const [selectedTargetUserId, setSelectedTargetUserId] = useState<string | null>(null);
+  const [isRefreshingAdmin, setIsRefreshingAdmin] = useState(false);
+
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [purchaseTargetSection, setPurchaseTargetSection] = useState<string | undefined>(undefined);
+  const [isAdminPricingOpen, setIsAdminPricingOpen] = useState(false);
 
   const loadUserAccess = useCallback(async () => {
     try {
@@ -87,6 +96,25 @@ export default function CryoSearchApp() {
   useEffect(() => {
     loadUserAccess();
   }, [loadUserAccess]);
+
+  const loadAdminUsers = useCallback(async () => {
+    if (!userAccess?.isAdmin) return;
+    try {
+      setIsRefreshingAdmin(true);
+      const list = await fetchCryoAdminUsers();
+      setAdminUsers(list);
+    } catch (e) {
+      console.error("Failed to load admin user list", e);
+    } finally {
+      setIsRefreshingAdmin(false);
+    }
+  }, [userAccess?.isAdmin]);
+
+  useEffect(() => {
+    if (userAccess?.isAdmin) {
+      loadAdminUsers();
+    }
+  }, [userAccess?.isAdmin, loadAdminUsers]);
 
   const isSectionUnlocked = useCallback(
     (key: string) => {
@@ -778,6 +806,106 @@ export default function CryoSearchApp() {
           </div>
         )}
 
+        {/* Admin Master Control Bar */}
+        {userAccess?.isAdmin && (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-4.5 text-white shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-400 shadow-inner">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-amber-400">
+                      ⚡ Admin Master Control
+                    </span>
+                    <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30">
+                      Full Privileges Active
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Universal access to all user repositories, stock, budget, logbooks & system pricing.
+                  </p>
+                </div>
+              </div>
+
+              {/* User Switcher Dropdown & Pricing Button */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAdminPricingOpen(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 px-3 py-1.5 text-xs font-bold text-amber-300 transition-all shadow-sm"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                  </svg>
+                  <span>⚙️ Set Module Prices</span>
+                </button>
+
+                <div className="flex items-center gap-2 rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 shadow-inner">
+                  <label htmlFor="adminUserSwitch" className="text-xs font-bold text-slate-300 whitespace-nowrap">
+                    Viewing User:
+                  </label>
+                  <select
+                    id="adminUserSwitch"
+                    value={selectedTargetUserId || ""}
+                    onChange={(e) => setSelectedTargetUserId(e.target.value ? e.target.value : null)}
+                    className="rounded-lg bg-slate-900 border border-slate-700 text-xs font-semibold text-white px-2.5 py-1 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  >
+                    <option value="">My Admin Repository</option>
+                    {adminUsers.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name || u.email} ({u.email}) — {u.labCount} Labs [{u.role}]
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={loadAdminUsers}
+                  disabled={isRefreshingAdmin}
+                  className="rounded-xl bg-slate-800 border border-slate-700 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50"
+                  title="Refresh Users List"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={`h-4 w-4 ${isRefreshingAdmin ? "animate-spin" : ""}`}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {selectedTargetUserId && (
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 text-xs text-amber-200">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+                  Master Control Active: Editing data for{" "}
+                  <strong className="text-white">
+                    {adminUsers.find((u) => u.id === selectedTargetUserId)?.name ||
+                      adminUsers.find((u) => u.id === selectedTargetUserId)?.email ||
+                      selectedTargetUserId}
+                  </strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTargetUserId(null)}
+                  className="font-bold underline hover:text-white"
+                >
+                  Return to My Repository
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Navigation Tabs matching the 5 mobile icons */}
         <div className="mb-6 flex overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm scrollbar-none items-center">
           <button
@@ -881,418 +1009,418 @@ export default function CryoSearchApp() {
               onViewFreeSection={() => setActiveTab("access")}
             />
           ) : (
-          <div>
-            {/* Search & Mode Bar */}
-            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              {/* My-Repo vs Shared-Repo pill selector */}
-              <div className="flex rounded-xl bg-slate-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setRepoMode("my")}
-                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "my"
-                    ? "bg-pink-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  My-Repo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRepoMode("shared")}
-                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "shared"
-                    ? "bg-pink-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Shared-Repo
-                </button>
-              </div>
-
-              {/* Search Bar with "vacant" filter tip */}
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search cell-lines or type 'vacant'..."
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50/60 pl-9 pr-8 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-pink-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-500"
-                />
-                <svg
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {searchTerm && (
+            <div>
+              {/* Search & Mode Bar */}
+              <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                {/* My-Repo vs Shared-Repo pill selector */}
+                <div className="flex rounded-xl bg-slate-100 p-1">
                   <button
                     type="button"
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                    onClick={() => setRepoMode("my")}
+                    className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "my"
+                      ? "bg-pink-600 text-white shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                      }`}
                   >
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                      <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-                    </svg>
+                    My-Repo
                   </button>
-                )}
-              </div>
-            </div>
-
-            {/* If actively searching, show search results */}
-            {searchTerm ? (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Search Results for &ldquo;{searchTerm}&rdquo;
-                  </h3>
-                  <span className="text-xs text-slate-500">
-                    {searchFilteredBoxes.length} boxes found
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRepoMode("shared")}
+                    className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${repoMode === "shared"
+                      ? "bg-pink-600 text-white shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    Shared-Repo
+                  </button>
                 </div>
 
-                {searchFilteredBoxes.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-slate-400">
-                    No matching cryovials found.
-                    <br />
-                    Tip: Type <span className="font-mono text-slate-600">vacant</span> to find empty slots.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {searchFilteredBoxes.map(({ box, matchedIndices }, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => {
-                          setSelectedBox(box);
-                          setActiveLabForCellLines(getLabByBox(box));
-                        }}
-                        className="cursor-pointer rounded-xl border border-pink-100 bg-pink-50/40 p-4 transition-all hover:border-pink-300 hover:bg-pink-50"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-900">
-                            {box.locationNames.join(" > ")}
-                          </span>
-                          <span className="rounded-lg bg-pink-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                            Open Box
-                          </span>
-                        </div>
-                        <div className="mt-1.5 flex flex-wrap gap-1 text-[11px] text-slate-600">
-                          <span className="font-medium text-slate-400">Matching Slots:</span>
-                          {matchedIndices.map((slot) => (
-                            <span
-                              key={slot}
-                              className="rounded bg-white px-1.5 py-0.2 border border-pink-200 text-pink-700 font-mono text-[10px]"
-                            >
-                              #{slot}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Tree Hierarchy Layout */
-              <div className="space-y-4">
-                {labs.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      className="mx-auto h-12 w-12 text-slate-300"
-                    >
-                      <path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
-                    </svg>
-                    <h3 className="mt-3 text-sm font-bold text-slate-800">
-                      Repository is Empty
-                    </h3>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Create your first laboratory to start organizing cryovials.
-                    </p>
+                {/* Search Bar with "vacant" filter tip */}
+                <div className="relative flex-1 max-w-md">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search cell-lines or type 'vacant'..."
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50/60 pl-9 pr-8 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-pink-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-500"
+                  />
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {searchTerm && (
                     <button
                       type="button"
-                      onClick={() => setIsCreateLabOpen(true)}
-                      className="mt-4 rounded-xl bg-pink-600 px-4 py-2 text-xs font-bold text-white hover:bg-pink-500"
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
                     >
-                      Create First Lab
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                      </svg>
                     </button>
-                  </div>
-                ) : (
-                  labs.map((lab) => (
-                    <div
-                      key={lab.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-                    >
-                      {/* Lab Header */}
-                      <div className="flex items-center justify-between bg-slate-50/80 px-5 py-3.5 border-b border-slate-100">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="h-4 w-4"
-                            >
-                              <path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
-                            </svg>
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-slate-900">
-                              {lab.name}
-                            </div>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                              <span>{lab.containers.length} Containers</span>
-                              <span>•</span>
-                              <span>{lab.allowedCellLine.length} Allowed Cell-Lines</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Lab Actions */}
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAddDocParent({
-                                type: "Lab",
-                                name: lab.name,
-                                id: lab.id,
-                              });
-                              setIsAddDocOpen(true);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
-                          >
-                            + Add Container
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedItemForOptions({
-                                type: "Lab",
-                                name: lab.name,
-                                id: lab.id,
-                                location: "",
-                                raw: lab,
-                              });
-                              setIsItemOptionsOpen(true);
-                            }}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                            title="Lab Options"
-                          >
-                            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                              <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Containers inside Lab */}
-                      <div className="p-4 space-y-4">
-                        {lab.containers.length === 0 ? (
-                          <div className="py-4 text-center text-xs text-slate-400">
-                            No containers in this lab. Click &ldquo;+ Add Container&rdquo; above.
-                          </div>
-                        ) : (
-                          lab.containers.map((cont) => (
-                            <div
-                              key={cont.id}
-                              className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-3.5"
-                            >
-                              {/* Container Bar */}
-                              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
-                                <div className="flex items-center gap-2">
-                                  <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-100 text-blue-700 text-xs font-bold">
-                                    C
-                                  </span>
-                                  <span className="text-xs font-bold text-slate-800">
-                                    {cont.name}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setAddDocParent({
-                                        type: "Container",
-                                        name: cont.name,
-                                        id: cont.id,
-                                      });
-                                      setIsAddDocOpen(true);
-                                    }}
-                                    className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
-                                  >
-                                    + Add Rack
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedItemForOptions({
-                                        type: "Container",
-                                        name: cont.name,
-                                        id: cont.id,
-                                        location: cont.location,
-                                        raw: cont,
-                                      });
-                                      setIsItemOptionsOpen(true);
-                                    }}
-                                    className="p-1 text-slate-400 hover:text-slate-700"
-                                  >
-                                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                                      <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Racks inside Container */}
-                              <div className="mt-2.5 space-y-2.5 pl-3">
-                                {cont.racks.length === 0 ? (
-                                  <div className="py-2 text-xs text-slate-400">
-                                    No racks configured. Add a rack above.
-                                  </div>
-                                ) : (
-                                  cont.racks.map((rack) => (
-                                    <div
-                                      key={rack.id}
-                                      className="rounded-lg border border-slate-200 bg-white p-3 shadow-2xs"
-                                    >
-                                      {/* Rack Header */}
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-100 text-amber-700 text-[10px] font-bold">
-                                            R
-                                          </span>
-                                          <span className="text-xs font-semibold text-slate-800">
-                                            {rack.name}
-                                          </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-1.5">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setAddDocParent({
-                                                type: "Rack",
-                                                name: rack.name,
-                                                id: rack.id,
-                                              });
-                                              setIsAddDocOpen(true);
-                                            }}
-                                            className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100"
-                                          >
-                                            + Add Box
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setSelectedItemForOptions({
-                                                type: "Rack",
-                                                name: rack.name,
-                                                id: rack.id,
-                                                location: rack.location,
-                                                raw: rack,
-                                              });
-                                              setIsItemOptionsOpen(true);
-                                            }}
-                                            className="p-1 text-slate-400 hover:text-slate-700"
-                                          >
-                                            <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                                              <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
-                                            </svg>
-                                          </button>
-                                        </div>
-                                      </div>
-
-                                      {/* Boxes inside Rack */}
-                                      <div className="mt-2.5 flex flex-wrap gap-2">
-                                        {rack.boxes.length === 0 ? (
-                                          <div className="text-[11px] text-slate-400">
-                                            No boxes yet. Click &ldquo;+ Add Box&rdquo;
-                                          </div>
-                                        ) : (
-                                          rack.boxes.map((box) => {
-                                            const occupiedCount = box.boxCells.filter(
-                                              (c) => !c.isEmpty
-                                            ).length;
-                                            return (
-                                              <div
-                                                key={box.id}
-                                                className="group relative flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-xs font-semibold text-blue-900 transition-all hover:border-blue-400 hover:bg-blue-100/70"
-                                              >
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    setSelectedBox(box);
-                                                    setActiveLabForCellLines(lab);
-                                                  }}
-                                                  className="flex items-center gap-1.5"
-                                                >
-                                                  <svg
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                    className="h-3.5 w-3.5 text-blue-600"
-                                                  >
-                                                    <path
-                                                      fillRule="evenodd"
-                                                      d="M4.25 2A2.25 2.25 0 0 0 2 4.25v2.5A2.25 2.25 0 0 0 4.25 9h2.5A2.25 2.25 0 0 0 9 6.75v-2.5A2.25 2.25 0 0 0 6.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 2 13.25v2.5A2.25 2.25 0 0 0 4.25 18h2.5A2.25 2.25 0 0 0 9 15.75v-2.5A2.25 2.25 0 0 0 6.75 11h-2.5Zm9-9A2.25 2.25 0 0 0 11 4.25v2.5A2.25 2.25 0 0 0 13.25 9h2.5A2.25 2.25 0 0 0 18 6.75v-2.5A2.25 2.25 0 0 0 15.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 11 13.25v2.5A2.25 2.25 0 0 0 13.25 18h2.5A2.25 2.25 0 0 0 18 15.75v-2.5A2.25 2.25 0 0 0 15.75 11h-2.5Z"
-                                                      clipRule="evenodd"
-                                                    />
-                                                  </svg>
-                                                  <span>{box.name}</span>
-                                                  <span className="rounded-full bg-blue-200/80 px-1.5 py-0.2 text-[9px] font-mono text-blue-800">
-                                                    {occupiedCount}/{box.dimension * box.dimension}
-                                                  </span>
-                                                </button>
-
-                                                <button
-                                                  type="button"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedItemForOptions({
-                                                      type: "Box",
-                                                      name: box.name,
-                                                      id: box.id,
-                                                      location: box.location,
-                                                      raw: box,
-                                                    });
-                                                    setIsItemOptionsOpen(true);
-                                                  }}
-                                                  className="ml-1 rounded p-0.5 text-blue-400 hover:text-blue-800"
-                                                >
-                                                  <svg
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                    className="h-3 w-3"
-                                                  >
-                                                    <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
-                                                  </svg>
-                                                </button>
-                                              </div>
-                                            );
-                                          })
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* If actively searching, show search results */}
+              {searchTerm ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Search Results for &ldquo;{searchTerm}&rdquo;
+                    </h3>
+                    <span className="text-xs text-slate-500">
+                      {searchFilteredBoxes.length} boxes found
+                    </span>
+                  </div>
+
+                  {searchFilteredBoxes.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-400">
+                      No matching cryovials found.
+                      <br />
+                      Tip: Type <span className="font-mono text-slate-600">vacant</span> to find empty slots.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {searchFilteredBoxes.map(({ box, matchedIndices }, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setSelectedBox(box);
+                            setActiveLabForCellLines(getLabByBox(box));
+                          }}
+                          className="cursor-pointer rounded-xl border border-pink-100 bg-pink-50/40 p-4 transition-all hover:border-pink-300 hover:bg-pink-50"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900">
+                              {box.locationNames.join(" > ")}
+                            </span>
+                            <span className="rounded-lg bg-pink-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                              Open Box
+                            </span>
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-1 text-[11px] text-slate-600">
+                            <span className="font-medium text-slate-400">Matching Slots:</span>
+                            {matchedIndices.map((slot) => (
+                              <span
+                                key={slot}
+                                className="rounded bg-white px-1.5 py-0.2 border border-pink-200 text-pink-700 font-mono text-[10px]"
+                              >
+                                #{slot}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Tree Hierarchy Layout */
+                <div className="space-y-4">
+                  {labs.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        className="mx-auto h-12 w-12 text-slate-300"
+                      >
+                        <path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
+                      </svg>
+                      <h3 className="mt-3 text-sm font-bold text-slate-800">
+                        Repository is Empty
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Create your first laboratory to start organizing cryovials.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsCreateLabOpen(true)}
+                        className="mt-4 rounded-xl bg-pink-600 px-4 py-2 text-xs font-bold text-white hover:bg-pink-500"
+                      >
+                        Create First Lab
+                      </button>
+                    </div>
+                  ) : (
+                    labs.map((lab) => (
+                      <div
+                        key={lab.id}
+                        className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                      >
+                        {/* Lab Header */}
+                        <div className="flex items-center justify-between bg-slate-50/80 px-5 py-3.5 border-b border-slate-100">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className="h-4 w-4"
+                              >
+                                <path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-slate-900">
+                                {lab.name}
+                              </div>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                                <span>{lab.containers.length} Containers</span>
+                                <span>•</span>
+                                <span>{lab.allowedCellLine.length} Allowed Cell-Lines</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Lab Actions */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddDocParent({
+                                  type: "Lab",
+                                  name: lab.name,
+                                  id: lab.id,
+                                });
+                                setIsAddDocOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
+                            >
+                              + Add Container
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedItemForOptions({
+                                  type: "Lab",
+                                  name: lab.name,
+                                  id: lab.id,
+                                  location: "",
+                                  raw: lab,
+                                });
+                                setIsItemOptionsOpen(true);
+                              }}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                              title="Lab Options"
+                            >
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                                <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Containers inside Lab */}
+                        <div className="p-4 space-y-4">
+                          {lab.containers.length === 0 ? (
+                            <div className="py-4 text-center text-xs text-slate-400">
+                              No containers in this lab. Click &ldquo;+ Add Container&rdquo; above.
+                            </div>
+                          ) : (
+                            lab.containers.map((cont) => (
+                              <div
+                                key={cont.id}
+                                className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-3.5"
+                              >
+                                {/* Container Bar */}
+                                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                                  <div className="flex items-center gap-2">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-100 text-blue-700 text-xs font-bold">
+                                      C
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-800">
+                                      {cont.name}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setAddDocParent({
+                                          type: "Container",
+                                          name: cont.name,
+                                          id: cont.id,
+                                        });
+                                        setIsAddDocOpen(true);
+                                      }}
+                                      className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                                    >
+                                      + Add Rack
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedItemForOptions({
+                                          type: "Container",
+                                          name: cont.name,
+                                          id: cont.id,
+                                          location: cont.location,
+                                          raw: cont,
+                                        });
+                                        setIsItemOptionsOpen(true);
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-slate-700"
+                                    >
+                                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                                        <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Racks inside Container */}
+                                <div className="mt-2.5 space-y-2.5 pl-3">
+                                  {cont.racks.length === 0 ? (
+                                    <div className="py-2 text-xs text-slate-400">
+                                      No racks configured. Add a rack above.
+                                    </div>
+                                  ) : (
+                                    cont.racks.map((rack) => (
+                                      <div
+                                        key={rack.id}
+                                        className="rounded-lg border border-slate-200 bg-white p-3 shadow-2xs"
+                                      >
+                                        {/* Rack Header */}
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-100 text-amber-700 text-[10px] font-bold">
+                                              R
+                                            </span>
+                                            <span className="text-xs font-semibold text-slate-800">
+                                              {rack.name}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-1.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setAddDocParent({
+                                                  type: "Rack",
+                                                  name: rack.name,
+                                                  id: rack.id,
+                                                });
+                                                setIsAddDocOpen(true);
+                                              }}
+                                              className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100"
+                                            >
+                                              + Add Box
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setSelectedItemForOptions({
+                                                  type: "Rack",
+                                                  name: rack.name,
+                                                  id: rack.id,
+                                                  location: rack.location,
+                                                  raw: rack,
+                                                });
+                                                setIsItemOptionsOpen(true);
+                                              }}
+                                              className="p-1 text-slate-400 hover:text-slate-700"
+                                            >
+                                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                                                <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* Boxes inside Rack */}
+                                        <div className="mt-2.5 flex flex-wrap gap-2">
+                                          {rack.boxes.length === 0 ? (
+                                            <div className="text-[11px] text-slate-400">
+                                              No boxes yet. Click &ldquo;+ Add Box&rdquo;
+                                            </div>
+                                          ) : (
+                                            rack.boxes.map((box) => {
+                                              const occupiedCount = box.boxCells.filter(
+                                                (c) => !c.isEmpty
+                                              ).length;
+                                              return (
+                                                <div
+                                                  key={box.id}
+                                                  className="group relative flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-xs font-semibold text-blue-900 transition-all hover:border-blue-400 hover:bg-blue-100/70"
+                                                >
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setSelectedBox(box);
+                                                      setActiveLabForCellLines(lab);
+                                                    }}
+                                                    className="flex items-center gap-1.5"
+                                                  >
+                                                    <svg
+                                                      viewBox="0 0 20 20"
+                                                      fill="currentColor"
+                                                      className="h-3.5 w-3.5 text-blue-600"
+                                                    >
+                                                      <path
+                                                        fillRule="evenodd"
+                                                        d="M4.25 2A2.25 2.25 0 0 0 2 4.25v2.5A2.25 2.25 0 0 0 4.25 9h2.5A2.25 2.25 0 0 0 9 6.75v-2.5A2.25 2.25 0 0 0 6.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 2 13.25v2.5A2.25 2.25 0 0 0 4.25 18h2.5A2.25 2.25 0 0 0 9 15.75v-2.5A2.25 2.25 0 0 0 6.75 11h-2.5Zm9-9A2.25 2.25 0 0 0 11 4.25v2.5A2.25 2.25 0 0 0 13.25 9h2.5A2.25 2.25 0 0 0 18 6.75v-2.5A2.25 2.25 0 0 0 15.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 11 13.25v2.5A2.25 2.25 0 0 0 13.25 18h2.5A2.25 2.25 0 0 0 18 15.75v-2.5A2.25 2.25 0 0 0 15.75 11h-2.5Z"
+                                                        clipRule="evenodd"
+                                                      />
+                                                    </svg>
+                                                    <span>{box.name}</span>
+                                                    <span className="rounded-full bg-blue-200/80 px-1.5 py-0.2 text-[9px] font-mono text-blue-800">
+                                                      {occupiedCount}/{box.dimension * box.dimension}
+                                                    </span>
+                                                  </button>
+
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setSelectedItemForOptions({
+                                                        type: "Box",
+                                                        name: box.name,
+                                                        id: box.id,
+                                                        location: box.location,
+                                                        raw: box,
+                                                      });
+                                                      setIsItemOptionsOpen(true);
+                                                    }}
+                                                    className="ml-1 rounded p-0.5 text-blue-400 hover:text-blue-800"
+                                                  >
+                                                    <svg
+                                                      viewBox="0 0 20 20"
+                                                      fill="currentColor"
+                                                      className="h-3 w-3"
+                                                    >
+                                                      <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
+                                                    </svg>
+                                                  </button>
+                                                </div>
+                                              );
+                                            })
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           )
         )}
 
@@ -1657,6 +1785,11 @@ export default function CryoSearchApp() {
           else if (unlockedSections.includes("lms_logbook")) setActiveTab("logbook");
         }}
       />
+
+      <AdminPricingModal
+        isOpen={isAdminPricingOpen}
+        onClose={() => setIsAdminPricingOpen(false)}
+      />
     </div>
   );
 }
@@ -1866,8 +1999,8 @@ function CryoStockWrapper() {
                   setSubTab(item.id as typeof subTab);
                 }}
                 className={`flex-shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${subTab === item.id && !selectedItemId
-                    ? "border-slate-900 text-slate-900 font-bold"
-                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                  ? "border-slate-900 text-slate-900 font-bold"
+                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
                   }`}
               >
                 {item.label}

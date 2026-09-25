@@ -528,3 +528,141 @@ adminRoutes.get("/users/:id/history", async (c) => {
 
   return c.json({ history: historyItems });
 });
+
+// ─────────────────────────────────────────────
+// Admin LMS & CryoSearch Module Pricing & Access Routes
+// ─────────────────────────────────────────────
+
+adminRoutes.get("/lms/settings", async (c) => {
+  let settings = await prisma.lmsSetting.findUnique({ where: { id: "default" } });
+  if (!settings) {
+    settings = await prisma.lmsSetting.create({
+      data: {
+        id: "default",
+        repoPrice: 149900,
+        stockPrice: 149900,
+        budgetPrice: 149900,
+        logbookPrice: 199900,
+        twoSectionDiscountPct: 15,
+        threeSectionDiscountPct: 25,
+        fullAccessPrice: 399900,
+        currency: "INR",
+      },
+    });
+  }
+  return c.json({ settings });
+});
+
+adminRoutes.put("/lms/settings", async (c) => {
+  const body = await c.req.json<{
+    repoPrice?: number;
+    stockPrice?: number;
+    budgetPrice?: number;
+    logbookPrice?: number;
+    twoSectionDiscountPct?: number;
+    threeSectionDiscountPct?: number;
+    fullAccessPrice?: number;
+    currency?: string;
+  }>();
+
+  const updated = await prisma.lmsSetting.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      repoPrice: body.repoPrice ?? 149900,
+      stockPrice: body.stockPrice ?? 149900,
+      budgetPrice: body.budgetPrice ?? 149900,
+      logbookPrice: body.logbookPrice ?? 199900,
+      twoSectionDiscountPct: body.twoSectionDiscountPct ?? 15,
+      threeSectionDiscountPct: body.threeSectionDiscountPct ?? 25,
+      fullAccessPrice: body.fullAccessPrice ?? 399900,
+      currency: body.currency ?? "INR",
+    },
+    update: {
+      ...(body.repoPrice !== undefined && { repoPrice: Math.max(0, Math.round(body.repoPrice)) }),
+      ...(body.stockPrice !== undefined && { stockPrice: Math.max(0, Math.round(body.stockPrice)) }),
+      ...(body.budgetPrice !== undefined && { budgetPrice: Math.max(0, Math.round(body.budgetPrice)) }),
+      ...(body.logbookPrice !== undefined && { logbookPrice: Math.max(0, Math.round(body.logbookPrice)) }),
+      ...(body.twoSectionDiscountPct !== undefined && { twoSectionDiscountPct: Math.max(0, Math.min(100, Math.round(body.twoSectionDiscountPct))) }),
+      ...(body.threeSectionDiscountPct !== undefined && { threeSectionDiscountPct: Math.max(0, Math.min(100, Math.round(body.threeSectionDiscountPct))) }),
+      ...(body.fullAccessPrice !== undefined && { fullAccessPrice: Math.max(0, Math.round(body.fullAccessPrice)) }),
+      ...(body.currency && { currency: body.currency.trim().toUpperCase() }),
+    },
+  });
+
+  return c.json({ settings: updated, message: "LMS pricing settings updated successfully" });
+});
+
+adminRoutes.get("/lms/users", async (c) => {
+  const search = c.req.query("search")?.trim().toLowerCase();
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const users = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      lmsAccesses: {
+        select: {
+          id: true,
+          section: true,
+          grantedBy: true,
+          createdAt: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+
+  return c.json({ users });
+});
+
+adminRoutes.post("/lms/grant-access", async (c) => {
+  const body = await c.req.json<{
+    userId: string;
+    section: string;
+    action: "GRANT" | "REVOKE";
+  }>();
+
+  if (!body.userId || !body.section) {
+    throw new HTTPException(400, { message: "Missing userId or section" });
+  }
+
+  if (body.action === "GRANT") {
+    await prisma.lmsAccess.upsert({
+      where: { userId_section: { userId: body.userId, section: body.section } },
+      create: { userId: body.userId, section: body.section, grantedBy: "ADMIN" },
+      update: { grantedBy: "ADMIN" },
+    });
+    return c.json({ success: true, message: `Granted ${body.section} access.` });
+  } else {
+    await prisma.lmsAccess.deleteMany({
+      where: { userId: body.userId, section: body.section },
+    });
+    return c.json({ success: true, message: `Revoked ${body.section} access.` });
+  }
+});
+
+adminRoutes.get("/lms/payments", async (c) => {
+  const payments = await prisma.payment.findMany({
+    where: { lmsSections: { isEmpty: false } },
+    include: {
+      user: { select: { name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  return c.json({ payments });
+});

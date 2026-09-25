@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { fetchAdminStats } from "@/lib/api";
 import type { AdminOverviewData } from "@/lib/api";
 import { AdminSpinner } from "@/components/AdminLoader";
@@ -110,12 +111,20 @@ function MetricCard({
 }
 
 export default function AdminDashboardPage() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
   const [data, setData] = useState<AdminOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     "overview" | "users" | "resources" | "kits" | "courses" | "enrollments" | "payments" | "lms"
-  >("overview");
+  >(() => {
+    if (tabParam === "lms" || tabParam === "users" || tabParam === "resources" || tabParam === "kits" || tabParam === "courses" || tabParam === "enrollments" || tabParam === "payments") {
+      return tabParam as any;
+    }
+    return "overview";
+  });
   const [searchQuery, setSearchQuery] = useState("");
 
   const loadData = useCallback(async () => {
@@ -422,6 +431,20 @@ export default function AdminDashboardPage() {
             </svg>
           }
         />
+
+        <MetricCard
+          title="LMS & CryoSearch"
+          value="Pricing & Access"
+          subtitle="Module prices, discounts & permissions"
+          badgeText="LMS Admin"
+          badgeColor="amber"
+          href="/admin/lms"
+          icon={
+            <svg className="h-5 w-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12m-3-6h6M2.25 12a9.75 9.75 0 1119.5 0 9.75 9.75 0 01-19.5 0z" />
+            </svg>
+          }
+        />
       </div>
 
       {/* Command Navigation & Search Bar */}
@@ -436,7 +459,7 @@ export default function AdminDashboardPage() {
             { id: "courses", label: `🎓 Courses (${filteredCourses.length})` },
             { id: "enrollments", label: `📜 Enrollments (${filteredEnrollments.length})` },
             { id: "payments", label: `💳 Payments (${filteredPayments.length})` },
-            { id: "lms", label: "🔒 LMS Sections" },
+            { id: "lms", label: "🔬 LMS & CryoSearch" },
           ].map((tab) => (
             <button
               key={tab.id}
