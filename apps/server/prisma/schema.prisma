@@ -882,6 +882,18 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum PlanType {
+  SINGLE_USER
+  TEAM_ADMIN_5
+}
+
+enum ModuleKey {
+  STOCK
+  CRYO
+  LOGBOOK
+  BUDGET
+}
+
 enum LabMemberRole {
   OWNER
   ADMIN
@@ -896,25 +908,28 @@ enum LabInviteStatus {
 }
 
 model LabWorkspace {
-  id           String             @id @default(cuid())
-  name         String
-  description  String?
-  ownerId      String
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  owner        User               @relation("LabWorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members      LabMember[]
-  invites      LabInvite[]
-  instruments  Instrument[]
-  activities   LogbookActivity[]
-  notebooks    LabNotebookEntry[]
-  notebookTasks    NotebookTask[]
+  id              String             @id @default(cuid())
+  name            String
+  description     String?
+  ownerId         String
+  planType        PlanType           @default(TEAM_ADMIN_5)
+  maxSeats        Int                @default(5)
+  enabledModules  ModuleKey[]        @default([STOCK, CRYO, LOGBOOK, BUDGET])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  owner           User               @relation("LabWorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members         LabMember[]
+  invites         LabInvite[]
+  instruments     Instrument[]
+  activities      LogbookActivity[]
+  notebooks       LabNotebookEntry[]
+  notebookTasks   NotebookTask[]
   notebookActivityLogs NotebookActivityLog[]
-  stockSettings    StockSettings?
-  stockCategories  StockCategory[]
-  stockTags        StockTag[]
-  locations        Location[]
-  stockItems       StockItem[]
+  stockSettings   StockSettings?
+  stockCategories StockCategory[]
+  stockTags       StockTag[]
+  locations       Location[]
+  stockItems      StockItem[]
   stockTransactions StockTransaction[]
   stockActivityLogs StockActivityLog[]
 
@@ -934,12 +949,22 @@ model LabMember {
   canManageInstruments    Boolean       @default(false)
   canGenerateReports      Boolean       @default(false)
   // Stock Management permissions
-  canViewStock            Boolean       @default(false)
-  canAddStock             Boolean       @default(false)
+  canViewStock            Boolean       @default(true)
+  canAddStock             Boolean       @default(true)
   canEditStock            Boolean       @default(false)
   canIssueStock           Boolean       @default(true)
   canRestockStock         Boolean       @default(false)
   canManageStockSettings  Boolean       @default(false)
+  // Cryo Management permissions
+  canViewCryo             Boolean       @default(true)
+  canAddCryo              Boolean       @default(true)
+  canEditCryo             Boolean       @default(false)
+  canManageCryoSettings   Boolean       @default(false)
+  // Budget Management permissions
+  canViewBudget           Boolean       @default(true)
+  canCreateBudget         Boolean       @default(true)
+  canEditBudget           Boolean       @default(false)
+  canManageBudgetSettings Boolean       @default(false)
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
   lab                     LabWorkspace  @relation(fields: [labId], references: [id], onDelete: Cascade)
@@ -956,12 +981,26 @@ model LabInvite {
   inviterId               String
   inviteeEmail            String
   role                    LabMemberRole   @default(MEMBER)
+  canViewLogbook          Boolean         @default(true)
+  canCreateEntries        Boolean         @default(true)
+  canEditOwnEntries       Boolean         @default(true)
+  canEditOthersEntries    Boolean         @default(false)
+  canManageInstruments    Boolean         @default(false)
+  canGenerateReports      Boolean         @default(false)
   canViewStock            Boolean         @default(true)
   canAddStock             Boolean         @default(true)
   canEditStock            Boolean         @default(false)
   canIssueStock           Boolean         @default(true)
   canRestockStock         Boolean         @default(false)
   canManageStockSettings  Boolean         @default(false)
+  canViewCryo             Boolean         @default(true)
+  canAddCryo              Boolean         @default(true)
+  canEditCryo             Boolean         @default(false)
+  canManageCryoSettings   Boolean         @default(false)
+  canViewBudget           Boolean         @default(true)
+  canCreateBudget         Boolean         @default(true)
+  canEditBudget           Boolean         @default(false)
+  canManageBudgetSettings Boolean         @default(false)
   token                   String          @unique
   status                  LabInviteStatus @default(PENDING)
   expiresAt               DateTime

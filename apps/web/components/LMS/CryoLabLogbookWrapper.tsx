@@ -29,6 +29,7 @@ import {
   cancelLabInvite,
   acceptLabInvite,
   updateLabMemberPermission,
+  getLabPlan,
   type LogbookInstrument,
   type LogbookBooking,
   type LogbookPermission,
@@ -40,7 +41,9 @@ import {
   type LogbookActivity,
   type LabTeamMember,
   type LabInviteItem,
+  type LabPlanEntitlements,
 } from "@/lib/api";
+import { AccessRightsPage } from "./AccessRightsPage";
 import { useAuth } from "@/context/AuthContext";
 import { useLabWorkspace, LabWorkspaceProvider } from "@/context/LabWorkspaceContext";
 import { isAdmin as checkIsAdmin } from "@/lib/admin";
@@ -656,9 +659,10 @@ function CryoLabLogbookContent() {
   // ───────────────────────────────────────────────────────────────────────────
   // 5. TEAM & PERMISSIONS STATE & LOGIC
   // ───────────────────────────────────────────────────────────────────────────
-  const [teamSubTab, setTeamSubTab] = useState<"members" | "invites">("members");
+  const [teamSubTab, setTeamSubTab] = useState<"members" | "access_rights" | "invites">("members");
   const [teamMembers, setTeamMembers] = useState<LabTeamMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<LabInviteItem[]>([]);
+  const [planEntitlements, setPlanEntitlements] = useState<LabPlanEntitlements | null>(null);
   const [isWorkspaceOwner, setIsWorkspaceOwner] = useState(false);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
@@ -676,10 +680,14 @@ function CryoLabLogbookContent() {
     try {
       setTeamLoading(true);
       setTeamError(null);
-      const res = await fetchLabTeam(activeLab.id);
+      const [res, planRes] = await Promise.all([
+        fetchLabTeam(activeLab.id),
+        getLabPlan(activeLab.id).catch(() => null),
+      ]);
       setTeamMembers(res.members);
       setPendingInvites(res.pendingInvites || []);
       setIsWorkspaceOwner(res.isOwner || isAdminUser);
+      if (planRes) setPlanEntitlements(planRes);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load team members";
       setTeamError(msg);
@@ -1461,11 +1469,11 @@ function CryoLabLogbookContent() {
             )}
           </div>
 
-          <div className="flex border-b border-slate-200">
+          <div className="flex border-b border-slate-200 overflow-x-auto">
             <button
               type="button"
               onClick={() => setTeamSubTab("members")}
-              className={`border-b-2 px-5 py-3 text-xs font-bold transition-colors ${
+              className={`border-b-2 px-5 py-3 text-xs font-bold transition-colors whitespace-nowrap ${
                 teamSubTab === "members" ? "border-slate-950 text-slate-950" : "border-transparent text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -1473,8 +1481,22 @@ function CryoLabLogbookContent() {
             </button>
             <button
               type="button"
+              onClick={() => setTeamSubTab("access_rights")}
+              className={`border-b-2 px-5 py-3 text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                teamSubTab === "access_rights" ? "border-indigo-600 text-indigo-600 font-extrabold" : "border-transparent text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <span>🔑 Access Rights & Plan Entitlements</span>
+              {planEntitlements && (
+                <span className="rounded-full bg-indigo-100 text-indigo-800 px-2 py-0.5 text-[10px] font-bold">
+                  {planEntitlements.planType === "SINGLE_USER" ? "Single User" : "Team (Admin+4)"}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               onClick={() => setTeamSubTab("invites")}
-              className={`border-b-2 px-5 py-3 text-xs font-bold transition-colors ${
+              className={`border-b-2 px-5 py-3 text-xs font-bold transition-colors whitespace-nowrap ${
                 teamSubTab === "invites" ? "border-slate-950 text-slate-950" : "border-transparent text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -1490,6 +1512,21 @@ function CryoLabLogbookContent() {
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
               {teamError}
             </div>
+          ) : teamSubTab === "access_rights" && activeLab ? (
+            <AccessRightsPage
+              labId={activeLab.id}
+              labName={activeLab.name}
+              isOwner={isWorkspaceOwner}
+              userRole={user?.role || (isWorkspaceOwner ? "OWNER" : "MEMBER")}
+              members={teamMembers}
+              planEntitlements={planEntitlements}
+              onRefresh={loadTeam}
+              onInviteClick={() => {
+                setShowInviteModal(true);
+                setInviteErrorMsg(null);
+                setLastInviteLink(null);
+              }}
+            />
           ) : teamSubTab === "members" ? (
             teamMembers.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-xs text-slate-400">

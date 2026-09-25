@@ -294,6 +294,82 @@ logbookRoutes.post("/labs", async (c) => {
 });
 
 // ─────────────────────────────────────────────
+// PLAN & SUBSCRIPTION MODULE ENTITLEMENTS ENDPOINTS
+// ─────────────────────────────────────────────
+
+// GET /logbook/labs/:labId/plan - Get lab plan & module entitlements
+logbookRoutes.get("/labs/:labId/plan", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+
+  const { lab } = await resolveLabAndPermissions(authUser.sub, labId);
+
+  const activeSeats = await prisma.labMember.count({ where: { labId } });
+  const pendingInvitesCount = await prisma.labInvite.count({ where: { labId, status: "PENDING" } });
+
+  return c.json({
+    labId: lab.id,
+    labName: lab.name,
+    planType: lab.planType,
+    maxSeats: lab.maxSeats,
+    enabledModules: lab.enabledModules,
+    activeSeats,
+    pendingInvitesCount,
+    remainingSeats: Math.max(0, lab.maxSeats - activeSeats - pendingInvitesCount),
+  });
+});
+
+// PATCH /logbook/labs/:labId/plan - Update lab plan or enabled module bundle (Admin/Owner)
+logbookRoutes.patch("/labs/:labId/plan", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+
+  const { isOwner, role, lab } = await resolveLabAndPermissions(authUser.sub, labId);
+  if (!isOwner && role !== "ADMIN") {
+    throw new HTTPException(403, { message: "Only Lab Owner or Admin can update subscription plan" });
+  }
+
+  const body = await c.req.json().catch(() => null);
+  if (!body) {
+    throw new HTTPException(400, { message: "Request body required" });
+  }
+
+  const validPlans = ["SINGLE_USER", "TEAM_ADMIN_5"];
+  const validModules = ["STOCK", "CRYO", "LOGBOOK", "BUDGET"];
+
+  let planType = lab.planType;
+  let maxSeats = lab.maxSeats;
+  if (body.planType && validPlans.includes(body.planType)) {
+    planType = body.planType;
+    maxSeats = planType === "SINGLE_USER" ? 1 : 5;
+  }
+
+  let enabledModules = lab.enabledModules;
+  if (Array.isArray(body.enabledModules)) {
+    enabledModules = body.enabledModules.filter((m: string) => validModules.includes(m));
+  }
+
+  const updatedLab = await prisma.labWorkspace.update({
+    where: { id: labId },
+    data: {
+      planType: planType as any,
+      maxSeats,
+      enabledModules: enabledModules as any[],
+    },
+  });
+
+  return c.json({
+    success: true,
+    plan: {
+      labId: updatedLab.id,
+      planType: updatedLab.planType,
+      maxSeats: updatedLab.maxSeats,
+      enabledModules: updatedLab.enabledModules,
+    },
+  });
+});
+
+// ─────────────────────────────────────────────
 // TEAM & INVITATIONS ENDPOINTS
 // ─────────────────────────────────────────────
 
@@ -337,6 +413,20 @@ logbookRoutes.get("/labs/:labId/team", async (c) => {
       canEditOthersEntries: m.canEditOthersEntries,
       canManageInstruments: m.canManageInstruments,
       canGenerateReports: m.canGenerateReports,
+      canViewStock: m.canViewStock,
+      canAddStock: m.canAddStock,
+      canEditStock: m.canEditStock,
+      canIssueStock: m.canIssueStock,
+      canRestockStock: m.canRestockStock,
+      canManageStockSettings: m.canManageStockSettings,
+      canViewCryo: m.canViewCryo,
+      canAddCryo: m.canAddCryo,
+      canEditCryo: m.canEditCryo,
+      canManageCryoSettings: m.canManageCryoSettings,
+      canViewBudget: m.canViewBudget,
+      canCreateBudget: m.canCreateBudget,
+      canEditBudget: m.canEditBudget,
+      canManageBudgetSettings: m.canManageBudgetSettings,
     },
   }));
 
@@ -358,6 +448,9 @@ logbookRoutes.get("/labs/:labId/team", async (c) => {
   return c.json({
     labId,
     labName: lab.name,
+    planType: lab.planType,
+    maxSeats: lab.maxSeats,
+    enabledModules: lab.enabledModules,
     isOwner,
     userRole: role,
     members: formattedMembers,
@@ -373,6 +466,22 @@ logbookRoutes.post("/labs/:labId/invites", async (c) => {
   const { isOwner, role, lab } = await resolveLabAndPermissions(authUser.sub, labId);
   if (!isOwner && role !== "ADMIN") {
     throw new HTTPException(403, { message: "Only the Lab Owner or Admin can invite team members" });
+  }
+
+  // Plan & seat limit checks
+  if (lab.planType === "SINGLE_USER") {
+    throw new HTTPException(403, {
+      message: "Single User plan does not allow team invitations. Upgrade to Team (Admin+4) plan to invite members.",
+    });
+  }
+
+  const activeMembersCount = await prisma.labMember.count({ where: { labId } });
+  const pendingInvitesCount = await prisma.labInvite.count({ where: { labId, status: "PENDING" } });
+
+  if (activeMembersCount + pendingInvitesCount >= lab.maxSeats) {
+    throw new HTTPException(403, {
+      message: `Workspace seat limit reached (${activeMembersCount + pendingInvitesCount}/${lab.maxSeats} seats occupied on ${lab.planType} plan).`,
+    });
   }
 
   const body = await c.req.json().catch(() => null);
@@ -485,12 +594,26 @@ logbookRoutes.post("/invites/accept", async (c) => {
       labId: invite.labId,
       userId: authUser.sub,
       role: "MEMBER",
-      canViewLogbook: true,
-      canCreateEntries: true,
-      canEditOwnEntries: true,
-      canEditOthersEntries: false,
-      canManageInstruments: false,
-      canGenerateReports: false,
+      canViewLogbook: invite.canViewLogbook,
+      canCreateEntries: invite.canCreateEntries,
+      canEditOwnEntries: invite.canEditOwnEntries,
+      canEditOthersEntries: invite.canEditOthersEntries,
+      canManageInstruments: invite.canManageInstruments,
+      canGenerateReports: invite.canGenerateReports,
+      canViewStock: invite.canViewStock,
+      canAddStock: invite.canAddStock,
+      canEditStock: invite.canEditStock,
+      canIssueStock: invite.canIssueStock,
+      canRestockStock: invite.canRestockStock,
+      canManageStockSettings: invite.canManageStockSettings,
+      canViewCryo: invite.canViewCryo,
+      canAddCryo: invite.canAddCryo,
+      canEditCryo: invite.canEditCryo,
+      canManageCryoSettings: invite.canManageCryoSettings,
+      canViewBudget: invite.canViewBudget,
+      canCreateBudget: invite.canCreateBudget,
+      canEditBudget: invite.canEditBudget,
+      canManageBudgetSettings: invite.canManageBudgetSettings,
     },
     update: {},
   });
@@ -533,12 +656,30 @@ logbookRoutes.patch("/labs/:labId/members/:memberUserId", async (c) => {
   const updated = await prisma.labMember.update({
     where: { labId_userId: { labId, userId: memberUserId } },
     data: {
+      // Logbook
       ...(body.canViewLogbook !== undefined && { canViewLogbook: Boolean(body.canViewLogbook) }),
       ...(body.canCreateEntries !== undefined && { canCreateEntries: Boolean(body.canCreateEntries) }),
       ...(body.canEditOwnEntries !== undefined && { canEditOwnEntries: Boolean(body.canEditOwnEntries) }),
       ...(body.canEditOthersEntries !== undefined && { canEditOthersEntries: Boolean(body.canEditOthersEntries) }),
       ...(body.canManageInstruments !== undefined && { canManageInstruments: Boolean(body.canManageInstruments) }),
       ...(body.canGenerateReports !== undefined && { canGenerateReports: Boolean(body.canGenerateReports) }),
+      // Stock
+      ...(body.canViewStock !== undefined && { canViewStock: Boolean(body.canViewStock) }),
+      ...(body.canAddStock !== undefined && { canAddStock: Boolean(body.canAddStock) }),
+      ...(body.canEditStock !== undefined && { canEditStock: Boolean(body.canEditStock) }),
+      ...(body.canIssueStock !== undefined && { canIssueStock: Boolean(body.canIssueStock) }),
+      ...(body.canRestockStock !== undefined && { canRestockStock: Boolean(body.canRestockStock) }),
+      ...(body.canManageStockSettings !== undefined && { canManageStockSettings: Boolean(body.canManageStockSettings) }),
+      // Cryo
+      ...(body.canViewCryo !== undefined && { canViewCryo: Boolean(body.canViewCryo) }),
+      ...(body.canAddCryo !== undefined && { canAddCryo: Boolean(body.canAddCryo) }),
+      ...(body.canEditCryo !== undefined && { canEditCryo: Boolean(body.canEditCryo) }),
+      ...(body.canManageCryoSettings !== undefined && { canManageCryoSettings: Boolean(body.canManageCryoSettings) }),
+      // Budget
+      ...(body.canViewBudget !== undefined && { canViewBudget: Boolean(body.canViewBudget) }),
+      ...(body.canCreateBudget !== undefined && { canCreateBudget: Boolean(body.canCreateBudget) }),
+      ...(body.canEditBudget !== undefined && { canEditBudget: Boolean(body.canEditBudget) }),
+      ...(body.canManageBudgetSettings !== undefined && { canManageBudgetSettings: Boolean(body.canManageBudgetSettings) }),
     },
   });
 

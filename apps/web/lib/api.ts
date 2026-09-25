@@ -2099,6 +2099,9 @@ export async function deleteBudgetSubmission(budgetId: string, submissionId: str
 export type InstrumentStatus = "ACTIVE" | "UNDER_MAINTENANCE" | "OUT_OF_SERVICE" | "ARCHIVED";
 export type BookingStatus = "CONFIRMED" | "CANCELLED";
 
+export type PlanType = "SINGLE_USER" | "TEAM_ADMIN_5";
+export type ModuleKey = "STOCK" | "CRYO" | "LOGBOOK" | "BUDGET";
+
 export type LogbookPermission = {
   canViewLogbook: boolean;
   canCreateEntries: boolean;
@@ -2106,6 +2109,36 @@ export type LogbookPermission = {
   canEditOthersEntries: boolean;
   canManageInstruments: boolean;
   canGenerateReports: boolean;
+  // Stock permissions
+  canViewStock?: boolean;
+  canAddStock?: boolean;
+  canEditStock?: boolean;
+  canIssueStock?: boolean;
+  canRestockStock?: boolean;
+  canManageStockSettings?: boolean;
+  // Cryo permissions
+  canViewCryo?: boolean;
+  canAddCryo?: boolean;
+  canEditCryo?: boolean;
+  canManageCryoSettings?: boolean;
+  // Budget permissions
+  canViewBudget?: boolean;
+  canCreateBudget?: boolean;
+  canEditBudget?: boolean;
+  canManageBudgetSettings?: boolean;
+};
+
+export type ComprehensivePermission = LogbookPermission;
+
+export type LabPlanEntitlements = {
+  labId: string;
+  labName: string;
+  planType: PlanType;
+  maxSeats: number;
+  enabledModules: ModuleKey[];
+  activeSeats: number;
+  pendingInvitesCount: number;
+  remainingSeats: number;
 };
 
 export type LogbookInstrument = {
@@ -2440,6 +2473,24 @@ export async function updateLogbookPermission(userId: string, input: Partial<Log
     body: JSON.stringify(input),
   });
   return data.permission;
+}
+
+export async function getLabPlan(labId: string) {
+  return apiFetch<LabPlanEntitlements>(`/logbook/labs/${labId}/plan`);
+}
+
+export async function updateLabPlan(labId: string, payload: { planType?: PlanType; enabledModules?: ModuleKey[] }) {
+  return apiFetch<{ success: boolean; plan: LabPlanEntitlements }>(`/logbook/labs/${labId}/plan`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateMemberAccessRights(labId: string, memberUserId: string, permissions: Partial<ComprehensivePermission>) {
+  return apiFetch<{ permission: ComprehensivePermission }>(`/logbook/labs/${labId}/members/${memberUserId}`, {
+    method: "PATCH",
+    body: JSON.stringify(permissions),
+  });
 }
 
 export async function fetchLogbookActivities(instrumentId?: string, labId?: string) {
