@@ -39,7 +39,7 @@ const menuLinks = [
   {
     label: "Lab Log-Book",
     description: "Instrument logs & equipment booking",
-    href: "/dashboard/logbook",
+    href: "/cyrosearch?tab=logbook",
     icon: (
       <svg
         viewBox="0 0 24 24"

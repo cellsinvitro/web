@@ -112,7 +112,7 @@ export default function StockIssue() {
 
   if (!activeLab) return (
     <div className="py-16 text-center text-sm text-slate-500">
-      No lab workspace selected. <Link href="/dashboard/logbook" className="text-slate-900 underline">Set one up</Link>
+      No lab workspace selected. <Link href="/cyrosearch?tab=logbook" className="text-slate-900 underline">Set one up</Link>
     </div>
   );
 

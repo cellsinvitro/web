@@ -8,6 +8,7 @@ import NotebookTaskPanel from "@/components/logbook/NotebookTaskPanel";
 import NotebookActivityLogPanel from "@/components/logbook/NotebookActivityLog";
 import AdminNotebookView from "@/components/logbook/AdminNotebookView";
 
+import { useSearchParams } from "next/navigation";
 import {
   fetchLogbookInstruments,
   fetchLogbookInstrument,
@@ -26,6 +27,7 @@ import {
   fetchLabTeam,
   sendLabInvite,
   cancelLabInvite,
+  acceptLabInvite,
   updateLabMemberPermission,
   type LogbookInstrument,
   type LogbookBooking,
@@ -111,10 +113,40 @@ export default function CryoLabLogbookWrapper() {
 
 function CryoLabLogbookContent() {
   const { user } = useAuth();
-  const { activeLab } = useLabWorkspace();
+  const { activeLab, refreshLabs, setActiveLabId } = useLabWorkspace();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("inviteToken") || searchParams.get("labInvite") || searchParams.get("token");
   const isAdminUser = checkIsAdmin(user?.role);
 
   const [subTab, setSubTab] = useState<"instruments" | "notebook" | "reports" | "activity" | "team">("instruments");
+  const [labInviteBanner, setLabInviteBanner] = useState<{ status: "idle" | "accepting" | "success" | "error"; msg?: string }>({ status: "idle" });
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    let active = true;
+    async function handleAccept() {
+      try {
+        setLabInviteBanner({ status: "accepting", msg: "Joining lab workspace..." });
+        const res = await acceptLabInvite(inviteToken!);
+        await refreshLabs();
+        setActiveLabId(res.labId);
+        if (active) {
+          setLabInviteBanner({ status: "success", msg: `Successfully joined ${res.labName}!` });
+          const url = new URL(window.location.href);
+          url.searchParams.delete("inviteToken");
+          url.searchParams.delete("labInvite");
+          url.searchParams.delete("token");
+          window.history.replaceState({}, "", url.toString());
+        }
+      } catch (err: unknown) {
+        if (active) {
+          setLabInviteBanner({ status: "error", msg: err instanceof Error ? err.message : "Failed to accept lab invite" });
+        }
+      }
+    }
+    handleAccept();
+    return () => { active = false; };
+  }, [inviteToken, refreshLabs, setActiveLabId]);
 
   // Shared permissions
   const [permissions, setPermissions] = useState<LogbookPermission>({
@@ -691,7 +723,7 @@ function CryoLabLogbookContent() {
       setInviteErrorMsg(null);
       setLastInviteLink(null);
       const res = await sendLabInvite(activeLab.id, inviteEmail.trim());
-      const link = `${window.location.origin}/dashboard/logbook/invite/accept?token=${res.invite.token}`;
+      const link = `${window.location.origin}/cyrosearch?tab=logbook&inviteToken=${res.invite.token}`;
       setLastInviteLink(link);
       setInviteEmail("");
       await loadTeam();
@@ -727,6 +759,25 @@ function CryoLabLogbookContent() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      {labInviteBanner.status !== "idle" && (
+        <div className={`mb-4 flex items-center justify-between rounded-2xl border p-4 text-xs font-semibold ${
+          labInviteBanner.status === "accepting"
+            ? "border-blue-200 bg-blue-50 text-blue-800"
+            : labInviteBanner.status === "success"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+            : "border-rose-200 bg-rose-50 text-rose-800"
+        }`}>
+          <span>{labInviteBanner.msg}</span>
+          <button
+            type="button"
+            onClick={() => setLabInviteBanner({ status: "idle" })}
+            className="rounded-lg p-1 hover:bg-black/5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* ── LOGBOOK HEADER ── */}
       <LogbookHeader
         canManageInstruments={permissions.canManageInstruments}
@@ -1502,7 +1553,7 @@ function CryoLabLogbookContent() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {pendingInvites.map((inv) => {
-                      const link = `${typeof window !== "undefined" ? window.location.origin : ""}/dashboard/logbook/invite/accept?token=${inv.token}`;
+                      const link = `${typeof window !== "undefined" ? window.location.origin : ""}/cyrosearch?tab=logbook&inviteToken=${inv.token}`;
                       return (
                         <tr key={inv.id} className="hover:bg-slate-50/50">
                           <td className="px-4 py-3 font-bold text-slate-900">{inv.email}</td>

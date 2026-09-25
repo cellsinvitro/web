@@ -35,13 +35,13 @@ export default function LogbookHeader({
   const [createError, setCreateError] = useState<string | null>(null);
 
   const tabs = [
-    { key: "instruments", label: "Instruments", href: "/dashboard/logbook" },
-    { key: "notebook", label: "Lab Notebook", href: "/dashboard/logbook/notebook" },
+    { key: "instruments", label: "Instruments", href: "/cyrosearch?tab=logbook" },
+    { key: "notebook", label: "Lab Notebook", href: "/cyrosearch?tab=logbook" },
     ...(canGenerateReports || isAdmin
-      ? [{ key: "reports", label: "Reports", href: "/dashboard/logbook/reports" }]
+      ? [{ key: "reports", label: "Reports", href: "/cyrosearch?tab=logbook" }]
       : []),
-    { key: "activity", label: "Activity Log", href: "/dashboard/logbook/activity" },
-    { key: "team", label: "Team & Permissions", href: "/dashboard/logbook/team" },
+    { key: "activity", label: "Activity Log", href: "/cyrosearch?tab=logbook" },
+    { key: "team", label: "Team & Permissions", href: "/cyrosearch?tab=logbook" },
   ];
 
   const handleCreateLabSubmit = async (e: React.FormEvent) => {
@@ -192,9 +192,7 @@ export default function LogbookHeader({
           {tabs.map((tab) => {
             const isActive = activeSubTab
               ? activeSubTab === tab.key
-              : tab.href === "/dashboard/logbook"
-              ? pathname === "/dashboard/logbook"
-              : pathname.startsWith(tab.href);
+              : pathname === "/cyrosearch";
 
             if (onSubTabChange) {
               return (

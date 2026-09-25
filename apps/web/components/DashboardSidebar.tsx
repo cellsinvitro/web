@@ -131,7 +131,6 @@ function CyroSearchIcon({ className }: IconProps) {
 
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: OverviewIcon },
-  { label: "Lab Log-Book", href: "/dashboard/logbook", icon: LogbookIcon },
   { label: "CyroSearch", href: "/cyrosearch", icon: CyroSearchIcon },
   { label: "My Courses", href: "/dashboard/courses", icon: CoursesIcon },
   { label: "Live Classes", href: "/dashboard/live-classes", icon: LiveIcon },
