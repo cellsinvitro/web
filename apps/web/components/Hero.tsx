@@ -52,14 +52,6 @@ export default function Hero() {
     >
       {/* Background Media Container */}
       <div className="absolute inset-0 bg-slate-900">
-        {/* Poster Image / Fallback Background */}
-        <div
-          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
-            isVideoLoaded ? "opacity-30" : "opacity-90"
-          }`}
-          style={{ backgroundImage: `url('/images/hero-poster.jpg')` }}
-        />
-
         {/* Video Element with Autoplay Resilience */}
         {!hasError && (
           <video
@@ -69,11 +61,10 @@ export default function Hero() {
             loop
             playsInline
             preload="auto"
-            poster="/images/hero-poster.jpg"
             onLoadedData={() => setIsVideoLoaded(true)}
             onPlaying={() => setIsVideoLoaded(true)}
             onError={() => {
-              console.warn("Hero video failed to load, falling back to background poster.");
+              console.warn("Hero video failed to load.");
               setHasError(true);
             }}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
