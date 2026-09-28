@@ -637,44 +637,43 @@ export default function CryoSearchApp() {
           <div className="mb-5">
             {/* Loading */}
             {inviteState === "loading" && (
-              <div className="flex items-center gap-3 rounded-2xl border border-pink-200 bg-pink-50 px-5 py-4">
-                <svg className="h-5 w-5 animate-spin text-pink-600" viewBox="0 0 24 24" fill="none">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xs">
+                <svg className="h-5 w-5 animate-spin text-slate-500" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
                 </svg>
-                <span className="text-xs font-semibold text-pink-700">Loading invite…</span>
+                <span className="text-xs font-semibold text-slate-600">Loading invite…</span>
               </div>
             )}
 
             {/* Ready — show accept card */}
             {inviteState === "ready" && invitePreview && (
-              <div className="overflow-hidden rounded-2xl border border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50 shadow-sm">
-                {/* Coloured top strip */}
-                <div className="h-1 bg-gradient-to-r from-pink-500 to-rose-500" />
-                <div className="px-5 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
+                {/* Top accent strip */}
+                <div className="h-1 bg-slate-950" />
+                <div className="px-6 py-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
                       {/* Icon */}
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-600 text-white shadow">
+                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white shadow">
                         <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
                           <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
                           <path d="m19 8.839-7.77 3.885a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
                         </svg>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-900">
-                          You&apos;ve been invited to access a shared repository item
+                        <p className="text-sm font-bold text-slate-950">
+                          You&apos;ve been invited to a CryoSearch repository
                         </p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          From <span className="font-semibold text-slate-700">{invitePreview.ownerName}</span>
+                        <p className="mt-1 text-xs text-slate-500">
+                          From <span className="font-semibold text-slate-800">{invitePreview.ownerName}</span>
                         </p>
                         {/* Item breadcrumb */}
-                        <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[11px] shadow-xs border border-pink-200">
-                          <span className="font-bold text-pink-700 uppercase tracking-wide text-[10px]">
+                        <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                          <span className="rounded-md bg-slate-950 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                             {invitePreview.itemType}
                           </span>
-                          <span className="text-slate-300 mx-0.5">·</span>
-                          <span className="font-medium text-slate-700">
+                          <span className="font-semibold text-slate-800">
                             {invitePreview.itemPath.join(" › ")}
                           </span>
                         </div>
@@ -683,7 +682,7 @@ export default function CryoSearchApp() {
                     <button
                       type="button"
                       onClick={handleDismissInvite}
-                      className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-600"
+                      className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                       title="Dismiss"
                     >
                       <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
@@ -691,11 +690,11 @@ export default function CryoSearchApp() {
                       </svg>
                     </button>
                   </div>
-                  <div className="mt-4 flex items-center gap-2">
+                  <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4">
                     <button
                       type="button"
                       onClick={handleAcceptInvite}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-pink-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-pink-500"
+                      className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white shadow hover:bg-slate-800"
                     >
                       <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                         <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
@@ -705,7 +704,7 @@ export default function CryoSearchApp() {
                     <button
                       type="button"
                       onClick={handleDismissInvite}
-                      className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                     >
                       Decline
                     </button>
@@ -716,37 +715,37 @@ export default function CryoSearchApp() {
 
             {/* Accepting spinner */}
             {inviteState === "accepting" && (
-              <div className="flex items-center gap-3 rounded-2xl border border-pink-200 bg-pink-50 px-5 py-4">
-                <svg className="h-5 w-5 animate-spin text-pink-600" viewBox="0 0 24 24" fill="none">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xs">
+                <svg className="h-5 w-5 animate-spin text-slate-700" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
                 </svg>
-                <span className="text-xs font-semibold text-pink-700">Accepting invite…</span>
+                <span className="text-xs font-semibold text-slate-700">Accepting invite…</span>
               </div>
             )}
 
             {/* Success */}
             {inviteState === "accepted" && invitePreview && (
-              <div className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-4">
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xs">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                       <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-emerald-900">Access granted!</p>
-                    <p className="text-[11px] text-emerald-700">
+                    <p className="text-xs font-bold text-slate-950">Access granted!</p>
+                    <p className="text-[11px] text-slate-600">
                       You now have access to{" "}
-                      <span className="font-semibold">{invitePreview.itemPath.join(" › ")}</span>{" "}
-                      from <span className="font-semibold">{invitePreview.ownerName}</span>.
+                      <span className="font-semibold text-slate-900">{invitePreview.itemPath.join(" › ")}</span>{" "}
+                      from <span className="font-semibold text-slate-900">{invitePreview.ownerName}</span>.
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleDismissInvite}
-                  className="shrink-0 rounded-lg p-1 text-emerald-500 hover:bg-emerald-100"
+                  className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100"
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                     <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
@@ -757,22 +756,22 @@ export default function CryoSearchApp() {
 
             {/* Error (expired, used, wrong email, etc.) */}
             {inviteState === "error" && (
-              <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-300 bg-red-50 px-5 py-4">
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xs">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
                     <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
                       <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-red-900">Invite could not be processed</p>
-                    <p className="text-[11px] text-red-700">{inviteError || "This invite link is invalid, expired, or has already been used."}</p>
+                    <p className="text-xs font-bold text-slate-900">Invite could not be processed</p>
+                    <p className="text-[11px] text-slate-500">{inviteError || "This invite link is invalid, expired, or has already been used."}</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleDismissInvite}
-                  className="shrink-0 rounded-lg p-1 text-red-400 hover:bg-red-100"
+                  className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100"
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                     <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
