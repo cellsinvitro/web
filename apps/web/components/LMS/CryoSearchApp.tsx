@@ -21,10 +21,10 @@ import {
   getCryoInvitePreview,
   acceptCryoInvite,
   fetchLmsUserAccess,
-  fetchCryoAdminUsers,
+  fetchCryoSeats,
   type CryoInvitePreview,
   type CryoSearchState,
-  type CryoAdminUser,
+  type CryoSeats,
 } from "@/lib/api";
 import GlobalLoader from "@/components/GlobalLoader";
 import BoxViewModal from "./BoxViewModal";
@@ -35,7 +35,6 @@ import ItemOptionsModal, { ItemType } from "./modals/ItemOptionsModal";
 import SendRequestModal from "./modals/SendRequestModal";
 import AllowedUsersModal from "./modals/AllowedUsersModal";
 import LmsPurchaseModal from "./LmsPurchaseModal";
-import AdminPricingModal from "./modals/AdminPricingModal";
 
 import { LabWorkspaceProvider } from "@/context/LabWorkspaceContext";
 import CryoBudgetWrapper from "./CryoBudgetWrapper";
@@ -75,14 +74,11 @@ export default function CryoSearchApp() {
     sections: string[];
   } | null>(null);
 
-  // Admin Master Control State
-  const [adminUsers, setAdminUsers] = useState<CryoAdminUser[]>([]);
-  const [selectedTargetUserId, setSelectedTargetUserId] = useState<string | null>(null);
-  const [isRefreshingAdmin, setIsRefreshingAdmin] = useState(false);
+  // Seat usage for access management
+  const [seats, setSeats] = useState<CryoSeats | null>(null);
 
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [purchaseTargetSection, setPurchaseTargetSection] = useState<string | undefined>(undefined);
-  const [isAdminPricingOpen, setIsAdminPricingOpen] = useState(false);
 
   const loadUserAccess = useCallback(async () => {
     try {
@@ -96,25 +92,6 @@ export default function CryoSearchApp() {
   useEffect(() => {
     loadUserAccess();
   }, [loadUserAccess]);
-
-  const loadAdminUsers = useCallback(async () => {
-    if (!userAccess?.isAdmin) return;
-    try {
-      setIsRefreshingAdmin(true);
-      const list = await fetchCryoAdminUsers();
-      setAdminUsers(list);
-    } catch (e) {
-      console.error("Failed to load admin user list", e);
-    } finally {
-      setIsRefreshingAdmin(false);
-    }
-  }, [userAccess?.isAdmin]);
-
-  useEffect(() => {
-    if (userAccess?.isAdmin) {
-      loadAdminUsers();
-    }
-  }, [userAccess?.isAdmin, loadAdminUsers]);
 
   const isSectionUnlocked = useCallback(
     (key: string) => {
@@ -233,6 +210,8 @@ export default function CryoSearchApp() {
       setReceivedRequests(fresh.receivedRequests);
       setSentRequests(fresh.sentRequests);
       setAllowedUsers(fresh.allowedUsers);
+      // Refresh seat counts on the owner's side too
+      fetchCryoSeats().then((s) => setSeats(s)).catch(() => {});
     } catch (err: unknown) {
       setInviteError(err instanceof Error ? err.message : "Failed to accept invite");
       setInviteState("error");
@@ -261,6 +240,11 @@ export default function CryoSearchApp() {
         console.error("Failed to load CryoSearch state", error);
       })
       .finally(() => setIsLoaded(true));
+
+    // Load seat usage for access management display
+    fetchCryoSeats()
+      .then((s) => setSeats(s))
+      .catch(() => { /* non-critical — seats banner is just informational */ });
   }, []);
 
   const currentState = (): CryoSearchState => ({
@@ -577,9 +561,14 @@ export default function CryoSearchApp() {
     alert(`Access request sent for ID: ${itemId}`);
   };
 
-  const handleSendEmailInvite = async (email: string, itemId: string) => {
-    await sendCryoInvite(email, itemId);
-    // No local state change needed — the invite lives server-side.
+  const handleSendEmailInvite = async (email: string, _itemId: string): Promise<{ emailSent: boolean; acceptUrl: string }> => {
+    // Use the owner's first lab ID — the invite grants access to that lab
+    const firstLabId = labs[0]?.id;
+    if (!firstLabId) {
+      throw new Error("Create a lab first before inviting collaborators.");
+    }
+    const result = await sendCryoInvite(email, firstLabId);
+    return { emailSent: result.emailSent, acceptUrl: result.acceptUrl };
   };
 
   const handleRevokeAccess = (userId: string, allowedItem: string) => {
@@ -642,18 +631,6 @@ export default function CryoSearchApp() {
     <div className="min-h-0 bg-slate-50/50 pb-16 sm:pb-20">
       {/* Main Container */}
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-4 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setIsCreateLabOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-pink-500"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-              <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-            </svg>
-            Create Lab
-          </button>
-        </div>
 
         {/* ── Invite acceptance banner ── */}
         {inviteState !== "idle" && (
@@ -800,106 +777,6 @@ export default function CryoSearchApp() {
                   <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                     <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
                   </svg>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Admin Master Control Bar */}
-        {userAccess?.isAdmin && (
-          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-4.5 text-white shadow-xl">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-400 shadow-inner">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-amber-400">
-                      ⚡ Admin Master Control
-                    </span>
-                    <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30">
-                      Full Privileges Active
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Universal access to all user repositories, stock, budget, logbooks & system pricing.
-                  </p>
-                </div>
-              </div>
-
-              {/* User Switcher Dropdown & Pricing Button */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAdminPricingOpen(true)}
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 px-3 py-1.5 text-xs font-bold text-amber-300 transition-all shadow-sm"
-                >
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                  </svg>
-                  <span>⚙️ Set Module Prices</span>
-                </button>
-
-                <div className="flex items-center gap-2 rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 shadow-inner">
-                  <label htmlFor="adminUserSwitch" className="text-xs font-bold text-slate-300 whitespace-nowrap">
-                    Viewing User:
-                  </label>
-                  <select
-                    id="adminUserSwitch"
-                    value={selectedTargetUserId || ""}
-                    onChange={(e) => setSelectedTargetUserId(e.target.value ? e.target.value : null)}
-                    className="rounded-lg bg-slate-900 border border-slate-700 text-xs font-semibold text-white px-2.5 py-1 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                  >
-                    <option value="">My Admin Repository</option>
-                    {adminUsers.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name || u.email} ({u.email}) — {u.labCount} Labs [{u.role}]
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={loadAdminUsers}
-                  disabled={isRefreshingAdmin}
-                  className="rounded-xl bg-slate-800 border border-slate-700 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50"
-                  title="Refresh Users List"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={`h-4 w-4 ${isRefreshingAdmin ? "animate-spin" : ""}`}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {selectedTargetUserId && (
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 text-xs text-amber-200">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
-                  Master Control Active: Editing data for{" "}
-                  <strong className="text-white">
-                    {adminUsers.find((u) => u.id === selectedTargetUserId)?.name ||
-                      adminUsers.find((u) => u.id === selectedTargetUserId)?.email ||
-                      selectedTargetUserId}
-                  </strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTargetUserId(null)}
-                  className="font-bold underline hover:text-white"
-                >
-                  Return to My Repository
                 </button>
               </div>
             )}
@@ -1068,6 +945,18 @@ export default function CryoSearchApp() {
                     </button>
                   )}
                 </div>
+
+                {/* Create Lab — only visible in the CryoSearch repo tab */}
+                <button
+                  type="button"
+                  onClick={() => setIsCreateLabOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-pink-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-pink-500"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                  </svg>
+                  Create Lab
+                </button>
               </div>
 
               {/* If actively searching, show search results */}
@@ -1431,18 +1320,51 @@ export default function CryoSearchApp() {
         {/* ======================================================= */}
         {activeTab === "access" && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            {/* Header & Sub-Tabs */}
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+            {/* Header */}
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-slate-100 pb-5">
               <div>
-                <h2 className="text-base font-bold text-slate-900">
-                  Access Management
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Manage collaborator requests and share laboratory items securely.
+                <h2 className="text-base font-bold text-slate-900">Access Management</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Invite collaborators by email. They receive a secure link to accept access.
                 </p>
+
+                {/* Seat capacity bar */}
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {/* Users: 4 slots */}
+                  <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 text-slate-500">
+                      <path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                      <path fillRule="evenodd" d="M3 18a7 7 0 1 1 14 0H3Z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-[11px] font-semibold text-slate-700">
+                      Users: {seats ? `${seats.usedUserSlots} / ${seats.maxUserSlots}` : `— / 4`}
+                    </span>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`h-2 w-2 rounded-full ${seats && i < seats.usedUserSlots ? "bg-pink-500" : "bg-slate-200"}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Admin: 1 slot */}
+                  <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 text-amber-500">
+                      <path fillRule="evenodd" d="M9.661 2.237a.531.531 0 0 1 .678 0 11.947 11.947 0 0 0 7.078 2.749.5.5 0 0 1 .479.425c.069.52.104 1.05.104 1.589 0 5.162-3.26 9.563-7.834 11.256a.48.48 0 0 1-.332 0C5.26 16.563 2 12.162 2 7c0-.538.035-1.069.104-1.589a.5.5 0 0 1 .48-.425 11.947 11.947 0 0 0 7.077-2.749Z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-[11px] font-semibold text-slate-700">
+                      Admin: {seats ? `${seats.usedAdminSlots} / ${seats.maxAdminSlots}` : `— / 1`}
+                    </span>
+                    <div className="flex gap-0.5">
+                      <span className={`h-2 w-2 rounded-full ${seats && seats.usedAdminSlots >= 1 ? "bg-amber-500" : "bg-slate-200"}`} />
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAllowedUsersOpen(true)}
@@ -1459,131 +1381,74 @@ export default function CryoSearchApp() {
                   onClick={() => setIsSendRequestOpen(true)}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-pink-600 px-3.5 py-1.5 text-xs font-bold text-white shadow hover:bg-pink-500"
                 >
-                  + Send Request
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
+                    <path d="m19 8.839-7.77 3.885a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+                  </svg>
+                  + Invite User
                 </button>
               </div>
             </div>
 
-            {/* Sub-tab pills: Received vs Sent */}
-            <div className="mb-4 flex w-fit rounded-xl bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setAccessSubTab("received")}
-                className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${accessSubTab === "received"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Received Requests ({receivedRequests.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setAccessSubTab("sent")}
-                className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${accessSubTab === "sent"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Sent Requests ({sentRequests.length})
-              </button>
-            </div>
-
-            {/* Received Requests */}
-            {accessSubTab === "received" && (
-              <div>
-                {receivedRequests.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-slate-400">
-                    No pending access requests received.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {receivedRequests.map((req) => (
-                      <div
-                        key={req.reqId}
-                        className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100 font-bold text-pink-700">
-                            {req.senderName && req.senderName[0] ? req.senderName[0].toUpperCase() : "U"}
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-slate-900">
-                              {req.senderName}
-                            </div>
-                            <div className="text-[11px] text-slate-500">
-                              Requested {req.requestedItemType}:{" "}
-                              <span className="font-semibold text-slate-700">
-                                {req.requestedItemName.join(" > ")}
-                              </span>
-                            </div>
-                            <div className="font-mono text-[10px] text-slate-400">
-                              ID: {req.requestedItem}
-                            </div>
-                          </div>
+            {/* Pending invites / received requests list */}
+            <div>
+              <p className="mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Pending Access Requests ({receivedRequests.length})
+              </p>
+              {receivedRequests.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto h-8 w-8 text-slate-300">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                  </svg>
+                  <p className="mt-3 text-xs text-slate-400">No pending access requests.</p>
+                  <p className="mt-1 text-[11px] text-slate-300">
+                    Use &ldquo;+ Invite User&rdquo; to send an invite by email.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {receivedRequests.map((req) => (
+                    <div
+                      key={req.reqId}
+                      className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100 font-bold text-pink-700 text-sm">
+                          {req.senderName?.[0]?.toUpperCase() ?? "U"}
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleDenyAccess(req.reqId)}
-                            className="rounded-xl border border-red-200 bg-white px-3.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
-                          >
-                            Deny
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleGrantAccess(req.reqId)}
-                            className="rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-emerald-500"
-                          >
-                            Grant Access
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Sent Requests */}
-            {accessSubTab === "sent" && (
-              <div>
-                {sentRequests.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-slate-400">
-                    No requests sent yet. Click &ldquo;+ Send Request&rdquo; to request access with an item ID.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {sentRequests.map((req) => (
-                      <div
-                        key={req.reqId}
-                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4"
-                      >
                         <div>
-                          <div className="text-xs font-bold text-slate-900">
-                            {req.requestedItemName.join(" > ")}
-                          </div>
-                          <div className="text-[11px] font-mono text-slate-400">
-                            ID: {req.requestedItem}
-                          </div>
+                          <p className="text-xs font-bold text-slate-900">{req.senderName}</p>
+                          <p className="text-[11px] text-slate-500">
+                            Requested access to{" "}
+                            <span className="font-semibold text-slate-700">
+                              {req.requestedItemName.join(" › ")}
+                            </span>
+                          </p>
+                          <p className="font-mono text-[10px] text-slate-400">{req.requestedItem}</p>
                         </div>
-
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${req.requestStatus === "Approved"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : req.requestStatus === "Denied"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-amber-100 text-amber-700"
-                            }`}
-                        >
-                          {req.requestStatus}
-                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleDenyAccess(req.reqId)}
+                          className="rounded-xl border border-red-200 bg-white px-3.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
+                        >
+                          Deny
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleGrantAccess(req.reqId)}
+                          className="rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-emerald-500"
+                        >
+                          Grant Access
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1786,10 +1651,6 @@ export default function CryoSearchApp() {
         }}
       />
 
-      <AdminPricingModal
-        isOpen={isAdminPricingOpen}
-        onClose={() => setIsAdminPricingOpen(false)}
-      />
     </div>
   );
 }

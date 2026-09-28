@@ -256,7 +256,7 @@ export type CryoInvitePreview = {
  * POST /cryosearch/invite
  */
 export async function sendCryoInvite(email: string, itemId: string) {
-  return apiFetch<{ success: boolean }>("/cryosearch/invite", {
+  return apiFetch<{ success: boolean; emailSent: boolean; acceptUrl: string }>("/cryosearch/invite", {
     method: "POST",
     body: JSON.stringify({ email, itemId }),
   });
@@ -289,6 +289,23 @@ export async function acceptCryoInvite(token: string) {
     `/cryosearch/invite/${token}/accept`,
     { method: "POST" }
   );
+}
+
+export type CryoSeats = {
+  maxUserSlots:    number;
+  maxAdminSlots:   number;
+  usedUserSlots:   number;
+  usedAdminSlots:  number;
+  canInviteUsers:  boolean;
+  canInviteAdmins: boolean;
+};
+
+/**
+ * Fetch seat usage for the current user's CryoSearch repository.
+ * GET /cryosearch/seats
+ */
+export async function fetchCryoSeats() {
+  return apiFetch<CryoSeats>("/cryosearch/seats");
 }
 
 export type AdminStats = {

@@ -201,6 +201,9 @@ cryoSearchRoutes.put("/state", async (c) => {
 // Owner sends an email invite to a collaborator
 // ─────────────────────────────────────────────
 
+const MAX_USER_SLOTS = 4;   // regular (non-admin) collaborators per owner
+const MAX_ADMIN_SLOTS = 1;  // admin-role collaborators per owner
+
 cryoSearchRoutes.post("/invite", async (c) => {
   const ownerId = c.get("user").sub;
 
@@ -234,6 +237,44 @@ cryoSearchRoutes.post("/invite", async (c) => {
     });
   }
 
+  // ── Seat-limit pre-check ─────────────────────────────────────────────────
+  // Determine the role of the invitee to decide which slot they occupy
+  const inviteeUser = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, role: true },
+  });
+
+  const inviteeIsAdmin = inviteeUser?.role === "ADMIN";
+
+  const currentAllowed = ((ownerState?.allowedUsers as unknown as AllowedUsersModel[]) ?? []);
+
+  // Deduplicate by userId to get unique collaborators
+  const uniqueUserIds = new Set(currentAllowed.map((u) => u.userId));
+
+  // To know each existing collaborator's role we need DB lookups
+  const existingRoles = uniqueUserIds.size > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: [...uniqueUserIds] } },
+        select: { id: true, role: true },
+      })
+    : [];
+
+  const adminCount = existingRoles.filter((u) => u.role === "ADMIN").length;
+  const userCount  = existingRoles.filter((u) => u.role !== "ADMIN").length;
+
+  if (inviteeIsAdmin && adminCount >= MAX_ADMIN_SLOTS) {
+    throw new HTTPException(409, {
+      message: `Admin slot is already filled (max ${MAX_ADMIN_SLOTS} admin collaborator per repository).`,
+    });
+  }
+
+  if (!inviteeIsAdmin && userCount >= MAX_USER_SLOTS) {
+    throw new HTTPException(409, {
+      message: `User capacity reached. You can have at most ${MAX_USER_SLOTS} regular collaborators per repository. Revoke an existing user to invite someone new.`,
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Get owner's display name
   const owner = await prisma.user.findUnique({
     where: { id: ownerId },
@@ -253,9 +294,11 @@ cryoSearchRoutes.post("/invite", async (c) => {
     data: { token, ownerId, inviteeEmail: email, itemId, expiresAt },
   });
 
-  // Send email (fire-and-forget; don't fail the request if Brevo isn't configured)
+  // Send email — always log the accept URL so it's accessible even if email fails
   const acceptUrl = `${FRONTEND_ORIGIN}/cyrosearch?invite=${token}`;
-  await sendCryoInviteEmail({
+  console.log(`[cryo-invite] Accept URL for ${email}: ${acceptUrl}`);
+
+  const emailSent = await sendCryoInviteEmail({
     to: email,
     ownerName,
     itemPath: resolved.itemPath,
@@ -263,7 +306,11 @@ cryoSearchRoutes.post("/invite", async (c) => {
     acceptUrl,
   });
 
-  return c.json({ success: true });
+  if (!emailSent) {
+    console.warn(`[cryo-invite] Email delivery failed for ${email}. Invite token: ${token}. Accept URL: ${acceptUrl}`);
+  }
+
+  return c.json({ success: true, emailSent, acceptUrl });
 });
 
 // ─────────────────────────────────────────────
@@ -288,6 +335,36 @@ cryoSearchRoutes.get("/invite/:token", async (c) => {
 });
 
 // ─────────────────────────────────────────────
+// GET /cryosearch/seats
+// Returns seat usage counts for the current user's repository
+// ─────────────────────────────────────────────
+
+cryoSearchRoutes.get("/seats", async (c) => {
+  const ownerId = c.get("user").sub;
+  const ownerState = await prisma.cryoSearchState.findUnique({ where: { userId: ownerId } });
+  const currentAllowed = ((ownerState?.allowedUsers as unknown as AllowedUsersModel[]) ?? []);
+
+  const uniqueUserIds = [...new Set(currentAllowed.map((u) => u.userId))];
+  const existingRoles = uniqueUserIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: uniqueUserIds } },
+        select: { id: true, role: true },
+      })
+    : [];
+
+  const adminCount = existingRoles.filter((u) => u.role === "ADMIN").length;
+  const userCount  = existingRoles.filter((u) => u.role !== "ADMIN").length;
+
+  return c.json({
+    maxUserSlots:    MAX_USER_SLOTS,
+    maxAdminSlots:   MAX_ADMIN_SLOTS,
+    usedUserSlots:   userCount,
+    usedAdminSlots:  adminCount,
+    canInviteUsers:  userCount < MAX_USER_SLOTS,
+    canInviteAdmins: adminCount < MAX_ADMIN_SLOTS,
+  });
+});
+// ─────────────────────────────────────────────
 // POST /cryosearch/invite/:token/accept
 // Invitee accepts — auth required
 // ─────────────────────────────────────────────
@@ -311,7 +388,7 @@ cryoSearchRoutes.post("/invite/:token/accept", async (c) => {
   // Verify the logged-in user's email matches the invite
   const inviteeUser = await prisma.user.findUnique({
     where: { id: inviteeUserId },
-    select: { id: true, name: true, email: true, avatarUrl: true },
+    select: { id: true, name: true, email: true, avatarUrl: true, role: true },
   });
 
   if (!inviteeUser) {
@@ -356,6 +433,31 @@ cryoSearchRoutes.post("/invite/:token/accept", async (c) => {
   );
 
   if (!alreadyGranted) {
+    // ── Seat-limit enforcement at accept time ────────────────────────────
+    const uniqueUserIds = new Set(currentAllowed.map((u) => u.userId));
+    const existingRoles = uniqueUserIds.size > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: [...uniqueUserIds] } },
+          select: { id: true, role: true },
+        })
+      : [];
+
+    const adminCount = existingRoles.filter((u) => u.role === "ADMIN").length;
+    const userCount  = existingRoles.filter((u) => u.role !== "ADMIN").length;
+    const acceptingIsAdmin = inviteeUser.role === "ADMIN";
+
+    if (acceptingIsAdmin && adminCount >= MAX_ADMIN_SLOTS) {
+      throw new HTTPException(409, {
+        message: `Admin slot is already filled (max ${MAX_ADMIN_SLOTS} admin collaborator per repository).`,
+      });
+    }
+    if (!acceptingIsAdmin && userCount >= MAX_USER_SLOTS) {
+      throw new HTTPException(409, {
+        message: `User capacity reached (max ${MAX_USER_SLOTS} regular collaborators). Ask the repository owner to free a slot first.`,
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const updatedAllowed = [...currentAllowed, newEntry];
     await prisma.cryoSearchState.upsert({
       where: { userId: invite.ownerId },
