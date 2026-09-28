@@ -77,6 +77,8 @@ async function sendEmail(
     }
 
     console.log("[email] Brevo email delivered successfully to:", to);
+    const responseData = await response.json().catch(() => null);
+    console.log("[email] Brevo response:", JSON.stringify(responseData));
     return true;
   } catch (err) {
     console.error("[email] Brevo request error:", err);
