@@ -1326,41 +1326,6 @@ export default function CryoSearchApp() {
                 <p className="text-xs text-slate-500 mt-0.5">
                   Invite collaborators by email. They receive a secure link to accept access.
                 </p>
-
-                {/* Seat capacity bar */}
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  {/* Users: 4 slots */}
-                  <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 text-slate-500">
-                      <path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                      <path fillRule="evenodd" d="M3 18a7 7 0 1 1 14 0H3Z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-[11px] font-semibold text-slate-700">
-                      Users: {seats ? `${seats.usedUserSlots} / ${seats.maxUserSlots}` : `— / 4`}
-                    </span>
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <span
-                          key={i}
-                          className={`h-2 w-2 rounded-full ${seats && i < seats.usedUserSlots ? "bg-pink-500" : "bg-slate-200"}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Admin: 1 slot */}
-                  <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 text-amber-500">
-                      <path fillRule="evenodd" d="M9.661 2.237a.531.531 0 0 1 .678 0 11.947 11.947 0 0 0 7.078 2.749.5.5 0 0 1 .479.425c.069.52.104 1.05.104 1.589 0 5.162-3.26 9.563-7.834 11.256a.48.48 0 0 1-.332 0C5.26 16.563 2 12.162 2 7c0-.538.035-1.069.104-1.589a.5.5 0 0 1 .48-.425 11.947 11.947 0 0 0 7.077-2.749Z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-[11px] font-semibold text-slate-700">
-                      Admin: {seats ? `${seats.usedAdminSlots} / ${seats.maxAdminSlots}` : `— / 1`}
-                    </span>
-                    <div className="flex gap-0.5">
-                      <span className={`h-2 w-2 rounded-full ${seats && seats.usedAdminSlots >= 1 ? "bg-amber-500" : "bg-slate-200"}`} />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
