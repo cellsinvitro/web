@@ -16,12 +16,37 @@ export type FitResult = {
   params: FourPLParams;
   rSquared: number;
   residuals: number[];
+  interpolatedIc50?: number | null;
 };
 
 export function fourPL(x: number, params: FourPLParams): number {
   const { bottom, top, ic50, hill } = params;
-  if (x <= 0) return top;
+  if (x <= 0) return hill > 0 ? top : bottom;
   return bottom + (top - bottom) / (1 + Math.pow(x / ic50, hill));
+}
+
+export function calculateInterpolatedIC50(
+  points: DataPoint[],
+  target = 50
+): number | null {
+  if (points.length < 2) return null;
+  const sorted = [...points].sort((a, b) => a.concentration - b.concentration);
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const p1 = sorted[i]!;
+    const p2 = sorted[i + 1]!;
+
+    if (
+      (p1.response <= target && p2.response >= target) ||
+      (p1.response >= target && p2.response <= target)
+    ) {
+      if (p2.response === p1.response) return p1.concentration;
+      const fraction = (target - p1.response) / (p2.response - p1.response);
+      return p1.concentration + fraction * (p2.concentration - p1.concentration);
+    }
+  }
+
+  return null;
 }
 
 export function parseDataInput(raw: string): {
@@ -43,7 +68,7 @@ export function parseDataInput(raw: string): {
 
   for (let i = 0; i < lines.length; i++) {
     const cols = lines[i]!
-      .split(/[\t,;]+|\s{2,}/)
+      .split(/[\t,;]+|\s+/)
       .map((c) => c.trim())
       .filter(Boolean);
 
@@ -101,16 +126,45 @@ function sumSquaredError(
   bottom: number,
   top: number,
   logIc50: number,
-  logHill: number
+  hill: number
 ): number {
   const ic50 = Math.exp(logIc50);
-  const hill = Math.exp(logHill);
   const params = { bottom, top, ic50, hill };
 
-  return points.reduce((sum, point) => {
+  const ys = points.map((p) => p.response);
+  const xs = points.map((p) => p.concentration).filter((x) => x > 0);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const rangeY = Math.max(maxY - minY, 1e-6);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+
+  let penalty = 0;
+
+  const bMin = minY >= 0 ? Math.max(-5, minY - rangeY * 0.2) : minY - rangeY * 1.5;
+  const bMax = maxY;
+  if (bottom < bMin) penalty += (bMin - bottom) ** 2 * 1e3;
+  if (bottom > bMax) penalty += (bottom - bMax) ** 2 * 1e3;
+
+  const tMin = minY;
+  const tMax = maxY + rangeY * 1.5;
+  if (top < tMin) penalty += (tMin - top) ** 2 * 1e3;
+  if (top > tMax) penalty += (top - tMax) ** 2 * 1e3;
+
+  const minIc50 = minX / 500;
+  const maxIc50 = maxX * 500;
+  if (ic50 < minIc50) penalty += Math.log(minIc50 / ic50) ** 2 * 1e4;
+  if (ic50 > maxIc50) penalty += Math.log(ic50 / maxIc50) ** 2 * 1e4;
+
+  if (Math.abs(hill) > 20) penalty += (Math.abs(hill) - 20) ** 2 * 1e3;
+
+  let sse = 0;
+  for (const point of points) {
     const predicted = fourPL(point.concentration, params);
-    return sum + (point.response - predicted) ** 2;
-  }, 0);
+    sse += (point.response - predicted) ** 2;
+  }
+
+  return sse + penalty;
 }
 
 function nelderMead(
@@ -121,9 +175,6 @@ function nelderMead(
 ): number[] {
   const n = start.length;
   const simplex: number[][] = [start.slice()];
-  // Use a fixed step of 0.5 in the (log-transformed) parameter space.
-  // The original 5% relative step was far too small and produced a nearly
-  // degenerate initial simplex, causing the optimizer to stall near the start.
   const step = 0.5;
 
   for (let i = 0; i < n; i++) {
@@ -147,13 +198,10 @@ function nelderMead(
 
     const best = order[0]!;
     const worst = order[n]!;
-    const secondWorst = order[n - 1]!;
 
     const range = Math.max(...values) - Math.min(...values);
     if (range < tol) break;
 
-    // Centroid of all vertices except the worst.
-    // The simplex has n+1 vertices (indices 0..n), so iterate the full range.
     const centroid = new Array(n).fill(0);
     for (let i = 0; i <= n; i++) {
       if (i === worst) continue;
@@ -167,7 +215,6 @@ function nelderMead(
     const fReflected = fn(reflected);
 
     if (fReflected < values[best]!) {
-      // Reflected is best so far — try expanding further.
       const expanded = centroid.map((c, j) => c + gamma * (reflected[j]! - c));
       const fExpanded = fn(expanded);
       if (fExpanded < fReflected) {
@@ -178,18 +225,15 @@ function nelderMead(
         values[worst] = fReflected;
       }
     } else if (fReflected < values[worst]!) {
-      // Reflected is not the best but still better than the worst — accept it.
       simplex[worst] = reflected;
       values[worst] = fReflected;
     } else {
-      // Reflected is no improvement — contract toward the centroid.
       const contracted = centroid.map((c, j) => c + rho * (simplex[worst]![j]! - c));
       const fContracted = fn(contracted);
       if (fContracted < values[worst]!) {
         simplex[worst] = contracted;
         values[worst] = fContracted;
       } else {
-        // Shrink the entire simplex toward the best vertex.
         for (let i = 0; i <= n; i++) {
           if (i === best) continue;
           simplex[i] = simplex[best]!.map((b, j) => b + sigma * (simplex[i]![j]! - b));
@@ -206,60 +250,75 @@ function nelderMead(
   return simplex[bestIdx]!;
 }
 
-function initialGuess(points: DataPoint[]): FourPLParams {
+function initialGuesses(points: DataPoint[]): number[][] {
   const ys = points.map((p) => p.response);
   const xs = points.map((p) => p.concentration).filter((x) => x > 0);
 
-  const bottom = Math.min(...ys);
-  const top = Math.max(...ys);
-  const mid = (top + bottom) / 2;
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const midY = (minY + maxY) / 2;
 
   let ic50 = xs.length > 0 ? xs[Math.floor(xs.length / 2)]! : 1;
   let bestDist = Infinity;
   for (const point of points) {
     if (point.concentration <= 0) continue;
-    const dist = Math.abs(point.response - mid);
+    const dist = Math.abs(point.response - midY);
     if (dist < bestDist) {
       bestDist = dist;
       ic50 = point.concentration;
     }
   }
 
-  return { bottom, top, ic50: Math.max(ic50, 1e-12), hill: 1 };
+  const interp = calculateInterpolatedIC50(points, 50);
+  const logIc50 = Math.log(Math.max(interp ?? ic50, 1e-12));
+
+  const half = Math.ceil(ys.length / 2);
+  const firstAvg = ys.slice(0, half).reduce((a, b) => a + b, 0) / half;
+  const lastAvg = ys.slice(ys.length - half).reduce((a, b) => a + b, 0) / half;
+  const isIncreasing = lastAvg >= firstAvg;
+
+  const primaryHill = isIncreasing ? -1 : 1;
+
+  return [
+    [minY, maxY, logIc50, primaryHill],
+    [minY, maxY, logIc50, -primaryHill],
+    [0, 100, logIc50, primaryHill],
+    [minY, maxY, logIc50, primaryHill * 0.5],
+    [minY, maxY, logIc50, primaryHill * 2],
+  ];
 }
 
 export function fitFourPL(points: DataPoint[]): FitResult | null {
   if (points.length < 4) return null;
 
-  const guess = initialGuess(points);
-  const starts: FourPLParams[] = [
-    guess,
-    { ...guess, hill: 0.5 },
-    { ...guess, hill: 2 },
-    { bottom: 0, top: guess.top, ic50: guess.ic50, hill: 1 },
-  ];
+  const starts = initialGuesses(points);
 
-  let bestParams = guess;
+  let bestParams: FourPLParams = {
+    bottom: 0,
+    top: 100,
+    ic50: 1,
+    hill: 1,
+  };
   let bestSSE = Infinity;
 
   for (const start of starts) {
     const result = nelderMead(
-      (p) =>
-        sumSquaredError(points, p[0]!, p[1]!, p[2]!, p[3]!),
-      [start.bottom, start.top, Math.log(start.ic50), Math.log(start.hill)]
+      (p) => sumSquaredError(points, p[0]!, p[1]!, p[2]!, p[3]!),
+      start
     );
 
     const params: FourPLParams = {
       bottom: result[0]!,
       top: result[1]!,
       ic50: Math.exp(result[2]!),
-      hill: Math.exp(result[3]!),
+      hill: result[3]!,
     };
 
-    const sse = points.reduce((sum, point) => {
+    let sse = 0;
+    for (const point of points) {
       const predicted = fourPL(point.concentration, params);
-      return sum + (point.response - predicted) ** 2;
-    }, 0);
+      sse += (point.response - predicted) ** 2;
+    }
 
     if (sse < bestSSE) {
       bestSSE = sse;
@@ -269,13 +328,15 @@ export function fitFourPL(points: DataPoint[]): FitResult | null {
 
   const meanY = points.reduce((s, p) => s + p.response, 0) / points.length;
   const ssTot = points.reduce((s, p) => s + (p.response - meanY) ** 2, 0);
-  const rSquared = ssTot > 0 ? 1 - bestSSE / ssTot : 0;
+  const rSquared = ssTot > 0 ? Math.max(0, 1 - bestSSE / ssTot) : 0;
 
   const residuals = points.map(
     (p) => p.response - fourPL(p.concentration, bestParams)
   );
 
-  return { params: bestParams, rSquared, residuals };
+  const interpolatedIc50 = calculateInterpolatedIC50(points, 50);
+
+  return { params: bestParams, rSquared, residuals, interpolatedIc50 };
 }
 
 export function formatSci(value: number, digits = 3): string {

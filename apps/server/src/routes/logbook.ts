@@ -114,7 +114,7 @@ async function seedDefaultInstrumentsForLab(labId: string) {
 }
 
 // Helper: Resolve active lab workspace & permissions for a user
-async function resolveLabAndPermissions(userId: string, requestedLabId?: string | null) {
+async function resolveLabAndPermissions(userId: string, requestedLabId?: string | null, requiredModule?: "LOGBOOK" | "STOCK" | "CRYO" | "BUDGET") {
   const dbUser = await getUserWithRole(userId);
 
   let labId = requestedLabId;
@@ -130,6 +130,10 @@ async function resolveLabAndPermissions(userId: string, requestedLabId?: string 
 
   if (!lab) {
     throw new HTTPException(404, { message: "Lab workspace not found" });
+  }
+
+  if (requiredModule && Array.isArray(lab.enabledModules) && !lab.enabledModules.includes(requiredModule as any)) {
+    throw new HTTPException(403, { message: `Module '${requiredModule}' is not enabled in this workspace's plan.` });
   }
 
   // System admin or Lab Owner gets full privileges

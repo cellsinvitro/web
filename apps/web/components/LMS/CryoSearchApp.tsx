@@ -882,7 +882,6 @@ export default function CryoSearchApp() {
                 setPurchaseTargetSection("lms_repo");
                 setIsPurchaseModalOpen(true);
               }}
-              onViewFreeSection={() => setActiveTab("access")}
             />
           ) : (
             <div>
@@ -1432,7 +1431,6 @@ export default function CryoSearchApp() {
                 setPurchaseTargetSection("lms_stock");
                 setIsPurchaseModalOpen(true);
               }}
-              onViewFreeSection={() => setActiveTab("access")}
             />
           ) : (
             <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
@@ -1456,7 +1454,6 @@ export default function CryoSearchApp() {
                 setPurchaseTargetSection("lms_budget");
                 setIsPurchaseModalOpen(true);
               }}
-              onViewFreeSection={() => setActiveTab("access")}
             />
           ) : (
             <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
@@ -1480,7 +1477,6 @@ export default function CryoSearchApp() {
                 setPurchaseTargetSection("lms_logbook");
                 setIsPurchaseModalOpen(true);
               }}
-              onViewFreeSection={() => setActiveTab("access")}
             />
           ) : (
             <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
@@ -1622,11 +1618,9 @@ export default function CryoSearchApp() {
 function LockedSectionCard({
   sectionKey,
   onUnlock,
-  onViewFreeSection,
 }: {
   sectionKey: "lms_repo" | "lms_logbook" | "lms_stock" | "lms_budget";
   onUnlock: () => void;
-  onViewFreeSection: () => void;
 }) {
   const config = {
     lms_repo: {
@@ -1754,20 +1748,13 @@ function LockedSectionCard({
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md">
+        <div className="mt-8 flex items-center justify-center w-full max-w-md">
           <button
             type="button"
             onClick={onUnlock}
-            className="w-full sm:w-auto flex-1 rounded-xl bg-slate-950 px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 transition-all transform active:scale-95"
+            className="w-full flex-1 rounded-xl bg-slate-950 px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 transition-all transform active:scale-95 text-center"
           >
             Unlock Access ({config.price})
-          </button>
-          <button
-            type="button"
-            onClick={onViewFreeSection}
-            className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all"
-          >
-            Access Requests (Free)
           </button>
         </div>
       </div>

@@ -49,9 +49,13 @@ async function requireStockPermission(
 ) {
   const workspace = await prisma.labWorkspace.findUnique({
     where: { id: labId },
-    select: { ownerId: true },
+    select: { ownerId: true, enabledModules: true },
   });
   if (!workspace) throw new HTTPException(404, { message: "Lab not found" });
+
+  if (Array.isArray(workspace.enabledModules) && !workspace.enabledModules.includes("STOCK")) {
+    throw new HTTPException(403, { message: "Stock Management module is not enabled in this workspace's plan." });
+  }
 
   // Owner always has full access
   if (workspace.ownerId === userId) return true;
@@ -73,9 +77,12 @@ async function requireStockPermission(
 async function getStockPermissions(labId: string, userId: string) {
   const workspace = await prisma.labWorkspace.findUnique({
     where: { id: labId },
-    select: { ownerId: true },
+    select: { ownerId: true, enabledModules: true },
   });
   if (!workspace) return null;
+
+  const isModuleEnabled = Array.isArray(workspace.enabledModules) && workspace.enabledModules.includes("STOCK");
+  if (!isModuleEnabled) return null;
 
   if (workspace.ownerId === userId) {
     return {

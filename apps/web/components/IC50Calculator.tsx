@@ -19,9 +19,10 @@ function getYDomain(points: DataPoint[], fit: FitResult) {
   const observedYs = points.map((p) => p.response);
   const dataMin = Math.min(...observedYs, fit.params.bottom);
   const dataMax = Math.max(...observedYs, fit.params.top);
-  const ySpan = Math.max(dataMax - dataMin, 1);
-  const yPad = ySpan * 0.06;
-  return { yMin: dataMin - yPad, yMax: dataMax + yPad };
+
+  const yMin = dataMin >= 0 ? 0 : Math.floor(dataMin / 10) * 10;
+  const yMax = Math.max(100, Math.ceil(dataMax / 10) * 10);
+  return { yMin, yMax };
 }
 
 function DoseResponseChart({
@@ -43,30 +44,36 @@ function DoseResponseChart({
   const plotH = height - pad.top - pad.bottom;
 
   const positiveX = points.map((p) => p.concentration).filter((x) => x > 0);
-  const xMin = Math.min(...positiveX) / 3;
-  const xMax = Math.max(...positiveX) * 3;
+  const minConc = Math.min(...positiveX);
+  const maxConc = Math.max(...positiveX);
+
+  const targetIc50 = fit.interpolatedIc50 ?? fit.params.ic50;
+
+  const xMin = Math.min(minConc / 1.5, targetIc50 / 1.5);
+  const xMax = Math.max(maxConc * 1.5, targetIc50 * 1.5);
   const { yMin, yMax } = getYDomain(points, fit);
 
   const xScale = (x: number) =>
-    pad.left + (Math.log10(x) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin)) * plotW;
+    pad.left + (Math.log10(Math.max(x, 1e-12)) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin)) * plotW;
   const yScale = (y: number) =>
     pad.top + plotH - ((y - yMin) / (yMax - yMin)) * plotH;
 
-  const curve = generateCurvePoints(fit.params, xMin, xMax, 80);
+  const curve = generateCurvePoints(fit.params, xMin, xMax, 100);
   const curvePath = curve
     .map((p, i) => `${i === 0 ? "M" : "L"} ${xScale(p.x).toFixed(1)} ${yScale(p.y).toFixed(1)}`)
     .join(" ");
 
-  const ic50X = xScale(fit.params.ic50);
-  const ic50Y = yScale((fit.params.top + fit.params.bottom) / 2);
+  const targetY = fit.interpolatedIc50 !== undefined && fit.interpolatedIc50 !== null ? 50 : fourPL(targetIc50, fit.params);
+  const ic50X = xScale(targetIc50);
+  const ic50Y = yScale(targetY);
 
-  const xTicks = [xMin, xMin * 10, xMin * 100, xMax].filter(
-    (v, i, arr) => arr.indexOf(v) === i && v > 0
-  );
+  const yStep = (yMax - yMin) / 4;
+  const yTicks = [yMin, yMin + yStep, yMin + yStep * 2, yMin + yStep * 3, yMax];
+  const xTicks = Array.from(new Set(positiveX)).sort((a, b) => a - b);
 
   const tickClass = large ? "fill-slate-400 text-xs" : "fill-slate-400 text-[10px]";
   const axisClass = large ? "fill-slate-600 text-sm font-medium" : "fill-slate-600 text-[11px] font-medium";
-  const labelClass = large ? "fill-slate-500 text-xs" : "fill-slate-500 text-[10px]";
+  const labelClass = large ? "fill-amber-700 text-xs font-bold" : "fill-amber-700 text-[10px] font-bold";
 
   return (
     <svg
@@ -84,29 +91,26 @@ function DoseResponseChart({
         rx="8"
       />
 
-      {[0, 0.5, 1].map((t) => {
-        const y = yMin + t * (yMax - yMin);
-        return (
-          <g key={t}>
-            <line
-              x1={pad.left}
-              y1={yScale(y)}
-              x2={pad.left + plotW}
-              y2={yScale(y)}
-              stroke="#e2e8f0"
-              strokeDasharray="4 4"
-            />
-            <text
-              x={pad.left - 8}
-              y={yScale(y) + 4}
-              textAnchor="end"
-              className={tickClass}
-            >
-              {formatSci(y, 1)}
-            </text>
-          </g>
-        );
-      })}
+      {yTicks.map((y) => (
+        <g key={y}>
+          <line
+            x1={pad.left}
+            y1={yScale(y)}
+            x2={pad.left + plotW}
+            y2={yScale(y)}
+            stroke="#e2e8f0"
+            strokeDasharray="4 4"
+          />
+          <text
+            x={pad.left - 8}
+            y={yScale(y) + 4}
+            textAnchor="end"
+            className={tickClass}
+          >
+            {formatSci(y, 1)}
+          </text>
+        </g>
+      ))}
 
       {xTicks.map((x) => (
         <text
@@ -131,22 +135,32 @@ function DoseResponseChart({
 
       <path d={curvePath} fill="none" stroke="#0f172a" strokeWidth={large ? 2.5 : 2} />
 
+      {/* IC50 50% guide lines */}
+      <line
+        x1={pad.left}
+        y1={ic50Y}
+        x2={ic50X}
+        y2={ic50Y}
+        stroke="#f59e0b"
+        strokeDasharray="4 3"
+        strokeWidth="1.5"
+      />
       <line
         x1={ic50X}
-        y1={pad.top}
+        y1={ic50Y}
         x2={ic50X}
         y2={pad.top + plotH}
-        stroke="#94a3b8"
-        strokeDasharray="5 4"
-        strokeWidth="1"
+        stroke="#f59e0b"
+        strokeDasharray="4 3"
+        strokeWidth="1.5"
       />
-      <circle cx={ic50X} cy={ic50Y} r={large ? 5 : 4} fill="#0f172a" />
+      <circle cx={ic50X} cy={ic50Y} r={large ? 5 : 4} fill="#f59e0b" stroke="#fff" strokeWidth="2" />
       <text
-        x={ic50X + 6}
-        y={pad.top + 14}
+        x={Math.min(ic50X + 6, pad.left + plotW - 60)}
+        y={Math.max(ic50Y - 8, pad.top + 14)}
         className={labelClass}
       >
-        IC₅₀
+        IC₅₀: {formatSci(targetIc50)}
       </text>
 
       {points.map((point, i) => {
@@ -256,6 +270,7 @@ export default function IC50Calculator() {
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [fitResult, setFitResult] = useState<FitResult | null>(null);
   const [chartExpanded, setChartExpanded] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   const preview = useMemo(() => parseDataInput(rawInput), [rawInput]);
 
@@ -273,15 +288,17 @@ export default function IC50Calculator() {
   }
 
   async function handleCalculate() {
-    if (!processedPoints) return;
+    if (!processedPoints || isCalculating) return;
+    setIsCalculating(true);
     try {
       await consumeToolUse("ic50");
+      const result = fitFourPL(processedPoints);
+      setFitResult(result);
     } catch (error) {
       setParseErrors([error instanceof Error ? error.message : "Tool usage limit reached"]);
-      return;
+    } finally {
+      setIsCalculating(false);
     }
-    const result = fitFourPL(processedPoints);
-    setFitResult(result);
   }
 
   const equation = fitResult
@@ -392,9 +409,36 @@ export default function IC50Calculator() {
             <button
               type="button"
               onClick={handleCalculate}
-              className="mt-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+              disabled={isCalculating}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-75"
             >
-              Calculate IC₅₀
+              {isCalculating ? (
+                <>
+                  <svg
+                    className="h-4 w-4 animate-spin text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>Calculating...</span>
+                </>
+              ) : (
+                "Calculate IC₅₀"
+              )}
             </button>
           </section>
         )}
@@ -411,10 +455,26 @@ export default function IC50Calculator() {
                 <h3 className="text-sm font-semibold text-slate-950">Results</h3>
               </div>
 
+              {fitResult.interpolatedIc50 !== undefined && fitResult.interpolatedIc50 !== null && (
+                <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 flex items-center justify-between shadow-xs">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                      IC₅₀ (50% Response / Interpolated)
+                    </p>
+                    <p className="text-xl font-extrabold tracking-tight text-amber-950 mt-0.5">
+                      {formatSci(fitResult.interpolatedIc50)}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-amber-200 px-3 py-1 text-[11px] font-bold text-amber-900">
+                    Target 50%
+                  </span>
+                </div>
+              )}
+
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    IC₅₀
+                    4PL IC₅₀
                   </p>
                   <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
                     {formatSci(fitResult.params.ic50)}
@@ -422,7 +482,7 @@ export default function IC50Calculator() {
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Hill
+                    Hill Slope
                   </p>
                   <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
                     {formatSci(fitResult.params.hill)}
