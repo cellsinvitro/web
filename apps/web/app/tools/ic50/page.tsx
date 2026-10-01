@@ -12,11 +12,11 @@ export const metadata: Metadata = {
 
 export default function IC50Page() {
   return (
-    <main>
+    <main className="bg-slate-50 min-h-screen">
       <Navbar />
 
       <section className="bg-white pt-24 pb-16 sm:pb-20 lg:pb-24">
-        <div className="mx-auto px-6 lg:px-8">
+        <div className="mx-auto px-6 lg:px-8 max-w-7xl">
           <Link
             href="/tools"
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-800"
@@ -29,7 +29,7 @@ export default function IC50Page() {
             >
               <path
                 fillRule="evenodd"
-                d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"
+                d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 0 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"
                 clipRule="evenodd"
               />
             </svg>
@@ -51,28 +51,69 @@ export default function IC50Page() {
           </div>
 
           <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
-            <aside className="shrink-0 lg:w-1/4">
+            {/* Left Sidebar: FAQ / Quick Guide & 4PL Model Summary */}
+            <aside className="shrink-0 lg:w-1/4 space-y-6">
+              {/* How to Use Box */}
+              <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 p-5 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                    ?
+                  </span>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                    How to use the calculator
+                  </h2>
+                </div>
+                <ol className="mt-3 space-y-2.5 text-xs leading-5 text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-800 shrink-0">1.</span>
+                    <span>
+                      <strong>Paste or type data:</strong> Paste concentration & response values directly from Excel or type them column-wise (Concentration, Response 1, Response 2...).
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-800 shrink-0">2.</span>
+                    <span>
+                      <strong>Process data:</strong> Click <strong>&ldquo;Process data&rdquo;</strong> to summarize replicates and calculate SEM error bars.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-800 shrink-0">3.</span>
+                    <span>
+                      <strong>Calculate IC₅₀:</strong> Check your processed input table and press <strong>&ldquo;Calculate IC₅₀&rdquo;</strong>.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-800 shrink-0">4.</span>
+                    <span>
+                      <strong>Review & Graph:</strong> Note your calculated values and refer to the fitted dose–response curve graph.
+                    </span>
+                  </li>
+                </ol>
+              </div>
+
+              {/* 4PL Model Reference Card */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <h2 className="text-sm font-semibold text-slate-950">4PL model</h2>
-                <p className="mt-3 font-mono text-sm leading-7 text-slate-600">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">4PL Model</h2>
+                <p className="mt-3 font-mono text-xs leading-6 text-slate-600">
                   Y = Bottom + (Top − Bottom) / (1 + (X / IC₅₀)<sup>n</sup>)
                 </p>
-                <dl className="mt-4 space-y-2 text-sm text-slate-600">
+                <dl className="mt-4 space-y-2.5 text-xs text-slate-600">
                   <div>
-                    <dt className="font-medium text-slate-800">IC₅₀</dt>
+                    <dt className="font-semibold text-slate-900">IC₅₀</dt>
                     <dd className="mt-0.5">
                       Concentration producing 50% of maximal inhibition
                     </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-slate-800">Hill coefficient</dt>
-                    <dd className="mt-0.5">Steepness of the dose–response curve</dd>
+                    <dt className="font-semibold text-slate-900">Hill coefficient (n)</dt>
+                    <dd className="mt-0.5">Steepness factor of the dose–response curve</dd>
                   </div>
                 </dl>
               </div>
             </aside>
 
-            <div className="w-full rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:w-3/4">
+            {/* Main Calculator Content */}
+            <div className="w-full rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-xs sm:p-8 lg:w-3/4">
               <IC50Calculator />
             </div>
           </div>

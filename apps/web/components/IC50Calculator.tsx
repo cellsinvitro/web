@@ -370,90 +370,123 @@ function DoseResponseChart({
   );
 }
 
-function CiteThisTool() {
-  const [activeTab, setActiveTab] = useState<"apa" | "bibtex" | "mla" | "vancouver">("apa");
+function IC50MethodCitationCards() {
   const [copied, setCopied] = useState(false);
+  const [showTemplate, setShowTemplate] = useState(false);
 
-  const citations = {
-    apa: `CellsInVitro. (2026). IC50 Calculator & Four-Parameter Logistic (4PL) Curve Fitting Tool. CellsInVitro Lab Tools. https://cellsinvitro.com/tools/ic50`,
-    bibtex: `@misc{cellsinvitro_ic50_2026,
-  author = {CellsInVitro},
-  title = {IC50 Calculator: 4-Parameter Logistic Curve Fitting Tool},
-  year = {2026},
-  publisher = {CellsInVitro},
-  url = {https://cellsinvitro.com/tools/ic50}
-}`,
-    mla: `CellsInVitro. "IC50 Calculator & 4PL Fitting Tool." CellsInVitro Lab Tools, 2026, https://cellsinvitro.com/tools/ic50.`,
-    vancouver: `CellsInVitro. IC50 Calculator & 4PL Fitting Tool [Internet]. 2026. Available from: https://cellsinvitro.com/tools/ic50`,
-  };
+  const citationText =
+    "CellsInVitro IC50 Calculator. CellsInVitro, Inc. 2026. Available at: https://cellsinvitro.com/tools/ic50";
+  const templateText =
+    "Dose-response curve fitting and IC₅₀ values were determined using the CellsInVitro IC50 Calculator (https://cellsinvitro.com/tools/ic50) using four-parameter logistic (4PL) non-linear regression.";
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(citations[activeTab]);
+    navigator.clipboard.writeText(citationText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-slate-700"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-            Cite this tool
-          </h4>
+    <div className="mt-10 space-y-4">
+      {/* 3-Card Grid matching Conduct Science screenshot format */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Card 1: Method */}
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 flex flex-col justify-between shadow-2xs">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">
+                1
+              </span>
+              <h3 className="text-sm font-bold text-slate-900">Method</h3>
+            </div>
+            <p className="mt-4 text-xs leading-6 text-slate-600">
+              Nonlinear least squares fitting of the four-parameter logistic (Hill equation) and five-parameter logistic models. Shares the Levenberg-Marquardt solver with standard ELISA Curve Fitters. 95% confidence intervals computed from the variance matrix.
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-900 transition-colors"
-        >
-          {copied ? (
-            <>
-              <svg className="h-3.5 w-3.5 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-              </svg>
-              <span>Copied!</span>
-            </>
-          ) : (
-            <>
-              <svg className="h-3.5 w-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M7 3.5A1.5 1.5 0 018.5 2h5A1.5 1.5 0 0115 3.5v1A1.5 1.5 0 0113.5 6h-5A1.5 1.5 0 017 4.5v-1z" />
-                <path d="M6 4.5H4.5A1.5 1.5 0 003 6v10.5A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H14v1.5a3 3 0 01-3 3h-2a3 3 0 01-3-3V4.5z" />
-              </svg>
-              <span>Copy citation</span>
-            </>
-          )}
-        </button>
+
+        {/* Card 2: Published */}
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 flex flex-col justify-between shadow-2xs">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">
+                2
+              </span>
+              <h3 className="text-sm font-bold text-slate-900">Published</h3>
+            </div>
+            <p className="mt-4 text-xs leading-6 text-slate-600">
+              Published 2026-03-22. Calculations support planning and documentation; verify procurement decisions against manufacturer specifications or institutional SOPs.
+            </p>
+          </div>
+        </div>
+
+        {/* Card 3: How to cite */}
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-5 flex flex-col justify-between shadow-2xs">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">
+                3
+              </span>
+              <h3 className="text-sm font-bold text-slate-900">How to cite</h3>
+            </div>
+            <h4 className="mt-3 text-xs font-bold text-slate-950">How to Cite</h4>
+            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 font-mono text-[11px] leading-5 text-slate-700 select-all break-all sm:break-words [overflow-wrap:anywhere]">
+              {citationText}
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-100 transition-colors"
+              >
+                {copied ? (
+                  <>
+                    <svg
+                      className="h-3.5 w-3.5 text-emerald-600"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-3.5 w-3.5 text-slate-500"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path d="M7 3.5A1.5 1.5 0 018.5 2h5A1.5 1.5 0 0115 3.5v1A1.5 1.5 0 0113.5 6h-5A1.5 1.5 0 017 4.5v-1z" />
+                      <path d="M6 4.5H4.5A1.5 1.5 0 003 6v10.5A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H14v1.5a3 3 0 01-3 3h-2a3 3 0 01-3-3V4.5z" />
+                    </svg>
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTemplate(!showTemplate)}
+              className="mt-3 block text-xs font-medium text-slate-500 hover:text-slate-800 underline decoration-slate-300 transition-colors"
+            >
+              {showTemplate ? "Hide methods template" : "Show methods template"}
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-3 flex gap-2 border-b border-slate-200">
-        {(["apa", "bibtex", "mla", "vancouver"] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`pb-2 text-xs font-medium uppercase tracking-wider transition-colors ${
-              activeTab === tab
-                ? "border-b-2 border-slate-900 text-slate-900 font-semibold"
-                : "text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700">
-        {citations[activeTab]}
-      </pre>
+      {showTemplate && (
+        <div className="min-w-0 rounded-2xl border border-blue-200 bg-blue-50/80 p-4 text-xs text-blue-950 transition-all">
+          <p className="font-semibold text-blue-900">Manuscript Methods Template Snippet:</p>
+          <p className="mt-1 font-mono text-[11px] leading-5 text-blue-900 bg-white/80 p-2.5 rounded-xl border border-blue-200 select-all break-all sm:break-words [overflow-wrap:anywhere]">
+            {templateText}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -584,375 +617,377 @@ export default function IC50Calculator() {
     : null;
 
   return (
-    <div
-      className={
-        processedPoints
-          ? "grid gap-8 lg:grid-cols-2 lg:items-start"
-          : "space-y-6"
-      }
-    >
-      <div className="min-w-0 space-y-6">
-        <section>
-          <div className="flex items-center gap-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-              1
-            </span>
-            <h3 className="text-sm font-semibold text-slate-950">Data entry</h3>
-          </div>
-          <p className="mt-3 text-sm leading-6 text-slate-500">
-            Paste or type concentration and response values (% growth inhibition).
-            Use tabs, commas, or spaces between columns. Multiple response columns
-            are averaged with SEM error bars.
-          </p>
-          <textarea
-            value={rawInput}
-            onChange={(e) => {
-              setRawInput(e.target.value);
-              setProcessedPoints(null);
-              setFitResult(null);
-              setChartExpanded(false);
-              setParseErrors([]);
-            }}
-            rows={6}
-            spellCheck={false}
-            className={`${inputClassName} mt-4 font-mono text-xs leading-5`}
-            placeholder={"Concentration\tResponse 1\tResponse 2\n0.01\t12\t14\n0.1\t28\t30\n1\t52\t54\n10\t84\t86\n100\t96\t98"}
-          />
-          <button
-            type="button"
-            onClick={handleProcessData}
-            className="mt-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-          >
-            Process data
-          </button>
-          {parseErrors.length > 0 && (
-            <ul className="mt-3 space-y-1 text-sm text-red-600">
-              {parseErrors.map((err) => (
-                <li key={err}>• {err}</li>
-              ))}
-            </ul>
-          )}
-          {!processedPoints && preview.points.length > 0 && parseErrors.length === 0 && (
-            <p className="mt-3 text-xs text-slate-400">
-              {preview.points.length} row{preview.points.length !== 1 ? "s" : ""}{" "}
-              detected — press &ldquo;Process data&rdquo; to continue.
-            </p>
-          )}
-        </section>
-
-        {processedPoints && (
+    <div className="space-y-8">
+      <div
+        className={
+          processedPoints
+            ? "grid gap-8 lg:grid-cols-2 lg:items-start"
+            : "space-y-6"
+        }
+      >
+        <div className="min-w-0 space-y-6">
           <section>
             <div className="flex items-center gap-3">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-                2
+                1
               </span>
-              <h3 className="text-sm font-semibold text-slate-950">
-                Processed data
-              </h3>
+              <h3 className="text-sm font-semibold text-slate-950">Data entry</h3>
             </div>
-            <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-              <table className="w-full table-fixed text-left text-sm">
-                <colgroup>
-                  <col className="w-[28%]" />
-                  <col className="w-[28%]" />
-                  <col className="w-[22%]" />
-                  <col className="w-[22%]" />
-                </colgroup>
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-3 py-2.5 font-medium text-slate-600">
-                      Concentration
-                    </th>
-                    <th className="px-3 py-2.5 font-medium text-slate-600">
-                      Mean response
-                    </th>
-                    <th className="px-3 py-2.5 font-medium text-slate-600">
-                      Replicates
-                    </th>
-                    <th className="px-3 py-2.5 font-medium text-slate-600">
-                      SEM
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {processedPoints.map((row, i) => (
-                    <tr
-                      key={i}
-                      className="border-b border-slate-100 last:border-0"
-                    >
-                      <td className="truncate px-3 py-2.5 font-mono text-slate-800">
-                        {formatSci(row.concentration)}
-                      </td>
-                      <td className="truncate px-3 py-2.5 font-mono text-slate-800">
-                        {formatSci(row.response)}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-600">
-                        {row.responses?.length ?? 1}
-                      </td>
-                      <td className="truncate px-3 py-2.5 font-mono text-slate-500">
-                        {row.sem !== undefined ? formatSci(row.sem) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Paste or type concentration and response values (% growth inhibition).
+              Use tabs, commas, or spaces between columns. Multiple response columns
+              are averaged with SEM error bars.
+            </p>
+            <textarea
+              value={rawInput}
+              onChange={(e) => {
+                setRawInput(e.target.value);
+                setProcessedPoints(null);
+                setFitResult(null);
+                setChartExpanded(false);
+                setParseErrors([]);
+              }}
+              rows={6}
+              spellCheck={false}
+              className={`${inputClassName} mt-4 font-mono text-xs leading-5`}
+              placeholder={"Concentration\tResponse 1\tResponse 2\n0.01\t12\t14\n0.1\t28\t30\n1\t52\t54\n10\t84\t86\n100\t96\t98"}
+            />
             <button
               type="button"
-              onClick={handleCalculate}
-              disabled={isCalculating}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-75"
+              onClick={handleProcessData}
+              className="mt-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
             >
-              {isCalculating ? (
-                <>
-                  <svg
-                    className="h-4 w-4 animate-spin text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span>Calculating...</span>
-                </>
-              ) : (
-                "Calculate IC₅₀"
-              )}
+              Process data
             </button>
+            {parseErrors.length > 0 && (
+              <ul className="mt-3 space-y-1 text-sm text-red-600">
+                {parseErrors.map((err) => (
+                  <li key={err}>• {err}</li>
+                ))}
+              </ul>
+            )}
+            {!processedPoints && preview.points.length > 0 && parseErrors.length === 0 && (
+              <p className="mt-3 text-xs text-slate-400">
+                {preview.points.length} row{preview.points.length !== 1 ? "s" : ""}{" "}
+                detected — press &ldquo;Process data&rdquo; to continue.
+              </p>
+            )}
           </section>
-        )}
-      </div>
 
-      {processedPoints && (
-        <div className="min-w-0">
-          {fitResult ? (
+          {processedPoints && (
             <section>
               <div className="flex items-center gap-3">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-                  3
+                  2
                 </span>
-                <h3 className="text-sm font-semibold text-slate-950">Results</h3>
+                <h3 className="text-sm font-semibold text-slate-950">
+                  Processed data
+                </h3>
               </div>
-
-              {/* Extrapolation Scientific Warning Box */}
-              {fitResult.isExtrapolated && (
-                <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-2xs">
-                  <div className="flex items-start gap-3">
+              <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                <table className="w-full table-fixed text-left text-sm">
+                  <colgroup>
+                    <col className="w-[28%]" />
+                    <col className="w-[28%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[22%]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="px-3 py-2.5 font-medium text-slate-600">
+                        Concentration
+                      </th>
+                      <th className="px-3 py-2.5 font-medium text-slate-600">
+                        Mean response
+                      </th>
+                      <th className="px-3 py-2.5 font-medium text-slate-600">
+                        Replicates
+                      </th>
+                      <th className="px-3 py-2.5 font-medium text-slate-600">
+                        SEM
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {processedPoints.map((row, i) => (
+                      <tr
+                        key={i}
+                        className="border-b border-slate-100 last:border-0"
+                      >
+                        <td className="truncate px-3 py-2.5 font-mono text-slate-800">
+                          {formatSci(row.concentration)}
+                        </td>
+                        <td className="truncate px-3 py-2.5 font-mono text-slate-800">
+                          {formatSci(row.response)}
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-600">
+                          {row.responses?.length ?? 1}
+                        </td>
+                        <td className="truncate px-3 py-2.5 font-mono text-slate-500">
+                          {row.sem !== undefined ? formatSci(row.sem) : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button
+                type="button"
+                onClick={handleCalculate}
+                disabled={isCalculating}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-75"
+              >
+                {isCalculating ? (
+                  <>
                     <svg
-                      className="h-5 w-5 shrink-0 text-amber-600 mt-0.5"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
+                      className="h-4 w-4 animate-spin text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
                     >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
                       <path
-                        fillRule="evenodd"
-                        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                        clipRule="evenodd"
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
-                        Extrapolation Warning (50% Response Not Bracketed)
-                      </h4>
-                      <p className="mt-1 text-xs leading-5 text-amber-900">
-                        Your tested concentrations produced responses ranging from{" "}
-                        <strong>{formatSci(fitResult.minObserved)}%</strong> to{" "}
-                        <strong>{formatSci(fitResult.maxObserved)}%</strong>, which does not encompass 50% growth inhibition.
-                        Calculating IC₅₀ by extrapolating beyond the tested data range is scientifically unrecommended.
-                      </p>
-                      <p className="mt-2 text-xs font-semibold text-amber-950">
-                        🔬 <strong>Recommendation:</strong> Repeat the experiment with a modified concentration range that brackets 50% (from &lt; 50% to &gt; 50%).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {fitResult.interpolatedIc50 !== undefined &&
-                fitResult.interpolatedIc50 !== null && (
-                  <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 flex items-center justify-between shadow-2xs">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                        IC₅₀ (50% Response / Interpolated)
-                      </p>
-                      <p className="text-xl font-extrabold tracking-tight text-amber-950 mt-0.5">
-                        {formatSci(fitResult.interpolatedIc50)}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-amber-200 px-3 py-1 text-[11px] font-bold text-amber-900">
-                      Target 50%
-                    </span>
-                  </div>
+                    <span>Calculating...</span>
+                  </>
+                ) : (
+                  "Calculate IC₅₀"
                 )}
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    4PL IC₅₀
-                  </p>
-                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                    {formatSci(fitResult.params.ic50)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Hill Slope
-                  </p>
-                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                    {formatSci(fitResult.params.hill)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Bottom
-                  </p>
-                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                    {formatSci(fitResult.params.bottom)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Top
-                  </p>
-                  <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-                    {formatSci(fitResult.params.top)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Dose Response Chart Card */}
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      Dose–response curve
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      % Growth Inhibition vs concentration (log scale)
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => downloadChartAsPng("ic50-main-chart")}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
-                    >
-                      <svg className="h-3.5 w-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
-                        <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
-                      </svg>
-                      <span>Download Graph</span>
-                    </button>
-                    <span className="text-xs text-slate-400">Click graph to enlarge</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setChartExpanded(true)}
-                  className="mt-3 block w-full cursor-zoom-in rounded-xl transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-                  aria-label="Enlarge dose-response curve"
-                >
-                  <DoseResponseChart
-                    points={processedPoints}
-                    fit={fitResult}
-                    svgId="ic50-main-chart"
-                  />
-                </button>
-              </div>
-
-              <div className="mt-4 space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      4PL fit
-                    </p>
-                    <p className="text-sm font-semibold text-slate-800">
-                      R² = {formatSci(fitResult.rSquared)}
-                    </p>
-                  </div>
-                  <p className="mt-2 font-mono text-xs leading-5 text-slate-600">
-                    Y = Bottom + (Top − Bottom) / (1 + (X / IC₅₀)<sup>n</sup>)
-                  </p>
-                  {equation && (
-                    <p className="mt-2 break-all font-mono text-[11px] leading-5 text-slate-500">
-                      {equation}
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    Predicted vs observed
-                  </p>
-                  <div className="mt-2">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="text-slate-500">
-                          <th className="pb-1.5 pr-3 font-medium">[X]</th>
-                          <th className="pb-1.5 pr-3 font-medium">Observed</th>
-                          <th className="pb-1.5 font-medium">Predicted</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {processedPoints.map((point, i) => (
-                          <tr
-                            key={i}
-                            className="border-t border-slate-100 font-mono text-slate-700"
-                          >
-                            <td className="py-1 pr-3">
-                              {formatSci(point.concentration)}
-                            </td>
-                            <td className="py-1 pr-3">
-                              {formatSci(point.response)}
-                            </td>
-                            <td className="py-1">
-                              {formatSci(fourPL(point.concentration, fitResult.params))}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cite this tool section */}
-              <CiteThisTool />
-
-              {chartExpanded && (
-                <ChartLightbox
-                  points={processedPoints}
-                  fit={fitResult}
-                  onClose={() => setChartExpanded(false)}
-                />
-              )}
-            </section>
-          ) : (
-            <section className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
-              <div>
-                <p className="text-sm font-medium text-slate-600">
-                  Ready to calculate
-                </p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">
-                  Press &ldquo;Calculate IC₅₀&rdquo; on the left to fit the curve
-                  and view results here.
-                </p>
-              </div>
+              </button>
             </section>
           )}
         </div>
-      )}
+
+        {processedPoints && (
+          <div className="min-w-0">
+            {fitResult ? (
+              <section>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
+                    3
+                  </span>
+                  <h3 className="text-sm font-semibold text-slate-950">Results</h3>
+                </div>
+
+                {/* Extrapolation Scientific Warning Box */}
+                {fitResult.isExtrapolated && (
+                  <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-2xs">
+                    <div className="flex items-start gap-3">
+                      <svg
+                        className="h-5 w-5 shrink-0 text-amber-600 mt-0.5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                          Extrapolation Warning (50% Response Not Bracketed)
+                        </h4>
+                        <p className="mt-1 text-xs leading-5 text-amber-900">
+                          Your tested concentrations produced responses ranging from{" "}
+                          <strong>{formatSci(fitResult.minObserved)}%</strong> to{" "}
+                          <strong>{formatSci(fitResult.maxObserved)}%</strong>, which does not encompass 50% growth inhibition.
+                          Calculating IC₅₀ by extrapolating beyond the tested data range is scientifically unrecommended.
+                        </p>
+                        <p className="mt-2 text-xs font-semibold text-amber-950">
+                          🔬 <strong>Recommendation:</strong> Repeat the experiment with a modified concentration range that brackets 50% (from &lt; 50% to &gt; 50%).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {fitResult.interpolatedIc50 !== undefined &&
+                  fitResult.interpolatedIc50 !== null && (
+                    <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 flex items-center justify-between shadow-2xs">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                          IC₅₀ (50% Response / Interpolated)
+                        </p>
+                        <p className="text-xl font-extrabold tracking-tight text-amber-950 mt-0.5">
+                          {formatSci(fitResult.interpolatedIc50)}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-amber-200 px-3 py-1 text-[11px] font-bold text-amber-900">
+                        Target 50%
+                      </span>
+                    </div>
+                  )}
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      4PL IC₅₀
+                    </p>
+                    <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                      {formatSci(fitResult.params.ic50)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      Hill Slope
+                    </p>
+                    <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                      {formatSci(fitResult.params.hill)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      Bottom
+                    </p>
+                    <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                      {formatSci(fitResult.params.bottom)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      Top
+                    </p>
+                    <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
+                      {formatSci(fitResult.params.top)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Dose Response Chart Card */}
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Dose–response curve
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        % Growth Inhibition vs concentration (log scale)
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => downloadChartAsPng("ic50-main-chart")}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                      >
+                        <svg className="h-3.5 w-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
+                          <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
+                        </svg>
+                        <span>Download Graph</span>
+                      </button>
+                      <span className="text-xs text-slate-400">Click graph to enlarge</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setChartExpanded(true)}
+                    className="mt-3 block w-full cursor-zoom-in rounded-xl transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                    aria-label="Enlarge dose-response curve"
+                  >
+                    <DoseResponseChart
+                      points={processedPoints}
+                      fit={fitResult}
+                      svgId="ic50-main-chart"
+                    />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        4PL fit
+                      </p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        R² = {formatSci(fitResult.rSquared)}
+                      </p>
+                    </div>
+                    <p className="mt-2 font-mono text-xs leading-5 text-slate-600">
+                      Y = Bottom + (Top − Bottom) / (1 + (X / IC₅₀)<sup>n</sup>)
+                    </p>
+                    {equation && (
+                      <p className="mt-2 break-all font-mono text-[11px] leading-5 text-slate-500">
+                        {equation}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                      Predicted vs observed
+                    </p>
+                    <div className="mt-2">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="text-slate-500">
+                            <th className="pb-1.5 pr-3 font-medium">[X]</th>
+                            <th className="pb-1.5 pr-3 font-medium">Observed</th>
+                            <th className="pb-1.5 font-medium">Predicted</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {processedPoints.map((point, i) => (
+                            <tr
+                              key={i}
+                              className="border-t border-slate-100 font-mono text-slate-700"
+                            >
+                              <td className="py-1 pr-3">
+                                {formatSci(point.concentration)}
+                              </td>
+                              <td className="py-1 pr-3">
+                                {formatSci(point.response)}
+                              </td>
+                              <td className="py-1">
+                                {formatSci(fourPL(point.concentration, fitResult.params))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {chartExpanded && (
+                  <ChartLightbox
+                    points={processedPoints}
+                    fit={fitResult}
+                    onClose={() => setChartExpanded(false)}
+                  />
+                )}
+              </section>
+            ) : (
+              <section className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">
+                    Ready to calculate
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-slate-400">
+                    Press &ldquo;Calculate IC₅₀&rdquo; on the left to fit the curve
+                    and view results here.
+                  </p>
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 3-Card Method | Published | How to Cite Section matching Conduct Science screenshot */}
+      <IC50MethodCitationCards />
     </div>
   );
 }
