@@ -1936,3 +1936,283 @@ logbookRoutes.delete("/admin/bookings/:bookingId", async (c) => {
   return c.json({ success: true, booking: updated });
 });
 
+// ─── TEAM ATTENDANCE ENDPOINTS ────────────────────────────────────────────────
+
+// GET /logbook/labs/:labId/attendance/today - Today's team attendance overview & member status
+logbookRoutes.get("/labs/:labId/attendance/today", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+  const todayStr = new Date().toISOString().split("T")[0]!;
+  const todayDate = new Date(todayStr);
+
+  // Get all members of the lab
+  const labMembers = await prisma.labMember.findMany({
+    where: { labId },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, avatarUrl: true, role: true },
+      },
+    },
+  });
+
+  // Also include workspace owner if not in members table
+  const lab = await prisma.labWorkspace.findUnique({
+    where: { id: labId },
+    include: {
+      owner: {
+        select: { id: true, name: true, email: true, avatarUrl: true, role: true },
+      },
+    },
+  });
+
+  if (!lab) {
+    throw new HTTPException(404, { message: "Lab workspace not found" });
+  }
+
+  // Combine owner and members list (unique by user.id)
+  const allUserMap = new Map<string, { id: string; name: string | null; email: string; avatarUrl: string | null; role: string; memberRole: string }>();
+  
+  // Owner
+  allUserMap.set(lab.owner.id, {
+    id: lab.owner.id,
+    name: lab.owner.name,
+    email: lab.owner.email,
+    avatarUrl: lab.owner.avatarUrl,
+    role: lab.owner.role,
+    memberRole: "OWNER",
+  });
+
+  // Members
+  for (const m of labMembers) {
+    allUserMap.set(m.user.id, {
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      avatarUrl: m.user.avatarUrl,
+      role: m.user.role,
+      memberRole: m.role,
+    });
+  }
+
+  const teamUsers = Array.from(allUserMap.values());
+  const totalMembers = teamUsers.length;
+
+  // Fetch today's attendance entries for this lab
+  const todayRecords = await prisma.labAttendance.findMany({
+    where: {
+      labId,
+      date: todayDate,
+    },
+    include: {
+      markedBy: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+
+  const recordMap = new Map<string, typeof todayRecords[0]>();
+  for (const r of todayRecords) {
+    recordMap.set(r.userId, r);
+  }
+
+  let presentOnSite = 0;
+  let workingFromHome = 0;
+  let onLeave = 0;
+  let absent = 0;
+
+  const memberStatusList = teamUsers.map((u) => {
+    const rec = recordMap.get(u.id);
+    let status = rec ? rec.status : "ABSENT";
+    
+    if (status === "PRESENT_ON_SITE") presentOnSite++;
+    else if (status === "WORKING_FROM_HOME") workingFromHome++;
+    else if (status === "ON_LEAVE") onLeave++;
+    else absent++;
+
+    return {
+      userId: u.id,
+      name: u.name || u.email.split("@")[0] || "Team Member",
+      email: u.email,
+      avatarUrl: u.avatarUrl,
+      memberRole: u.memberRole,
+      attendance: rec
+        ? {
+            id: rec.id,
+            status: rec.status,
+            checkInTime: rec.checkInTime.toISOString(),
+            checkOutTime: rec.checkOutTime ? rec.checkOutTime.toISOString() : null,
+            note: rec.note,
+            markedBy: rec.markedBy ? rec.markedBy.name : null,
+          }
+        : {
+            id: null,
+            status: "ABSENT",
+            checkInTime: null,
+            checkOutTime: null,
+            note: null,
+            markedBy: null,
+          },
+    };
+  });
+
+  const myRec = recordMap.get(authUser.sub);
+
+  return c.json({
+    date: todayStr,
+    stats: {
+      totalMembers,
+      presentOnSite,
+      workingFromHome,
+      absent,
+      onLeave,
+    },
+    myAttendance: myRec
+      ? {
+          id: myRec.id,
+          status: myRec.status,
+          checkInTime: myRec.checkInTime.toISOString(),
+          note: myRec.note,
+        }
+      : null,
+    members: memberStatusList,
+  });
+});
+
+// POST /logbook/labs/:labId/attendance/check-in - Member marks attendance for today
+logbookRoutes.post("/labs/:labId/attendance/check-in", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+  const body = await c.req.json<{ status: "PRESENT_ON_SITE" | "WORKING_FROM_HOME" | "ON_LEAVE"; note?: string }>();
+
+  if (!body.status || !["PRESENT_ON_SITE", "WORKING_FROM_HOME", "ON_LEAVE"].includes(body.status)) {
+    throw new HTTPException(400, { message: "Invalid attendance status" });
+  }
+
+  const todayStr = new Date().toISOString().split("T")[0]!;
+  const todayDate = new Date(todayStr);
+
+  const upserted = await prisma.labAttendance.upsert({
+    where: {
+      labId_userId_date: {
+        labId,
+        userId: authUser.sub,
+        date: todayDate,
+      },
+    },
+    create: {
+      labId,
+      userId: authUser.sub,
+      date: todayDate,
+      status: body.status,
+      checkInTime: new Date(),
+      note: body.note || null,
+    },
+    update: {
+      status: body.status,
+      checkInTime: new Date(),
+      note: body.note || undefined,
+    },
+  });
+
+  return c.json({ success: true, attendance: upserted });
+});
+
+// POST /logbook/labs/:labId/attendance/admin-update - Admin/Manager overrides team member attendance
+logbookRoutes.post("/labs/:labId/attendance/admin-update", async (c) => {
+  const authUser = c.get("user");
+  const labId = c.req.param("labId");
+  const body = await c.req.json<{ targetUserId: string; status: "PRESENT_ON_SITE" | "WORKING_FROM_HOME" | "ON_LEAVE" | "ABSENT"; note?: string; date?: string }>();
+
+  if (!body.targetUserId || !body.status) {
+    throw new HTTPException(400, { message: "targetUserId and status are required" });
+  }
+
+  // Check if current user is owner or admin in this lab workspace
+  const lab = await prisma.labWorkspace.findUnique({ where: { id: labId } });
+  if (!lab) throw new HTTPException(404, { message: "Lab not found" });
+
+  const isOwner = lab.ownerId === authUser.sub;
+  const dbUser = await getUserWithRole(authUser.sub);
+  const isSuperAdmin = dbUser.role === "ADMIN";
+
+  const member = await prisma.labMember.findUnique({
+    where: { labId_userId: { labId, userId: authUser.sub } },
+  });
+  const isLabAdmin = member && (member.role === "ADMIN" || member.role === "OWNER");
+
+  if (!isOwner && !isSuperAdmin && !isLabAdmin) {
+    throw new HTTPException(403, { message: "Only Lab Owners or Admins can modify team attendance" });
+  }
+
+  const targetDateStr = body.date || new Date().toISOString().split("T")[0]!;
+  const targetDate = new Date(targetDateStr);
+
+  const upserted = await prisma.labAttendance.upsert({
+    where: {
+      labId_userId_date: {
+        labId,
+        userId: body.targetUserId,
+        date: targetDate,
+      },
+    },
+    create: {
+      labId,
+      userId: body.targetUserId,
+      date: targetDate,
+      status: body.status as any,
+      checkInTime: new Date(),
+      note: body.note || null,
+      markedById: authUser.sub,
+    },
+    update: {
+      status: body.status as any,
+      note: body.note !== undefined ? body.note : undefined,
+      markedById: authUser.sub,
+    },
+  });
+
+  return c.json({ success: true, attendance: upserted });
+});
+
+// GET /logbook/labs/:labId/attendance/history - Attendance log history over date range
+logbookRoutes.get("/labs/:labId/attendance/history", async (c) => {
+  const labId = c.req.param("labId");
+  const days = Number(c.req.query("days") || 30);
+
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const records = await prisma.labAttendance.findMany({
+    where: {
+      labId,
+      date: { gte: startDate },
+    },
+    orderBy: { date: "desc" },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, avatarUrl: true },
+      },
+      markedBy: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+
+  const formatted = records.map((r) => ({
+    id: r.id,
+    date: r.date.toISOString().split("T")[0],
+    userId: r.userId,
+    userName: r.user.name || r.user.email.split("@")[0],
+    userEmail: r.user.email,
+    userAvatar: r.user.avatarUrl,
+    status: r.status,
+    checkInTime: r.checkInTime.toISOString(),
+    checkOutTime: r.checkOutTime ? r.checkOutTime.toISOString() : null,
+    note: r.note,
+    markedBy: r.markedBy ? r.markedBy.name : null,
+  }));
+
+  return c.json({ records: formatted });
+});
+
+

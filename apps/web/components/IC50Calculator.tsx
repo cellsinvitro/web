@@ -375,7 +375,7 @@ function IC50MethodCitationCards() {
   const [showTemplate, setShowTemplate] = useState(false);
 
   const citationText =
-    "CellsInVitro IC50 Calculator. CellsInVitro, Inc. 2026. Available at: https://cellsinvitro.com/tools/ic50";
+    "CellsInVitro IC50 Calculator. CellsInVitro Lifesciences Pvt. Ltd. Version 1.0. Available at: https://cellsinvitro.com/tools/ic50";
   const templateText =
     "Dose-response curve fitting and IC₅₀ values were determined using the CellsInVitro IC50 Calculator (https://cellsinvitro.com/tools/ic50) using four-parameter logistic (4PL) non-linear regression.";
 
@@ -387,61 +387,40 @@ function IC50MethodCitationCards() {
 
   return (
     <div className="mt-10 space-y-4">
-      {/* 3-Card Grid matching Conduct Science screenshot format */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1: Method */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 flex flex-col justify-between shadow-2xs">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">
-                1
-              </span>
-              <h3 className="text-sm font-bold text-slate-900">Method</h3>
-            </div>
-            <p className="mt-4 text-xs leading-6 text-slate-600">
-              Nonlinear least squares fitting of the four-parameter logistic (Hill equation) and five-parameter logistic models. Shares the Levenberg-Marquardt solver with standard ELISA Curve Fitters. 95% confidence intervals computed from the variance matrix.
-            </p>
-          </div>
-        </div>
-
-        {/* Card 2: Published */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 flex flex-col justify-between shadow-2xs">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">
-                2
-              </span>
-              <h3 className="text-sm font-bold text-slate-900">Published</h3>
-            </div>
-            <p className="mt-4 text-xs leading-6 text-slate-600">
-              Published 2026-03-22. Calculations support planning and documentation; verify procurement decisions against manufacturer specifications or institutional SOPs.
-            </p>
-          </div>
-        </div>
-
-        {/* Card 3: How to cite */}
-        <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-5 flex flex-col justify-between shadow-2xs">
+      {/* 2-Card Grid tailored to CellsInVitro theme (How to Cite first, Version after) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Card 1: How to Cite (FIRST) */}
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 flex flex-col justify-between shadow-2xs">
           <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">
-                3
-              </span>
-              <h3 className="text-sm font-bold text-slate-900">How to cite</h3>
+            <div className="flex items-center gap-2">
+              <svg
+                className="h-4 w-4 text-slate-700"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+              <h3 className="text-sm font-bold text-slate-900">How to Cite</h3>
             </div>
-            <h4 className="mt-3 text-xs font-bold text-slate-950">How to Cite</h4>
-            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 font-mono text-[11px] leading-5 text-slate-700 select-all break-all sm:break-words [overflow-wrap:anywhere]">
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3.5 font-mono text-[11px] leading-5 text-slate-800 select-all break-all sm:break-words [overflow-wrap:anywhere] shadow-2xs">
               {citationText}
             </div>
-            <div className="mt-3 flex items-center justify-between">
+            <div className="mt-3.5 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-100 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-slate-800 shadow-2xs"
               >
                 {copied ? (
                   <>
                     <svg
-                      className="h-3.5 w-3.5 text-emerald-600"
+                      className="h-3.5 w-3.5 text-emerald-400"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -456,25 +435,59 @@ function IC50MethodCitationCards() {
                 ) : (
                   <>
                     <svg
-                      className="h-3.5 w-3.5 text-slate-500"
+                      className="h-3.5 w-3.5 text-slate-300"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
                       <path d="M7 3.5A1.5 1.5 0 018.5 2h5A1.5 1.5 0 0115 3.5v1A1.5 1.5 0 0113.5 6h-5A1.5 1.5 0 017 4.5v-1z" />
                       <path d="M6 4.5H4.5A1.5 1.5 0 003 6v10.5A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H14v1.5a3 3 0 01-3 3h-2a3 3 0 01-3-3V4.5z" />
                     </svg>
-                    <span>Copy</span>
+                    <span>Copy Citation</span>
                   </>
                 )}
               </button>
+              <button
+                type="button"
+                onClick={() => setShowTemplate(!showTemplate)}
+                className="text-xs font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2 decoration-slate-300 transition-colors"
+              >
+                {showTemplate ? "Hide manuscript template" : "Show methods template"}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowTemplate(!showTemplate)}
-              className="mt-3 block text-xs font-medium text-slate-500 hover:text-slate-800 underline decoration-slate-300 transition-colors"
-            >
-              {showTemplate ? "Hide methods template" : "Show methods template"}
-            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Version & Release Details (SECOND) */}
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 flex flex-col justify-between shadow-2xs">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 text-slate-700"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <h3 className="text-sm font-bold text-slate-900">Version & Release Info</h3>
+              </div>
+              <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-800">
+                v1.0
+              </span>
+            </div>
+            <p className="mt-3.5 text-xs leading-6 text-slate-600">
+              Calculations support laboratory assay planning, documentation, and SOP verification against manufacturer specifications.
+            </p>
+            <div className="mt-4 border-t border-slate-200/80 pt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+              <span><strong>Release Date:</strong> March 22, 2026</span>
+              <span><strong>Publisher:</strong> CellsInVitro Lifesciences</span>
+            </div>
           </div>
         </div>
       </div>
@@ -986,7 +999,7 @@ export default function IC50Calculator() {
         )}
       </div>
 
-      {/* 3-Card Method | Published | How to Cite Section matching Conduct Science screenshot */}
+      {/* Redesigned 2-Card Citation & Version Section in CellsInVitro Theme */}
       <IC50MethodCitationCards />
     </div>
   );

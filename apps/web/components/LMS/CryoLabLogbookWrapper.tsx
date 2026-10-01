@@ -7,6 +7,8 @@ import NotebookCalendar from "@/components/logbook/NotebookCalendar";
 import NotebookTaskPanel from "@/components/logbook/NotebookTaskPanel";
 import NotebookActivityLogPanel from "@/components/logbook/NotebookActivityLog";
 import AdminNotebookView from "@/components/logbook/AdminNotebookView";
+import TeamAttendanceCard from "@/components/attendance/TeamAttendanceCard";
+import AttendanceManagement from "@/components/attendance/AttendanceManagement";
 
 import { useSearchParams } from "next/navigation";
 import {
@@ -121,7 +123,7 @@ function CryoLabLogbookContent() {
   const inviteToken = searchParams.get("inviteToken") || searchParams.get("labInvite") || searchParams.get("token");
   const isAdminUser = checkIsAdmin(user?.role);
 
-  const [subTab, setSubTab] = useState<"instruments" | "notebook" | "reports" | "activity" | "team">("instruments");
+  const [subTab, setSubTab] = useState<"instruments" | "notebook" | "attendance" | "reports" | "activity" | "team">("instruments");
   const [labInviteBanner, setLabInviteBanner] = useState<{ status: "idle" | "accepting" | "success" | "error"; msg?: string }>({ status: "idle" });
 
   useEffect(() => {
@@ -992,28 +994,54 @@ function CryoLabLogbookContent() {
             </div>
           ) : (
             /* List of Instruments */
-            <>
-              {/* Stats & Date Bar */}
-              <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Today&apos;s Date
-                  </span>
-                  <p className="text-lg font-bold text-slate-900">{todayDisplayDate}</p>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-center sm:text-right">
-                    <span className="text-xs font-medium text-slate-500">Total Instruments</span>
-                    <p className="text-xl font-bold text-slate-900">{instruments.length}</p>
+            <div className="space-y-6">
+              {/* Top Dashboard Row: Date & Equipment Stats + Team Attendance Widget */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs lg:col-span-2">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        Today&apos;s Date
+                      </span>
+                      <p className="text-lg font-bold text-slate-900">{todayDisplayDate}</p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="text-center sm:text-right">
+                        <span className="text-xs font-medium text-slate-500">Total Instruments</span>
+                        <p className="text-xl font-bold text-slate-900">{instruments.length}</p>
+                      </div>
+                      <div className="h-8 w-px bg-slate-200" />
+                      <div className="text-center sm:text-right">
+                        <span className="text-xs font-medium text-slate-500">Today&apos;s Bookings</span>
+                        <p className="text-xl font-bold text-slate-900">
+                          {instruments.reduce((acc, curr) => acc + (curr.todayBookingsCount || 0), 0)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="h-8 w-px bg-slate-200" />
-                  <div className="text-center sm:text-right">
-                    <span className="text-xs font-medium text-slate-500">Today&apos;s Bookings</span>
-                    <p className="text-xl font-bold text-slate-900">
-                      {instruments.reduce((acc, curr) => acc + (curr.todayBookingsCount || 0), 0)}
-                    </p>
+                  
+                  {/* Quick Action Info */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-slate-500">Active Workspace: <strong className="text-slate-800">{activeLab?.name || "Lab Book"}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setSubTab("attendance")}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      Manage Team Attendance & Logs →
+                    </button>
                   </div>
                 </div>
+
+                {/* Team Attendance Card Widget */}
+                {activeLab && (
+                  <div>
+                    <TeamAttendanceCard
+                      labId={activeLab.id}
+                      onViewClick={() => setSubTab("attendance")}
+                    />
+                  </div>
+                )}
               </div>
 
               {instLoading ? (
@@ -1091,7 +1119,7 @@ function CryoLabLogbookContent() {
                   ))}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       )}
@@ -1626,6 +1654,15 @@ function CryoLabLogbookContent() {
               </div>
             )
           )}
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* SUB-TAB 6: ATTENDANCE */}
+      {/* ===================================================================== */}
+      {subTab === "attendance" && activeLab && (
+        <div className="mt-6">
+          <AttendanceManagement labId={activeLab.id} />
         </div>
       )}
 

@@ -37,11 +37,11 @@ export default function LogbookHeader({
   const tabs = [
     { key: "instruments", label: "Instruments", href: "/cyrosearch?tab=logbook" },
     { key: "notebook", label: "Lab Notebook", href: "/cyrosearch?tab=logbook" },
+    { key: "attendance", label: "Attendance", href: "/cyrosearch?tab=logbook" },
     ...(canGenerateReports || isAdmin
       ? [{ key: "reports", label: "Reports", href: "/cyrosearch?tab=logbook" }]
       : []),
     { key: "activity", label: "Activity Log", href: "/cyrosearch?tab=logbook" },
-    { key: "team", label: "Team & Permissions", href: "/cyrosearch?tab=logbook" },
   ];
 
   const handleCreateLabSubmit = async (e: React.FormEvent) => {

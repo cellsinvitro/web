@@ -51,7 +51,7 @@ export default function IC50Page() {
           </div>
 
           <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
-            {/* Left Sidebar: FAQ / Quick Guide & 4PL Model Summary */}
+            {/* Left Sidebar: Quick Guide FAQ & Merged 4PL Model + Method Summary */}
             <aside className="shrink-0 lg:w-1/4 space-y-6">
               {/* How to Use Box */}
               <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 p-5 shadow-2xs">
@@ -91,13 +91,33 @@ export default function IC50Page() {
                 </ol>
               </div>
 
-              {/* 4PL Model Reference Card */}
+              {/* Merged 4PL Model & Method Reference Card */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">4PL Model</h2>
-                <p className="mt-3 font-mono text-xs leading-6 text-slate-600">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="h-4 w-4 text-slate-700"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    4PL Model & Method
+                  </h2>
+                </div>
+                <p className="mt-3 font-mono text-xs leading-6 text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200">
                   Y = Bottom + (Top − Bottom) / (1 + (X / IC₅₀)<sup>n</sup>)
                 </p>
-                <dl className="mt-4 space-y-2.5 text-xs text-slate-600">
+                <p className="mt-3 text-xs leading-5 text-slate-600">
+                  Nonlinear least squares fitting of the four-parameter logistic (Hill equation) model using Nelder-Mead optimization. Calculates R² goodness of fit, SEM for replicates, and direct 50% response interpolation.
+                </p>
+                <dl className="mt-4 space-y-2 text-xs text-slate-600 border-t border-slate-200 pt-3">
                   <div>
                     <dt className="font-semibold text-slate-900">IC₅₀</dt>
                     <dd className="mt-0.5">

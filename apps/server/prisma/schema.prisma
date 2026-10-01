@@ -47,6 +47,8 @@ model User {
   notebookTasksAssigned  NotebookTask[]   @relation("NotebookTaskAssignee")
   notebookTasksCreated   NotebookTask[]   @relation("NotebookTaskAssigner")
   lmsAccesses            LmsAccess[]
+  labAttendances         LabAttendance[]  @relation("LabAttendanceUser")
+  labAttendancesMarked   LabAttendance[]  @relation("LabAttendanceMarkedBy")
 }
 
 model MaintenanceRule {
@@ -932,6 +934,7 @@ model LabWorkspace {
   stockItems      StockItem[]
   stockTransactions StockTransaction[]
   stockActivityLogs StockActivityLog[]
+  attendances     LabAttendance[]
 
   @@index([ownerId])
 }
@@ -1358,3 +1361,33 @@ model StockActivityLog {
   @@index([labId, itemId])
   @@index([labId, action])
 }
+
+enum LabAttendanceStatus {
+  PRESENT_ON_SITE
+  WORKING_FROM_HOME
+  ON_LEAVE
+  ABSENT
+}
+
+model LabAttendance {
+  id           String              @id @default(cuid())
+  labId        String
+  userId       String
+  date         DateTime            // YYYY-MM-DD normalized to start of day
+  status       LabAttendanceStatus @default(PRESENT_ON_SITE)
+  checkInTime  DateTime            @default(now())
+  checkOutTime DateTime?
+  note         String?
+  markedById   String?             // Nullable if self-marked, or ID of admin who marked
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  lab          LabWorkspace        @relation(fields: [labId], references: [id], onDelete: Cascade)
+  user         User                @relation("LabAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  markedBy     User?               @relation("LabAttendanceMarkedBy", fields: [markedById], references: [id], onDelete: SetNull)
+
+  @@unique([labId, userId, date])
+  @@index([labId, date])
+  @@index([userId])
+}
+

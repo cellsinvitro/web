@@ -3306,4 +3306,77 @@ export async function fetchAdminLmsPayments() {
   }>("/admin/lms/payments");
 }
 
+// ─── Team Attendance API ───────────────────────────────────────────────────
+
+export type LabAttendanceStatus = "PRESENT_ON_SITE" | "WORKING_FROM_HOME" | "ON_LEAVE" | "ABSENT";
+
+export type TodayAttendanceResponse = {
+  date: string;
+  stats: {
+    totalMembers: number;
+    presentOnSite: number;
+    workingFromHome: number;
+    absent: number;
+    onLeave: number;
+  };
+  myAttendance: {
+    id: string;
+    status: LabAttendanceStatus;
+    checkInTime: string;
+    note?: string | null;
+  } | null;
+  members: Array<{
+    userId: string;
+    name: string;
+    email: string;
+    avatarUrl: string | null;
+    memberRole: string;
+    attendance: {
+      id: string | null;
+      status: LabAttendanceStatus;
+      checkInTime: string | null;
+      checkOutTime: string | null;
+      note: string | null;
+      markedBy: string | null;
+    };
+  }>;
+};
+
+export type AttendanceHistoryRecord = {
+  id: string;
+  date: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userAvatar: string | null;
+  status: LabAttendanceStatus;
+  checkInTime: string;
+  checkOutTime: string | null;
+  note: string | null;
+  markedBy: string | null;
+};
+
+export async function fetchTodayAttendance(labId: string) {
+  return apiFetch<TodayAttendanceResponse>(`/logbook/labs/${labId}/attendance/today`);
+}
+
+export async function markUserAttendance(labId: string, status: "PRESENT_ON_SITE" | "WORKING_FROM_HOME" | "ON_LEAVE", note?: string) {
+  return apiFetch<{ success: boolean; attendance: any }>(`/logbook/labs/${labId}/attendance/check-in`, {
+    method: "POST",
+    body: JSON.stringify({ status, note }),
+  });
+}
+
+export async function adminUpdateAttendance(labId: string, targetUserId: string, status: LabAttendanceStatus, note?: string, date?: string) {
+  return apiFetch<{ success: boolean; attendance: any }>(`/logbook/labs/${labId}/attendance/admin-update`, {
+    method: "POST",
+    body: JSON.stringify({ targetUserId, status, note, date }),
+  });
+}
+
+export async function fetchAttendanceHistory(labId: string, days = 30) {
+  return apiFetch<{ records: AttendanceHistoryRecord[] }>(`/logbook/labs/${labId}/attendance/history?days=${days}`);
+}
+
+
 
