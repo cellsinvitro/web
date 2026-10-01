@@ -20,26 +20,98 @@ function getYDomain(points: DataPoint[], fit: FitResult) {
   const dataMin = Math.min(...observedYs, fit.params.bottom);
   const dataMax = Math.max(...observedYs, fit.params.top);
 
+  // Fixed 0-100 default range unless data goes below 0 or above 100
   const yMin = dataMin >= 0 ? 0 : Math.floor(dataMin / 10) * 10;
-  const yMax = Math.max(100, Math.ceil(dataMax / 10) * 10);
+  const yMax = dataMax <= 100 ? 100 : Math.ceil(dataMax / 10) * 10;
   return { yMin, yMax };
+}
+
+function getLogTicks(xMin: number, xMax: number): number[] {
+  const minExp = Math.floor(Math.log10(xMin));
+  const maxExp = Math.ceil(Math.log10(xMax));
+  const ticks: number[] = [];
+
+  for (let exp = minExp; exp <= maxExp; exp++) {
+    const val = Math.pow(10, exp);
+    if (val >= xMin * 0.95 && val <= xMax * 1.05) {
+      ticks.push(val);
+    }
+  }
+
+  if (ticks.length < 3) {
+    const detailTicks: number[] = [];
+    for (let exp = minExp; exp <= maxExp; exp++) {
+      [1, 2, 5].forEach((m) => {
+        const val = m * Math.pow(10, exp);
+        if (val >= xMin * 0.95 && val <= xMax * 1.05) {
+          detailTicks.push(val);
+        }
+      });
+    }
+    return detailTicks.length > 0
+      ? Array.from(new Set(detailTicks)).sort((a, b) => a - b)
+      : ticks;
+  }
+
+  return ticks;
+}
+
+function downloadChartAsPng(svgId: string, filename = "cellsinvitro-ic50-curve.png") {
+  const svgEl = document.getElementById(svgId) as SVGSVGElement | null;
+  if (!svgEl) return;
+
+  const svgData = new XMLSerializer().serializeToString(svgEl);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+
+  const width = svgEl.viewBox.baseVal.width || 640;
+  const height = svgEl.viewBox.baseVal.height || 260;
+  const scale = 2; // High DPI export
+
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+
+  const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+
+  img.onload = () => {
+    if (ctx) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0);
+
+      const pngUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = filename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(url);
+    }
+  };
+  img.src = url;
 }
 
 function DoseResponseChart({
   points,
   fit,
+  svgId = "ic50-dose-response-chart",
   width = 640,
-  height = 240,
-  className = "aspect-[8/3] h-auto w-full",
+  height = 260,
+  className = "aspect-[8/3.2] h-auto w-full",
 }: {
   points: DataPoint[];
   fit: FitResult;
+  svgId?: string;
   width?: number;
   height?: number;
   className?: string;
 }) {
   const large = width > 700;
-  const pad = { top: 16, right: 20, bottom: 36, left: 48 };
+  const pad = { top: 20, right: 24, bottom: 44, left: 68 };
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
 
@@ -54,33 +126,61 @@ function DoseResponseChart({
   const { yMin, yMax } = getYDomain(points, fit);
 
   const xScale = (x: number) =>
-    pad.left + (Math.log10(Math.max(x, 1e-12)) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin)) * plotW;
+    pad.left +
+    ((Math.log10(Math.max(x, 1e-12)) - Math.log10(xMin)) /
+      (Math.log10(xMax) - Math.log10(xMin))) *
+      plotW;
   const yScale = (y: number) =>
     pad.top + plotH - ((y - yMin) / (yMax - yMin)) * plotH;
 
   const curve = generateCurvePoints(fit.params, xMin, xMax, 100);
   const curvePath = curve
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${xScale(p.x).toFixed(1)} ${yScale(p.y).toFixed(1)}`)
+    .map(
+      (p, i) =>
+        `${i === 0 ? "M" : "L"} ${xScale(p.x).toFixed(1)} ${yScale(p.y).toFixed(1)}`
+    )
     .join(" ");
 
-  const targetY = fit.interpolatedIc50 !== undefined && fit.interpolatedIc50 !== null ? 50 : fourPL(targetIc50, fit.params);
+  const targetY =
+    fit.interpolatedIc50 !== undefined && fit.interpolatedIc50 !== null
+      ? 50
+      : fourPL(targetIc50, fit.params);
   const ic50X = xScale(targetIc50);
   const ic50Y = yScale(targetY);
 
-  const yStep = (yMax - yMin) / 4;
-  const yTicks = [yMin, yMin + yStep, yMin + yStep * 2, yMin + yStep * 3, yMax];
-  const xTicks = Array.from(new Set(positiveX)).sort((a, b) => a - b);
+  // Y axis ticks: standard 0, 20, 40, 60, 80, 100 or divided range
+  const yTicks =
+    yMin === 0 && yMax === 100
+      ? [0, 20, 40, 60, 80, 100]
+      : Array.from({ length: 5 }, (_, i) => yMin + (i * (yMax - yMin)) / 4);
+
+  // Uniform Log Ticks for X axis
+  const xTicks = getLogTicks(xMin, xMax);
 
   const tickClass = large ? "fill-slate-400 text-xs" : "fill-slate-400 text-[10px]";
-  const axisClass = large ? "fill-slate-600 text-sm font-medium" : "fill-slate-600 text-[11px] font-medium";
-  const labelClass = large ? "fill-amber-700 text-xs font-bold" : "fill-amber-700 text-[10px] font-bold";
+  const axisClass = large
+    ? "fill-slate-600 text-xs font-semibold"
+    : "fill-slate-600 text-[11px] font-semibold";
+  const labelClass = large
+    ? "fill-amber-900 text-xs font-bold"
+    : "fill-amber-900 text-[10px] font-bold";
+
+  // Position badge safely away from graph edge & curve collision
+  const badgeWidth = 112;
+  const badgeX = Math.min(
+    Math.max(ic50X - badgeWidth / 2, pad.left + 4),
+    pad.left + plotW - badgeWidth - 4
+  );
+  const badgeY = Math.max(ic50Y - 26, pad.top + 6);
 
   return (
     <svg
+      id={svgId}
       viewBox={`0 0 ${width} ${height}`}
       className={className}
       role="img"
       aria-label="Dose-response curve with fitted 4PL model"
+      xmlns="http://www.w3.org/2000/svg"
     >
       <rect
         x={pad.left}
@@ -91,6 +191,7 @@ function DoseResponseChart({
         rx="8"
       />
 
+      {/* Y-axis gridlines & tick labels */}
       {yTicks.map((y) => (
         <g key={y}>
           <line
@@ -112,28 +213,55 @@ function DoseResponseChart({
         </g>
       ))}
 
+      {/* Vertical Y-axis label */}
+      <text
+        transform={`rotate(-90, 18, ${pad.top + plotH / 2})`}
+        x={18}
+        y={pad.top + plotH / 2}
+        textAnchor="middle"
+        className={axisClass}
+      >
+        % Growth Inhibition
+      </text>
+
+      {/* X-axis tick values (Logarithmic scale) */}
       {xTicks.map((x) => (
-        <text
-          key={x}
-          x={xScale(x)}
-          y={height - 14}
-          textAnchor="middle"
-          className={tickClass}
-        >
-          {formatSci(x)}
-        </text>
+        <g key={x}>
+          <line
+            x1={xScale(x)}
+            y1={pad.top + plotH}
+            x2={xScale(x)}
+            y2={pad.top + plotH + 4}
+            stroke="#cbd5e1"
+          />
+          <text
+            x={xScale(x)}
+            y={height - 18}
+            textAnchor="middle"
+            className={tickClass}
+          >
+            {formatSci(x)}
+          </text>
+        </g>
       ))}
 
+      {/* X-axis title */}
       <text
         x={pad.left + plotW / 2}
         y={height - 4}
         textAnchor="middle"
         className={axisClass}
       >
-        Concentration
+        Concentration (Log Scale)
       </text>
 
-      <path d={curvePath} fill="none" stroke="#0f172a" strokeWidth={large ? 2.5 : 2} />
+      {/* Fitted 4PL Curve */}
+      <path
+        d={curvePath}
+        fill="none"
+        stroke="#0f172a"
+        strokeWidth={large ? 2.5 : 2}
+      />
 
       {/* IC50 50% guide lines */}
       <line
@@ -154,15 +282,38 @@ function DoseResponseChart({
         strokeDasharray="4 3"
         strokeWidth="1.5"
       />
-      <circle cx={ic50X} cy={ic50Y} r={large ? 5 : 4} fill="#f59e0b" stroke="#fff" strokeWidth="2" />
-      <text
-        x={Math.min(ic50X + 6, pad.left + plotW - 60)}
-        y={Math.max(ic50Y - 8, pad.top + 14)}
-        className={labelClass}
-      >
-        IC₅₀: {formatSci(targetIc50)}
-      </text>
+      <circle
+        cx={ic50X}
+        cy={ic50Y}
+        r={large ? 5 : 4}
+        fill="#f59e0b"
+        stroke="#fff"
+        strokeWidth="2"
+      />
 
+      {/* Non-overlapping IC50 Label Badge */}
+      <g transform={`translate(${badgeX}, ${badgeY})`}>
+        <rect
+          x="0"
+          y="0"
+          width={badgeWidth}
+          height="20"
+          rx="6"
+          fill="#ffffff"
+          stroke="#f59e0b"
+          strokeWidth="1.5"
+        />
+        <text
+          x={badgeWidth / 2}
+          y="13"
+          textAnchor="middle"
+          className={labelClass}
+        >
+          IC₅₀: {formatSci(targetIc50)}
+        </text>
+      </g>
+
+      {/* Experimental Data Points */}
       {points.map((point, i) => {
         if (point.concentration <= 0) return null;
         const cx = xScale(point.concentration);
@@ -192,7 +343,118 @@ function DoseResponseChart({
           </g>
         );
       })}
+
+      {/* Watermark in bottom right corner */}
+      <g transform={`translate(${pad.left + plotW - 10}, ${pad.top + plotH - 10})`}>
+        <rect
+          x="-154"
+          y="-14"
+          width="156"
+          height="16"
+          rx="4"
+          fill="#ffffff"
+          fillOpacity="0.9"
+          stroke="#e2e8f0"
+          strokeWidth="1"
+        />
+        <text
+          x="-6"
+          y="-2"
+          textAnchor="end"
+          className="fill-slate-600 text-[9px] font-semibold tracking-tight"
+        >
+          Cellsinvitro.com/tools/IC50
+        </text>
+      </g>
     </svg>
+  );
+}
+
+function CiteThisTool() {
+  const [activeTab, setActiveTab] = useState<"apa" | "bibtex" | "mla" | "vancouver">("apa");
+  const [copied, setCopied] = useState(false);
+
+  const citations = {
+    apa: `CellsInVitro. (2026). IC50 Calculator & Four-Parameter Logistic (4PL) Curve Fitting Tool. CellsInVitro Lab Tools. https://cellsinvitro.com/tools/ic50`,
+    bibtex: `@misc{cellsinvitro_ic50_2026,
+  author = {CellsInVitro},
+  title = {IC50 Calculator: 4-Parameter Logistic Curve Fitting Tool},
+  year = {2026},
+  publisher = {CellsInVitro},
+  url = {https://cellsinvitro.com/tools/ic50}
+}`,
+    mla: `CellsInVitro. "IC50 Calculator & 4PL Fitting Tool." CellsInVitro Lab Tools, 2026, https://cellsinvitro.com/tools/ic50.`,
+    vancouver: `CellsInVitro. IC50 Calculator & 4PL Fitting Tool [Internet]. 2026. Available from: https://cellsinvitro.com/tools/ic50`,
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(citations[activeTab]);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <svg
+            className="h-4 w-4 text-slate-700"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+            Cite this tool
+          </h4>
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-900 transition-colors"
+        >
+          {copied ? (
+            <>
+              <svg className="h-3.5 w-3.5 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+              </svg>
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <svg className="h-3.5 w-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7 3.5A1.5 1.5 0 018.5 2h5A1.5 1.5 0 0115 3.5v1A1.5 1.5 0 0113.5 6h-5A1.5 1.5 0 017 4.5v-1z" />
+                <path d="M6 4.5H4.5A1.5 1.5 0 003 6v10.5A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H14v1.5a3 3 0 01-3 3h-2a3 3 0 01-3-3V4.5z" />
+              </svg>
+              <span>Copy citation</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="mt-3 flex gap-2 border-b border-slate-200">
+        {(["apa", "bibtex", "mla", "vancouver"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`pb-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+              activeTab === tab
+                ? "border-b-2 border-slate-900 text-slate-900 font-semibold"
+                : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700">
+        {citations[activeTab]}
+      </pre>
+    </div>
   );
 }
 
@@ -232,32 +494,46 @@ function ChartLightbox({
         className="relative w-full max-w-5xl rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl sm:p-8"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               Dose–response curve
             </p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-0.5 text-sm text-slate-600">
               IC₅₀ = {formatSci(fit.params.ic50)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-slate-200 p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
-            aria-label="Close enlarged chart"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden>
-              <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => downloadChartAsPng("ic50-dose-response-lightbox")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <svg className="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
+                <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
+              </svg>
+              Download PNG
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-slate-200 p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
+              aria-label="Close enlarged chart"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden>
+                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+              </svg>
+            </button>
+          </div>
         </div>
         <DoseResponseChart
           points={points}
           fit={fit}
+          svgId="ic50-dose-response-lightbox"
           width={960}
-          height={360}
-          className="aspect-[8/3] h-auto w-full"
+          height={380}
+          className="aspect-[8/3.2] h-auto w-full"
         />
       </div>
     </div>
@@ -295,7 +571,9 @@ export default function IC50Calculator() {
       const result = fitFourPL(processedPoints);
       setFitResult(result);
     } catch (error) {
-      setParseErrors([error instanceof Error ? error.message : "Tool usage limit reached"]);
+      setParseErrors([
+        error instanceof Error ? error.message : "Tool usage limit reached",
+      ]);
     } finally {
       setIsCalculating(false);
     }
@@ -322,9 +600,9 @@ export default function IC50Calculator() {
             <h3 className="text-sm font-semibold text-slate-950">Data entry</h3>
           </div>
           <p className="mt-3 text-sm leading-6 text-slate-500">
-            Paste or type concentration and response values. Use tabs, commas, or
-            spaces between columns. Multiple response columns are averaged with
-            error bars.
+            Paste or type concentration and response values (% growth inhibition).
+            Use tabs, commas, or spaces between columns. Multiple response columns
+            are averaged with SEM error bars.
           </p>
           <textarea
             value={rawInput}
@@ -338,7 +616,7 @@ export default function IC50Calculator() {
             rows={6}
             spellCheck={false}
             className={`${inputClassName} mt-4 font-mono text-xs leading-5`}
-            placeholder={"Concentration\tResponse 1\tResponse 2\n0.01\t95\t94\n..."}
+            placeholder={"Concentration\tResponse 1\tResponse 2\n0.01\t12\t14\n0.1\t28\t30\n1\t52\t54\n10\t84\t86\n100\t96\t98"}
           />
           <button
             type="button"
@@ -356,8 +634,8 @@ export default function IC50Calculator() {
           )}
           {!processedPoints && preview.points.length > 0 && parseErrors.length === 0 && (
             <p className="mt-3 text-xs text-slate-400">
-              {preview.points.length} row{preview.points.length !== 1 ? "s" : ""} detected — press
-              &ldquo;Process data&rdquo; to continue.
+              {preview.points.length} row{preview.points.length !== 1 ? "s" : ""}{" "}
+              detected — press &ldquo;Process data&rdquo; to continue.
             </p>
           )}
         </section>
@@ -368,7 +646,9 @@ export default function IC50Calculator() {
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
                 2
               </span>
-              <h3 className="text-sm font-semibold text-slate-950">Processed data</h3>
+              <h3 className="text-sm font-semibold text-slate-950">
+                Processed data
+              </h3>
             </div>
             <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
               <table className="w-full table-fixed text-left text-sm">
@@ -380,15 +660,26 @@ export default function IC50Calculator() {
                 </colgroup>
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-3 py-2.5 font-medium text-slate-600">Concentration</th>
-                    <th className="px-3 py-2.5 font-medium text-slate-600">Mean response</th>
-                    <th className="px-3 py-2.5 font-medium text-slate-600">Replicates</th>
-                    <th className="px-3 py-2.5 font-medium text-slate-600">SEM</th>
+                    <th className="px-3 py-2.5 font-medium text-slate-600">
+                      Concentration
+                    </th>
+                    <th className="px-3 py-2.5 font-medium text-slate-600">
+                      Mean response
+                    </th>
+                    <th className="px-3 py-2.5 font-medium text-slate-600">
+                      Replicates
+                    </th>
+                    <th className="px-3 py-2.5 font-medium text-slate-600">
+                      SEM
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {processedPoints.map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100 last:border-0">
+                    <tr
+                      key={i}
+                      className="border-b border-slate-100 last:border-0"
+                    >
                       <td className="truncate px-3 py-2.5 font-mono text-slate-800">
                         {formatSci(row.concentration)}
                       </td>
@@ -455,21 +746,55 @@ export default function IC50Calculator() {
                 <h3 className="text-sm font-semibold text-slate-950">Results</h3>
               </div>
 
-              {fitResult.interpolatedIc50 !== undefined && fitResult.interpolatedIc50 !== null && (
-                <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 flex items-center justify-between shadow-xs">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                      IC₅₀ (50% Response / Interpolated)
-                    </p>
-                    <p className="text-xl font-extrabold tracking-tight text-amber-950 mt-0.5">
-                      {formatSci(fitResult.interpolatedIc50)}
-                    </p>
+              {/* Extrapolation Scientific Warning Box */}
+              {fitResult.isExtrapolated && (
+                <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-2xs">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="h-5 w-5 shrink-0 text-amber-600 mt-0.5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                        Extrapolation Warning (50% Response Not Bracketed)
+                      </h4>
+                      <p className="mt-1 text-xs leading-5 text-amber-900">
+                        Your tested concentrations produced responses ranging from{" "}
+                        <strong>{formatSci(fitResult.minObserved)}%</strong> to{" "}
+                        <strong>{formatSci(fitResult.maxObserved)}%</strong>, which does not encompass 50% growth inhibition.
+                        Calculating IC₅₀ by extrapolating beyond the tested data range is scientifically unrecommended.
+                      </p>
+                      <p className="mt-2 text-xs font-semibold text-amber-950">
+                        🔬 <strong>Recommendation:</strong> Repeat the experiment with a modified concentration range that brackets 50% (from &lt; 50% to &gt; 50%).
+                      </p>
+                    </div>
                   </div>
-                  <span className="rounded-full bg-amber-200 px-3 py-1 text-[11px] font-bold text-amber-900">
-                    Target 50%
-                  </span>
                 </div>
               )}
+
+              {fitResult.interpolatedIc50 !== undefined &&
+                fitResult.interpolatedIc50 !== null && (
+                  <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 flex items-center justify-between shadow-2xs">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                        IC₅₀ (50% Response / Interpolated)
+                      </p>
+                      <p className="text-xl font-extrabold tracking-tight text-amber-950 mt-0.5">
+                        {formatSci(fitResult.interpolatedIc50)}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-amber-200 px-3 py-1 text-[11px] font-bold text-amber-900">
+                      Target 50%
+                    </span>
+                  </div>
+                )}
 
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
@@ -506,6 +831,7 @@ export default function IC50Calculator() {
                 </div>
               </div>
 
+              {/* Dose Response Chart Card */}
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -513,10 +839,23 @@ export default function IC50Calculator() {
                       Dose–response curve
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Response vs concentration (log scale)
+                      % Growth Inhibition vs concentration (log scale)
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs text-slate-400">Click to enlarge</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => downloadChartAsPng("ic50-main-chart")}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      <svg className="h-3.5 w-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
+                        <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
+                      </svg>
+                      <span>Download Graph</span>
+                    </button>
+                    <span className="text-xs text-slate-400">Click graph to enlarge</span>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -524,7 +863,11 @@ export default function IC50Calculator() {
                   className="mt-3 block w-full cursor-zoom-in rounded-xl transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
                   aria-label="Enlarge dose-response curve"
                 >
-                  <DoseResponseChart points={processedPoints} fit={fitResult} />
+                  <DoseResponseChart
+                    points={processedPoints}
+                    fit={fitResult}
+                    svgId="ic50-main-chart"
+                  />
                 </button>
               </div>
 
@@ -563,9 +906,16 @@ export default function IC50Calculator() {
                       </thead>
                       <tbody>
                         {processedPoints.map((point, i) => (
-                          <tr key={i} className="border-t border-slate-100 font-mono text-slate-700">
-                            <td className="py-1 pr-3">{formatSci(point.concentration)}</td>
-                            <td className="py-1 pr-3">{formatSci(point.response)}</td>
+                          <tr
+                            key={i}
+                            className="border-t border-slate-100 font-mono text-slate-700"
+                          >
+                            <td className="py-1 pr-3">
+                              {formatSci(point.concentration)}
+                            </td>
+                            <td className="py-1 pr-3">
+                              {formatSci(point.response)}
+                            </td>
                             <td className="py-1">
                               {formatSci(fourPL(point.concentration, fitResult.params))}
                             </td>
@@ -576,6 +926,9 @@ export default function IC50Calculator() {
                   </div>
                 </div>
               </div>
+
+              {/* Cite this tool section */}
+              <CiteThisTool />
 
               {chartExpanded && (
                 <ChartLightbox
@@ -588,9 +941,12 @@ export default function IC50Calculator() {
           ) : (
             <section className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
               <div>
-                <p className="text-sm font-medium text-slate-600">Ready to calculate</p>
+                <p className="text-sm font-medium text-slate-600">
+                  Ready to calculate
+                </p>
                 <p className="mt-2 text-xs leading-5 text-slate-400">
-                  Press &ldquo;Calculate IC₅₀&rdquo; on the left to fit the curve and view results here.
+                  Press &ldquo;Calculate IC₅₀&rdquo; on the left to fit the curve
+                  and view results here.
                 </p>
               </div>
             </section>

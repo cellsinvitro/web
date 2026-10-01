@@ -17,6 +17,9 @@ export type FitResult = {
   rSquared: number;
   residuals: number[];
   interpolatedIc50?: number | null;
+  isExtrapolated: boolean;
+  minObserved: number;
+  maxObserved: number;
 };
 
 export function fourPL(x: number, params: FourPLParams): number {
@@ -336,7 +339,20 @@ export function fitFourPL(points: DataPoint[]): FitResult | null {
 
   const interpolatedIc50 = calculateInterpolatedIC50(points, 50);
 
-  return { params: bestParams, rSquared, residuals, interpolatedIc50 };
+  const ys = points.map((p) => p.response);
+  const minObserved = Math.min(...ys);
+  const maxObserved = Math.max(...ys);
+  const isExtrapolated = !(minObserved <= 50 && maxObserved >= 50);
+
+  return {
+    params: bestParams,
+    rSquared,
+    residuals,
+    interpolatedIc50,
+    isExtrapolated,
+    minObserved,
+    maxObserved,
+  };
 }
 
 export function formatSci(value: number, digits = 3): string {
