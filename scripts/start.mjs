@@ -28,5 +28,6 @@ function run(command, args, cwd) {
   });
 }
 
-await run("npx", ["prisma", "migrate", "deploy"], serverDir);
+// Migrations run during build (render.yaml buildCommand), not at startup.
+// Running them here caused advisory lock timeouts on Neon serverless Postgres.
 await run("node", ["dist/index.js"], serverDir);

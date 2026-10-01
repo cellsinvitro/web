@@ -2,7 +2,7 @@ services:
   - type: web
     name: cellsinvitro-api
     runtime: node
-    buildCommand: npm install && npm run build --workspace=server
+    buildCommand: npm install && npm run build --workspace=server && cd apps/server && npx prisma migrate deploy
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
@@ -13,3 +13,9 @@ services:
         value: https://www.cellsinvitro.com
       - key: GOOGLE_REDIRECT_URI
         value: https://www.cellsinvitro.com/api/auth/google/callback
+      # Email — set BREVO_API_KEY in Render dashboard (must be an xkeysib- REST API key)
+      # Generate at: app.brevo.com → SMTP & API → API Keys
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: "CellsInVitro <cellsinvitro.w@gmail.com>"
