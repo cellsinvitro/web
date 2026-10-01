@@ -64,21 +64,11 @@ async function sendEmail(
     if (!response.ok) {
       const text = await response.text();
       console.error(`[email] Brevo API error (HTTP ${response.status}):`, text);
-      if (response.status === 401) {
-        console.error(
-          "[email] 401 Unauthorized — BREVO_API_KEY must be a REST API key (starts with 'xkeysib-'), not an SMTP credential (starts with 'xsmtpsib-'). Generate one at: Brevo Dashboard → SMTP & API → API Keys."
-        );
-      } else if (response.status === 400) {
-        console.error(
-          "[email] 400 Bad Request — The sender email/domain in EMAIL_FROM may not be verified in Brevo. Verify it at: Brevo Dashboard → Senders & IP → Domains."
-        );
-      }
       return false;
     }
 
-    console.log("[email] Brevo email delivered successfully to:", to);
     const responseData = await response.json().catch(() => null);
-    console.log("[email] Brevo response:", JSON.stringify(responseData));
+    console.log("[email] Brevo delivered successfully to:", to, "| response:", JSON.stringify(responseData));
     return true;
   } catch (err) {
     console.error("[email] Brevo request error:", err);
