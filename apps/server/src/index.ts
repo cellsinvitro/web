@@ -85,6 +85,69 @@ app.route("/stock", stockRoutes);
 app.route("/lms", lmsRoutes);
 
 
+
+
+// ── Temporary email diagnostic endpoint ──────────────────────────────────────
+// Hit: POST http://localhost:3000/debug/test-email  body: { "to": "you@example.com" }
+// Remove this route once email delivery is confirmed working.
+app.post("/debug/test-email", async (c) => {
+  const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
+  const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || "CellsInVitro <cellsinvitro.w@gmail.com>";
+
+  const body = await c.req.json().catch(() => null) as { to?: string } | null;
+  const to = body?.to;
+  if (!to) return c.json({ error: "Provide { to: 'email@example.com' } in the body" }, 400);
+
+  if (!BREVO_API_KEY) return c.json({ error: "BREVO_API_KEY is not set in .env" }, 500);
+
+  const keyType = BREVO_API_KEY.startsWith("xkeysib-")
+    ? "✅ REST API key (correct)"
+    : BREVO_API_KEY.startsWith("xsmtpsib-")
+    ? "❌ SMTP credential — this will NOT work with Brevo REST API. Go to app.brevo.com → SMTP & API → API Keys and generate an 'xkeysib-' key."
+    : "⚠️ Unknown key format";
+
+  const parseSender = (from: string) => {
+    const match = /^(.+?)\s*<([^>]+)>$/.exec(from.trim());
+    if (match?.[1] && match[2]) return { name: match[1].trim(), email: match[2].trim() };
+    return { name: "CellsInVitro", email: from.trim() };
+  };
+
+  const sender = parseSender(EMAIL_FROM);
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": BREVO_API_KEY,
+      "Content-Type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: to }],
+      subject: "CellsInVitro — Email delivery test",
+      htmlContent: "<p>If you received this, Brevo email delivery is working correctly.</p>",
+    }),
+  });
+
+  const responseText = await response.text();
+  let responseJson: unknown = null;
+  try { responseJson = JSON.parse(responseText); } catch { responseJson = responseText; }
+
+  return c.json({
+    keyType,
+    senderParsed: sender,
+    httpStatus: response.status,
+    brevoResponse: responseJson,
+    delivered: response.ok,
+    fix: response.ok ? null : response.status === 401
+      ? "Replace BREVO_API_KEY with an 'xkeysib-' key from app.brevo.com → SMTP & API → API Keys"
+      : response.status === 400
+      ? `Sender ${sender.email} is not verified in Brevo. Go to app.brevo.com → Senders & IP → Senders and add it.`
+      : "Check brevoResponse above for details",
+  });
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
     return c.json({ error: err.message }, err.status);
