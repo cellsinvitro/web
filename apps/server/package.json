@@ -17,16 +17,17 @@
     "@hono/node-server": "^1.14.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@types/nodemailer": "^8.0.2",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.1",
     "dotenv": "^16.4.7",
     "hono": "^4.7.0",
     "jose": "^6.2.9",
     "livekit-server-sdk": "^2.18.0",
+    "nodemailer": "^10.0.13",
     "pdfkit": "^0.20.2",
     "pg": "^8.14.0",
     "prisma": "^7.9.1",
-    "xlsx": "0.18.5",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
