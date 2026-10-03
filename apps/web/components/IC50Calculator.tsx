@@ -18,11 +18,10 @@ const inputClassName =
 function getYDomain(points: DataPoint[], fit: FitResult) {
   const observedYs = points.map((p) => p.response);
   const dataMin = Math.min(...observedYs, fit.params.bottom);
-  const dataMax = Math.max(...observedYs, fit.params.top);
 
-  // Fixed 0-100 default range unless data goes below 0 or above 100
+  // Fixed 0-100 default range for % Growth Inhibition (max is strictly 100)
   const yMin = dataMin >= 0 ? 0 : Math.floor(dataMin / 10) * 10;
-  const yMax = dataMax <= 100 ? 100 : Math.ceil(dataMax / 10) * 10;
+  const yMax = 100;
   return { yMin, yMax };
 }
 
