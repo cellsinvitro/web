@@ -56,6 +56,64 @@ function getLogTicks(xMin: number, xMax: number): number[] {
 }
 
 
+function downloadChartAsPng(svgId: string, filename = "cellsinvitro-ic50-curve.png") {
+  const svgEl = document.getElementById(svgId) as SVGSVGElement | null;
+  if (!svgEl) return;
+
+  const width = svgEl.viewBox.baseVal.width || 640;
+  const height = svgEl.viewBox.baseVal.height || 260;
+
+  // Clone SVG element to ensure width and height attributes are set and styles embedded
+  const clonedSvg = svgEl.cloneNode(true) as SVGSVGElement;
+  clonedSvg.setAttribute("width", width.toString());
+  clonedSvg.setAttribute("height", height.toString());
+
+  // Inject style block for standard fonts and CSS classes used in SVG
+  const styleEl = document.createElement("style");
+  styleEl.textContent = `
+    text { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .fill-slate-400 { fill: #94a3b8; }
+    .fill-slate-600 { fill: #475569; }
+    .fill-amber-900 { fill: #78350f; }
+    .text-xs { font-size: 12px; }
+    .text-\\[10px\\] { font-size: 10px; }
+    .text-\\[11px\\] { font-size: 11px; }
+    .font-semibold { font-weight: 600; }
+    .font-bold { font-weight: 700; }
+  `;
+  clonedSvg.insertBefore(styleEl, clonedSvg.firstChild);
+
+  const svgData = new XMLSerializer().serializeToString(clonedSvg);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+
+  const scale = 3; // High DPI 3x export
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+
+  const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+
+  img.onload = () => {
+    if (ctx) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const pngUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = filename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(url);
+    }
+  };
+  img.src = url;
+}
+
 function DoseResponseChart({
   points,
   fit,
@@ -513,6 +571,18 @@ function ChartLightbox({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => downloadChartAsPng("ic50-dose-response-lightbox")}
+              title="Download Graph PNG"
+              aria-label="Download Graph PNG"
+              className="rounded-full border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-slate-900 hover:text-white hover:border-slate-900"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
+                <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
+              </svg>
+            </button>
+            <button
+              type="button"
               onClick={onClose}
               className="rounded-full border border-slate-200 p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
               aria-label="Close enlarged chart"
@@ -839,6 +909,18 @@ export default function IC50Calculator() {
                         % Growth Inhibition vs concentration (log scale)
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => downloadChartAsPng("ic50-main-chart")}
+                      title="Download Graph"
+                      aria-label="Download Graph"
+                      className="shrink-0 inline-flex items-center justify-center p-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-900 hover:text-white hover:border-slate-900 shadow-2xs"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
+                        <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
+                      </svg>
+                    </button>
                   </div>
                   <button
                     type="button"
