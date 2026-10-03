@@ -56,44 +56,6 @@ function getLogTicks(xMin: number, xMax: number): number[] {
   return ticks;
 }
 
-function downloadChartAsPng(svgId: string, filename = "cellsinvitro-ic50-curve.png") {
-  const svgEl = document.getElementById(svgId) as SVGSVGElement | null;
-  if (!svgEl) return;
-
-  const svgData = new XMLSerializer().serializeToString(svgEl);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const img = new Image();
-
-  const width = svgEl.viewBox.baseVal.width || 640;
-  const height = svgEl.viewBox.baseVal.height || 260;
-  const scale = 2; // High DPI export
-
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-
-  const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(svgBlob);
-
-  img.onload = () => {
-    if (ctx) {
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0);
-
-      const pngUrl = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.href = pngUrl;
-      downloadLink.download = filename;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      URL.revokeObjectURL(url);
-    }
-  };
-  img.src = url;
-}
 
 function DoseResponseChart({
   points,
@@ -552,17 +514,6 @@ function ChartLightbox({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => downloadChartAsPng("ic50-dose-response-lightbox")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              <svg className="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
-                <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
-              </svg>
-              Download PNG
-            </button>
-            <button
-              type="button"
               onClick={onClose}
               className="rounded-full border border-slate-200 p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
               aria-label="Close enlarged chart"
@@ -888,20 +839,6 @@ export default function IC50Calculator() {
                       <p className="mt-0.5 text-xs text-slate-500">
                         % Growth Inhibition vs concentration (log scale)
                       </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => downloadChartAsPng("ic50-main-chart")}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
-                      >
-                        <svg className="h-3.5 w-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.69L6.53 8.72a.75.75 0 00-1.06 1.06l4 4a.75.75 0 001.06 0l4-4a.75.75 0 10-1.06-1.06l-2.72 2.72V2.75z" />
-                          <path d="M3.5 14.75a.75.75 0 00-1.5 0v1.5A2.75 2.75 0 004.75 19h10.5A2.75 2.75 0 0018 16.25v-1.5a.75.75 0 00-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-1.5z" />
-                        </svg>
-                        <span>Download Graph</span>
-                      </button>
-                      <span className="text-xs text-slate-400">Click graph to enlarge</span>
                     </div>
                   </div>
                   <button
