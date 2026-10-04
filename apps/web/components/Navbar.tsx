@@ -343,7 +343,7 @@ export default function Navbar() {
                       <Link
                         href="/LMS"
                         onClick={closeMenus}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-pink-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-pink-500"
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-black px-3 py-2 text-xs font-semibold text-white transition-colors"
                       >
                         Open LMS
                         <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">

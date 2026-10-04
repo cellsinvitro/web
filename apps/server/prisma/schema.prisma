@@ -96,6 +96,7 @@ model CryoInvite {
   ownerId       String
   inviteeEmail  String
   itemId        String
+  allowedModules String[] @default([])
   usedAt        DateTime?
   expiresAt     DateTime
   createdAt     DateTime  @default(now())

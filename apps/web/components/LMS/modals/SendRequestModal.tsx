@@ -1,29 +1,47 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
+export const LMS_MODULE_LABELS: Record<string, { label: string; desc: string; icon: string }> = {
+  lms_repo: { label: "CryoSearch Repository", desc: "Storage, Dewars & Vials", icon: "📦" },
+  lms_stock: { label: "Stock Management", desc: "Reagent & Inventory Control", icon: "🧪" },
+  lms_budget: { label: "Budget Management", desc: "Grants & Expense Tracking", icon: "💰" },
+  lms_logbook: { label: "Lab Logbook", desc: "ELN Entries & Instrument Logs", icon: "📖" },
+};
 
 interface SendRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSendRequest: (itemId: string) => void; // kept for compatibility, unused
-  onSendEmailInvite: (email: string, itemId: string) => Promise<{ emailSent: boolean; acceptUrl: string }>;
+  onSendRequest?: (itemId: string, allowedModules?: string[]) => void;
+  onSendEmailInvite: (email: string, itemId: string, allowedModules?: string[]) => Promise<{ emailSent: boolean; acceptUrl: string }>;
+  purchasedModules?: string[];
 }
 
 export default function SendRequestModal({
   isOpen,
   onClose,
   onSendEmailInvite,
+  purchasedModules = ["lms_repo", "lms_stock", "lms_budget", "lms_logbook"],
 }: SendRequestModalProps) {
   const [email, setEmail] = useState("");
+  const [selectedModules, setSelectedModules] = useState<string[]>(purchasedModules);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ emailSent: boolean; acceptUrl: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Sync default selected modules with purchasedModules when modal opens or purchasedModules changes
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedModules(purchasedModules);
+    }
+  }, [isOpen, purchasedModules]);
+
   if (!isOpen) return null;
 
   const reset = () => {
     setEmail("");
+    setSelectedModules(purchasedModules);
     setError("");
     setSending(false);
     setResult(null);
@@ -42,6 +60,12 @@ export default function SendRequestModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const toggleModule = (modKey: string) => {
+    setSelectedModules((prev) =>
+      prev.includes(modKey) ? prev.filter((m) => m !== modKey) : [...prev, modKey]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
@@ -49,10 +73,14 @@ export default function SendRequestModal({
       setError("Please enter a valid email address.");
       return;
     }
+    if (selectedModules.length === 0) {
+      setError("Please select at least one module to grant access to.");
+      return;
+    }
     setError("");
     setSending(true);
     try {
-      const res = await onSendEmailInvite(trimmed, "");
+      const res = await onSendEmailInvite(trimmed, "", selectedModules);
       setResult(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create invite. Please try again.");
@@ -63,7 +91,7 @@ export default function SendRequestModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
 
         {/* Header */}
         <div className="flex items-center justify-between bg-pink-600 px-6 py-4 text-white">
@@ -113,7 +141,7 @@ export default function SendRequestModal({
                     <p className="mt-1 text-xs text-slate-500">
                       A secure invite link has been emailed to{" "}
                       <span className="font-semibold text-pink-600">{email}</span>.
-                      They can accept it to gain access.
+                      They can accept it to gain access to the selected modules.
                     </p>
                   </div>
                 </>
@@ -166,7 +194,7 @@ export default function SendRequestModal({
                 </div>
               )}
 
-              <div className="mb-5">
+              <div className="mb-4">
                 <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                   Collaborator&apos;s Email Address
                 </label>
@@ -179,10 +207,52 @@ export default function SendRequestModal({
                   required
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
                 />
-                <p className="mt-1.5 text-[11px] text-slate-400">
-                  They&apos;ll receive an email with a secure link to accept repository access.
-                  Admin can then grant access to specific items.
-                </p>
+              </div>
+
+              {/* Module Access Checkboxes (Filtered by inviter's purchased modules) */}
+              <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Grant Access To Purchased Modules ({purchasedModules.length})
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {selectedModules.length} of {purchasedModules.length} selected
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {purchasedModules.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No purchased modules available to grant.</p>
+                  ) : (
+                    purchasedModules.map((modKey) => {
+                      const mod = LMS_MODULE_LABELS[modKey] || { label: modKey, desc: "", icon: "📌" };
+                      const isChecked = selectedModules.includes(modKey);
+                      return (
+                        <label
+                          key={modKey}
+                          className={`flex items-center justify-between rounded-lg border p-2.5 text-xs cursor-pointer transition-all ${
+                            isChecked
+                              ? "border-pink-300 bg-pink-50/50 text-slate-900"
+                              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-base">{mod.icon}</span>
+                            <div>
+                              <p className="font-bold text-slate-800">{mod.label}</p>
+                              <p className="text-[10px] text-slate-400">{mod.desc}</p>
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleModule(modKey)}
+                            className="h-4 w-4 rounded border-slate-300 text-pink-600 focus:ring-pink-500 cursor-pointer"
+                          />
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-2">

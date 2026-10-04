@@ -32,7 +32,7 @@ import CreateLabModal from "./modals/CreateLabModal";
 import ConfigureCellLinesModal from "./modals/ConfigureCellLinesModal";
 import AddNewDocModal, { DocParentType } from "./modals/AddNewDocModal";
 import ItemOptionsModal, { ItemType } from "./modals/ItemOptionsModal";
-import SendRequestModal from "./modals/SendRequestModal";
+import SendRequestModal, { LMS_MODULE_LABELS } from "./modals/SendRequestModal";
 import AllowedUsersModal from "./modals/AllowedUsersModal";
 import LmsPurchaseModal from "./LmsPurchaseModal";
 
@@ -102,6 +102,13 @@ export default function CryoSearchApp() {
     [userAccess]
   );
 
+  const getPurchasedModules = useCallback((): string[] => {
+    if (!userAccess) return [];
+    const allModules = ["lms_repo", "lms_stock", "lms_budget", "lms_logbook"];
+    if (userAccess.isAdmin || userAccess.hasFullAccess) return allModules;
+    return allModules.filter((key) => userAccess.sections.includes(key));
+  }, [userAccess]);
+
   const handleTabSelect = (tab: "repo" | "access" | "stock" | "budget" | "logbook") => {
     const sectionMap: Record<string, string> = {
       repo: "lms_repo",
@@ -153,7 +160,7 @@ export default function CryoSearchApp() {
 
   const [isSendRequestOpen, setIsSendRequestOpen] = useState(false);
   const [isAllowedUsersOpen, setIsAllowedUsersOpen] = useState(false);
-  const [accessSubTab, setAccessSubTab] = useState<"received" | "sent">("received");
+  const [accessSubTab, setAccessSubTab] = useState<"all" | "pending" | "accepted">("all");
 
   // ── Invite acceptance ──
   const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -511,9 +518,12 @@ export default function CryoSearchApp() {
   };
 
   // Access Requests Handlers
-  const handleGrantAccess = (reqId: string) => {
+  const handleGrantAccess = (reqId: string, allowedModulesOverride?: string[]) => {
     const req = receivedRequests.find((r) => r.reqId === reqId);
     if (!req) return;
+
+    const purchased = getPurchasedModules();
+    const modulesToGrant = allowedModulesOverride ?? req.allowedModules ?? purchased;
 
     const newAllowed: AllowedUsersModel = {
       userId: req.senderId,
@@ -522,6 +532,7 @@ export default function CryoSearchApp() {
       allowedItem: req.requestedItem,
       allowedItemType: req.requestedItemType,
       allowedItemName: req.requestedItemName,
+      allowedModules: modulesToGrant,
     };
 
     const newAllowedList = [...allowedUsers, newAllowed];
@@ -536,6 +547,38 @@ export default function CryoSearchApp() {
       sentRequests,
       allowedUsers: newAllowedList,
     });
+  };
+
+  const handleToggleUserModule = (userId: string, allowedItem: string, modKey: string) => {
+    const purchased = getPurchasedModules();
+    const updated = allowedUsers.map((u) => {
+      if (u.userId === userId && u.allowedItem === allowedItem) {
+        const currentMods = u.allowedModules ?? purchased;
+        const newMods = currentMods.includes(modKey)
+          ? currentMods.filter((m) => m !== modKey)
+          : [...currentMods, modKey];
+        return { ...u, allowedModules: newMods };
+      }
+      return u;
+    });
+    setAllowedUsers(updated);
+    persistState({ ...currentState(), allowedUsers: updated });
+  };
+
+  const handleTogglePendingReqModule = (reqId: string, modKey: string) => {
+    const purchased = getPurchasedModules();
+    const updated = receivedRequests.map((r) => {
+      if (r.reqId === reqId) {
+        const currentMods = r.allowedModules ?? purchased;
+        const newMods = currentMods.includes(modKey)
+          ? currentMods.filter((m) => m !== modKey)
+          : [...currentMods, modKey];
+        return { ...r, allowedModules: newMods };
+      }
+      return r;
+    });
+    setReceivedRequests(updated);
+    persistState({ ...currentState(), receivedRequests: updated });
   };
 
   const handleDenyAccess = (reqId: string) => {
@@ -561,13 +604,13 @@ export default function CryoSearchApp() {
     alert(`Access request sent for ID: ${itemId}`);
   };
 
-  const handleSendEmailInvite = async (email: string, _itemId: string): Promise<{ emailSent: boolean; acceptUrl: string }> => {
+  const handleSendEmailInvite = async (email: string, _itemId: string, allowedModules?: string[]): Promise<{ emailSent: boolean; acceptUrl: string }> => {
     // Use the owner's first lab ID — the invite grants access to that lab
     const firstLabId = labs[0]?.id;
     if (!firstLabId) {
       throw new Error("Create a lab first before inviting collaborators.");
     }
-    const result = await sendCryoInvite(email, firstLabId);
+    const result = await sendCryoInvite(email, firstLabId, allowedModules);
     return { emailSent: result.emailSent, acceptUrl: result.acceptUrl };
   };
 
@@ -1323,26 +1366,15 @@ export default function CryoSearchApp() {
               <div>
                 <h2 className="text-base font-bold text-slate-900">Access Management</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Invite collaborators by email. They receive a secure link to accept access.
+                  Invite collaborators by email and manage pending or accepted access requests.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setIsAllowedUsersOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                >
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                    <path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM1.49 15.326a.78.78 0 0 1-.358-.442 3 3 0 0 1 4.308-3.516 6.484 6.484 0 0 0-1.905 3.959c-.023.222-.014.442.025.654a4.97 4.97 0 0 1-2.07-.655ZM16.44 15.98a4.97 4.97 0 0 0 2.07-.654.78.78 0 0 0 .357-.442 3 3 0 0 0-4.308-3.517 6.484 6.484 0 0 1 1.907 3.96 2.32 2.32 0 0 1-.026.654ZM18 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM5.304 16.19a.844.844 0 0 1-.277-.71 5 5 0 0 1 9.947 0 .843.843 0 0 1-.277.71A6.975 6.975 0 0 1 10 18a6.974 6.974 0 0 1-4.696-1.81Z" />
-                  </svg>
-                  Allowed Users ({allowedUsers.length})
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setIsSendRequestOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-pink-600 px-3.5 py-1.5 text-xs font-bold text-white shadow hover:bg-pink-500"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-pink-600 px-3.5 py-1.5 text-xs font-bold text-white shadow hover:bg-pink-500 transition-colors"
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                     <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
@@ -1353,62 +1385,293 @@ export default function CryoSearchApp() {
               </div>
             </div>
 
-            {/* Pending invites / received requests list */}
-            <div>
-              <p className="mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Pending Access Requests ({receivedRequests.length})
-              </p>
-              {receivedRequests.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto h-8 w-8 text-slate-300">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-                  </svg>
-                  <p className="mt-3 text-xs text-slate-400">No pending access requests.</p>
-                  <p className="mt-1 text-[11px] text-slate-300">
-                    Use &ldquo;+ Invite User&rdquo; to send an invite by email.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {receivedRequests.map((req) => (
-                    <div
-                      key={req.reqId}
-                      className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100 font-bold text-pink-700 text-sm">
-                          {req.senderName?.[0]?.toUpperCase() ?? "U"}
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">{req.senderName}</p>
-                          <p className="text-[11px] text-slate-500">
-                            Requested access to{" "}
-                            <span className="font-semibold text-slate-700">
-                              {req.requestedItemName.join(" › ")}
-                            </span>
-                          </p>
-                          <p className="font-mono text-[10px] text-slate-400">{req.requestedItem}</p>
-                        </div>
-                      </div>
+            {/* Subnav Filter Tabs */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-1.5 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setAccessSubTab("all")}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                    accessSubTab === "all"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  All Requests ({receivedRequests.length + allowedUsers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccessSubTab("pending")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                    accessSubTab === "pending"
+                      ? "bg-white text-amber-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                  Pending Requests ({receivedRequests.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccessSubTab("accepted")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                    accessSubTab === "accepted"
+                      ? "bg-white text-emerald-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                  Accepted Requests ({allowedUsers.length})
+                </button>
+              </div>
+            </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleDenyAccess(req.reqId)}
-                          className="rounded-xl border border-red-200 bg-white px-3.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
-                        >
-                          Deny
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleGrantAccess(req.reqId)}
-                          className="rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-emerald-500"
-                        >
-                          Grant Access
-                        </button>
-                      </div>
+            {/* Grid Container for Side-by-Side or Selected Subtab */}
+            <div className={`grid gap-6 ${accessSubTab === "all" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}>
+              {/* PENDING ACCESS REQUESTS SECTION */}
+              {(accessSubTab === "all" || accessSubTab === "pending") && (
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
+                  <div className="mb-4 flex items-center justify-between border-b border-slate-200/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 text-amber-700 text-xs font-bold">
+                        {receivedRequests.length}
+                      </span>
+                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Pending Access Requests
+                      </h3>
                     </div>
-                  ))}
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200">
+                      Awaiting Action
+                    </span>
+                  </div>
+
+                  {receivedRequests.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white py-10 text-center">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto h-8 w-8 text-slate-300">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                      </svg>
+                      <p className="mt-3 text-xs font-semibold text-slate-500">No pending access requests</p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Use &ldquo;+ Invite User&rdquo; to send an invite by email.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {receivedRequests.map((req) => (
+                        <div
+                          key={req.reqId}
+                          className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-slate-300 transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-pink-100 font-bold text-pink-700 text-sm shadow-xs">
+                                {req.senderName?.[0]?.toUpperCase() ?? "U"}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-slate-900">{req.senderName}</p>
+                                <p className="text-[10px] text-slate-400 font-mono">User ID: {req.senderId}</p>
+                              </div>
+                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                              Pending
+                            </span>
+                          </div>
+
+                          <div className="rounded-lg bg-slate-50 p-2.5 text-xs border border-slate-100">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-1">
+                              <span className="font-semibold text-slate-700">Target Resource:</span>
+                              <span className="rounded bg-slate-200/80 px-1.5 py-0.5 font-mono text-[10px] text-slate-800 font-semibold">
+                                {req.requestedItemType}
+                              </span>
+                            </div>
+                            <p className="text-xs font-semibold text-slate-800">
+                              {req.requestedItemName.join(" › ")}
+                            </p>
+                            <p className="font-mono text-[10px] text-slate-400 mt-0.5">ID: {req.requestedItem}</p>
+                          </div>
+
+                          {/* Module Access Checkboxes for Pending Request */}
+                          <div className="rounded-lg border border-amber-200/70 bg-amber-50/40 p-2.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900">
+                                Grant Access To Purchased Modules ({getPurchasedModules().length})
+                              </span>
+                              <span className="text-[9px] text-amber-700 font-medium">Owner Scope</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {getPurchasedModules().length === 0 ? (
+                                <p className="text-[10px] text-slate-400 italic">No purchased modules available to grant.</p>
+                              ) : (
+                                getPurchasedModules().map((modKey) => {
+                                  const reqMods = req.allowedModules ?? getPurchasedModules();
+                                  const isChecked = reqMods.includes(modKey);
+                                  const mod = LMS_MODULE_LABELS[modKey] || { label: modKey, icon: "📌" };
+                                  return (
+                                    <label
+                                      key={modKey}
+                                      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium cursor-pointer transition-colors ${
+                                        isChecked
+                                          ? "border-amber-300 bg-amber-100/80 text-amber-950 font-semibold"
+                                          : "border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => handleTogglePendingReqModule(req.reqId, modKey)}
+                                        className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                      />
+                                      <span>{mod.icon} {mod.label}</span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={() => handleDenyAccess(req.reqId)}
+                              className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              Deny
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleGrantAccess(req.reqId)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-500 transition-colors"
+                            >
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                              </svg>
+                              Grant Access
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ACCEPTED REQUESTS SECTION */}
+              {(accessSubTab === "all" || accessSubTab === "accepted") && (
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
+                  <div className="mb-4 flex items-center justify-between border-b border-slate-200/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-700 text-xs font-bold">
+                        {allowedUsers.length}
+                      </span>
+                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Accepted Requests
+                      </h3>
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                      Active Access Granted
+                    </span>
+                  </div>
+
+                  {allowedUsers.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white py-10 text-center">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto h-8 w-8 text-slate-300">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      </svg>
+                      <p className="mt-3 text-xs font-semibold text-slate-500">No accepted access requests</p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Granted access requests will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {allowedUsers.map((user, idx) => (
+                        <div
+                          key={`${user.userId}-${user.allowedItem}-${idx}`}
+                          className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-slate-300 transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-700 text-sm shadow-xs">
+                                {user.userName?.[0]?.toUpperCase() ?? "U"}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-slate-900">{user.userName}</p>
+                                <p className="text-[10px] text-slate-400 font-mono">User ID: {user.userId}</p>
+                              </div>
+                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
+                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                              </svg>
+                              Access Granted
+                            </span>
+                          </div>
+
+                          <div className="rounded-lg bg-slate-50 p-2.5 text-xs border border-slate-100">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-1">
+                              <span className="font-semibold text-slate-700">Scope Type:</span>
+                              <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] text-emerald-800 font-semibold border border-emerald-200">
+                                {user.allowedItemType}
+                              </span>
+                            </div>
+                            <p className="text-xs font-semibold text-slate-800">
+                              {user.allowedItemName.join(" › ")}
+                            </p>
+                            <p className="font-mono text-[10px] text-slate-400 mt-0.5">Item ID: {user.allowedItem}</p>
+                          </div>
+
+                          {/* Module Access Checkboxes for Accepted Request */}
+                          <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900">
+                                Granted Modules ({ (user.allowedModules ?? getPurchasedModules()).length }/{ getPurchasedModules().length })
+                              </span>
+                              <span className="text-[9px] text-emerald-700 font-medium">Toggle access anytime</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {getPurchasedModules().length === 0 ? (
+                                <p className="text-[10px] text-slate-400 italic">No purchased modules available.</p>
+                              ) : (
+                                getPurchasedModules().map((modKey) => {
+                                  const userMods = user.allowedModules ?? getPurchasedModules();
+                                  const isChecked = userMods.includes(modKey);
+                                  const mod = LMS_MODULE_LABELS[modKey] || { label: modKey, icon: "📌" };
+                                  return (
+                                    <label
+                                      key={modKey}
+                                      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium cursor-pointer transition-colors ${
+                                        isChecked
+                                          ? "border-emerald-300 bg-emerald-100/80 text-emerald-950 font-semibold"
+                                          : "border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => handleToggleUserModule(user.userId, user.allowedItem, modKey)}
+                                        className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                      />
+                                      <span>{mod.icon} {mod.label}</span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end pt-1 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeAccess(user.userId, user.allowedItem)}
+                              className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                            >
+                              Revoke Access
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1589,6 +1852,7 @@ export default function CryoSearchApp() {
         onClose={() => setIsSendRequestOpen(false)}
         onSendRequest={handleSendAccessRequest}
         onSendEmailInvite={handleSendEmailInvite}
+        purchasedModules={getPurchasedModules()}
       />
 
       <AllowedUsersModal

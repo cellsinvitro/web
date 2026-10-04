@@ -255,10 +255,10 @@ export type CryoInvitePreview = {
  * Lab owner: send an email invite to a collaborator.
  * POST /cryosearch/invite
  */
-export async function sendCryoInvite(email: string, itemId: string) {
+export async function sendCryoInvite(email: string, itemId: string, allowedModules?: string[]) {
   return apiFetch<{ success: boolean; emailSent: boolean; acceptUrl: string }>("/cryosearch/invite", {
     method: "POST",
-    body: JSON.stringify({ email, itemId }),
+    body: JSON.stringify({ email, itemId, allowedModules }),
   });
 }
 

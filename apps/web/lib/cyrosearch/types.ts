@@ -85,6 +85,7 @@ export interface ReceivedRequest {
   requestedItem: string; // e.g. "lab0-con0-rac0"
   requestedItemType: string;
   requestedItemName: string[];
+  allowedModules?: string[];
   showDetails?: boolean;
 }
 
@@ -97,6 +98,7 @@ export interface SentRequest {
   requestedItem: string;
   requestedItemType: string;
   requestedItemName: string[];
+  allowedModules?: string[];
   showDetails?: boolean;
 }
 
@@ -107,6 +109,7 @@ export interface AllowedUsersModel {
   allowedItem: string;
   allowedItemType: string;
   allowedItemName: string[];
+  allowedModules?: string[];
   showDetails?: boolean;
 }
 

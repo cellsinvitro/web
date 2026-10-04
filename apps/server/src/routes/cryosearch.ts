@@ -81,6 +81,7 @@ type AllowedUsersModel = {
   allowedItem: string;
   allowedItemType: string;
   allowedItemName: string[];
+  allowedModules?: string[];
 };
 
 type CryoState = {
@@ -210,6 +211,7 @@ cryoSearchRoutes.post("/invite", async (c) => {
   const body = (await c.req.json().catch(() => null)) as {
     email?: string;
     itemId?: string;
+    allowedModules?: string[];
   } | null;
 
   if (!body) throw new HTTPException(400, { message: "Request body is required" });
@@ -291,7 +293,14 @@ cryoSearchRoutes.post("/invite", async (c) => {
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
 
   await prisma.cryoInvite.create({
-    data: { token, ownerId, inviteeEmail: email, itemId, expiresAt },
+    data: {
+      token,
+      ownerId,
+      inviteeEmail: email,
+      itemId,
+      allowedModules: body?.allowedModules ?? [],
+      expiresAt,
+    },
   });
 
   // Send email — always log the accept URL so it's accessible even if email fails
@@ -423,6 +432,7 @@ cryoSearchRoutes.post("/invite/:token/accept", async (c) => {
     allowedItem: invite.itemId,
     allowedItemType: resolved.itemType,
     allowedItemName: resolved.itemPath,
+    allowedModules: invite.allowedModules ?? [],
   };
 
   const currentAllowed = ((ownerState?.allowedUsers as unknown as AllowedUsersModel[]) ?? []);
