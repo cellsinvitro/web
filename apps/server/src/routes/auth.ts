@@ -237,6 +237,59 @@ authRoutes.patch("/me", requireAuth, async (c) => {
   return c.json({ user: toPublicUser(user) });
 });
 
+authRoutes.delete("/me", requireAuth, async (c) => {
+  const authUser = c.get("user");
+  const userId = authUser.sub;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true },
+  });
+
+  if (!user) {
+    throw new HTTPException(404, { message: "User not found" });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Delete audit logs that reference userId directly (non-FK tables)
+    await tx.stockActivityLog.deleteMany({
+      where: { userId },
+    });
+    await tx.logbookActivity.deleteMany({
+      where: { userId },
+    });
+    await tx.notebookActivityLog.deleteMany({
+      where: {
+        OR: [{ userId }, { targetUserId: userId }],
+      },
+    });
+
+    // 2. Delete maintenance rules created by this user
+    await tx.maintenanceRule.deleteMany({
+      where: { createdById: userId },
+    });
+
+    // 3. Delete OTP codes for this user's email if present
+    if (user.email) {
+      await tx.otpCode.deleteMany({
+        where: { email: user.email },
+      });
+    }
+
+    // 4. Delete the User record (Prisma onDelete: Cascade deletes all associated user data across all tables)
+    await tx.user.delete({
+      where: { id: userId },
+    });
+  });
+
+  clearAuthCookies(c);
+
+  return c.json({
+    success: true,
+    message: "Your account and all associated data have been permanently deleted.",
+  });
+});
+
 type SendOtpBody = {
   email?: string;
   purpose?: OtpPurpose;

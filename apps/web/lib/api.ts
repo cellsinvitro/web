@@ -201,6 +201,14 @@ export async function updateProfile(input: {
   return data.user;
 }
 
+export async function deleteAccount() {
+  const data = await apiFetch<{ success: boolean; message: string }>("/auth/me", {
+    method: "DELETE",
+  });
+  clearAccessToken();
+  return data;
+}
+
 export type CryoSearchState = {
   labs: LabModel[];
   activities: LabActivityModel[];

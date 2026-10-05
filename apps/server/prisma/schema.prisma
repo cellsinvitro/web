@@ -1279,7 +1279,7 @@ model StockItem {
   lab                LabWorkspace        @relation(fields: [labId], references: [id], onDelete: Cascade)
   category           StockCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   location           Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  createdBy          User                @relation("StockItemCreator", fields: [createdById], references: [id])
+  createdBy          User                @relation("StockItemCreator", fields: [createdById], references: [id], onDelete: Cascade)
   tags               StockItemTag[]
   transactionItems   StockTransactionItem[]
   activityLogs       StockActivityLog[]
@@ -1315,7 +1315,7 @@ model StockTransaction {
   remarks     String?
   createdAt   DateTime             @default(now())
   lab         LabWorkspace         @relation(fields: [labId], references: [id], onDelete: Cascade)
-  createdBy   User                 @relation("StockTransactionCreator", fields: [createdById], references: [id])
+  createdBy   User                 @relation("StockTransactionCreator", fields: [createdById], references: [id], onDelete: Cascade)
   items       StockTransactionItem[]
 
   @@index([labId, createdAt])

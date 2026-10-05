@@ -16,6 +16,7 @@ import {
   sendOtpApi,
   verifyOtpApi,
   updateProfile,
+  deleteAccount as deleteAccountApi,
 } from "@/lib/api";
 import type { AuthUser, Designation } from "@/lib/auth-storage";
 import GlobalLoader from "@/components/GlobalLoader";
@@ -33,6 +34,7 @@ type AuthContextValue = {
   loginWithOtp: (email: string, code: string) => Promise<void>;
   register: (name: string, email: string, password: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   updateProfile: (input: ProfileUpdateInput) => Promise<void>;
 };
 
@@ -97,6 +99,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await deleteAccountApi();
+      setUser(null);
+    } finally {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+  }, []);
+
   const updateProfileFields = useCallback(async (input: ProfileUpdateInput) => {
     const updated = await updateProfile(input);
     setUser(updated);
@@ -112,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithOtp,
         register,
         logout,
+        deleteAccount,
         updateProfile: updateProfileFields,
       }}
     >
