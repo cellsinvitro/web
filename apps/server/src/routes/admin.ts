@@ -389,15 +389,12 @@ adminRoutes.delete("/users/:id", async (c) => {
 
   // Clean up dependent records explicitly to prevent foreign key constraint violations
   await prisma.$transaction([
-    prisma.liveClass.deleteMany({ where: { teacherId: userId } }),
     prisma.otpCode.deleteMany({ where: { email: target.email } }),
     prisma.refreshToken.deleteMany({ where: { userId } }),
     prisma.cryoSearchState.deleteMany({ where: { userId } }),
     prisma.moduleProgress.deleteMany({ where: { userId } }),
     prisma.certificate.deleteMany({ where: { userId } }),
     prisma.enrollment.deleteMany({ where: { userId } }),
-    prisma.liveClassEnrollment.deleteMany({ where: { userId } }),
-    prisma.liveClassAttendance.deleteMany({ where: { userId } }),
     prisma.consultancyBooking.deleteMany({ where: { userId } }),
     prisma.studyMaterialDownload.deleteMany({ where: { userId } }),
     prisma.user.delete({ where: { id: userId } }),
@@ -411,7 +408,6 @@ adminRoutes.get("/users/:id/history", async (c) => {
 
   const [
     moduleProgress,
-    liveClassAttendance,
     certificates,
     enrollments,
     kitOrderEvents,
@@ -419,7 +415,6 @@ adminRoutes.get("/users/:id/history", async (c) => {
     studyMaterialDownloads,
   ] = await Promise.all([
     prisma.moduleProgress.findMany({ where: { userId }, orderBy: { startedAt: "desc" } }),
-    prisma.liveClassAttendance.findMany({ where: { userId }, orderBy: { joinedAt: "desc" } }),
     prisma.certificate.findMany({ where: { userId }, orderBy: { issuedAt: "desc" } }),
     prisma.enrollment.findMany({ where: { userId }, orderBy: { purchasedAt: "desc" } }),
     prisma.kitOrderEvent.findMany({ where: { actorId: userId }, orderBy: { createdAt: "desc" } }),
@@ -440,16 +435,6 @@ adminRoutes.get("/users/:id/history", async (c) => {
           title: `Module: ${module?.title || "Unknown"}`,
           description: item.completed ? "Completed" : `In progress (${(item.watchProgress || 0)}%)`,
           timestamp: item.startedAt,
-          type: "info",
-        };
-      }
-      case "live_class_attendance": {
-        const liveClass = item.liveClass;
-        return {
-          id: item.id,
-          title: `Live Class: ${liveClass?.title || "Unknown"}`,
-          description: item.status,
-          timestamp: item.joinedAt,
           type: "info",
         };
       }
@@ -513,13 +498,12 @@ adminRoutes.get("/users/:id/history", async (c) => {
   };
 
   const historyItems = [
-    ...moduleProgress.map((item) => formatHistoryItem(item, "module_progress")),
-    ...liveClassAttendance.map((item) => formatHistoryItem(item, "live_class_attendance")),
-    ...certificates.map((item) => formatHistoryItem(item, "certificate")),
-    ...enrollments.map((item) => formatHistoryItem(item, "enrollment")),
-    ...kitOrderEvents.map((item) => formatHistoryItem(item, "kit_order_event")),
-    ...consultancyBookings.map((item) => formatHistoryItem(item, "consultancy_booking")),
-    ...studyMaterialDownloads.map((item) =>
+    ...moduleProgress.map((item: any) => formatHistoryItem(item, "module_progress")),
+    ...certificates.map((item: any) => formatHistoryItem(item, "certificate")),
+    ...enrollments.map((item: any) => formatHistoryItem(item, "enrollment")),
+    ...kitOrderEvents.map((item: any) => formatHistoryItem(item, "kit_order_event")),
+    ...consultancyBookings.map((item: any) => formatHistoryItem(item, "consultancy_booking")),
+    ...studyMaterialDownloads.map((item: any) =>
       formatHistoryItem(item, "study_material_download")
     ),
   ];

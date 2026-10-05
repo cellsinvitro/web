@@ -7,7 +7,6 @@ const mobileNavItems = [
   { label: "Overview", href: "/dashboard" },
   { label: "CyroSearch", href: "/cyrosearch" },
   { label: "Courses", href: "/dashboard/courses" },
-  { label: "Live Classes", href: "/dashboard/live-classes" },
   { label: "Consultancy", href: "/dashboard/consultancy" },
   { label: "Resources", href: "/dashboard/resources" },
   { label: "Kits", href: "/dashboard/kits" },

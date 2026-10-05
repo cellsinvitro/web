@@ -23,9 +23,6 @@ model User {
   moduleProgress     ModuleProgress[]
   payments           Payment[]
   kitOrderEvents     KitOrderEvent[] @relation("KitOrderEventActor")
-  liveClassesAsTeacher LiveClass[] @relation("LiveClassTeacher")
-  liveClassEnrollments LiveClassEnrollment[]
-  liveClassAttendance  LiveClassAttendance[]
   consultancyBookings ConsultancyBooking[]
   studyMaterialDownloads StudyMaterialDownload[]
   refreshTokens      RefreshToken[]
@@ -288,7 +285,6 @@ model Course {
   prerequisiteFor     CoursePrerequisite[] @relation("PrerequisiteCourses")
   enrollments         Enrollment[]
   payments            Payment[]
-  liveClasses         LiveClass[]
 }
 
 model CourseModule {
@@ -408,9 +404,6 @@ model Payment {
   createdAt           DateTime             @default(now())
   completedAt         DateTime?
   enrollments         Enrollment[]
-  liveClassEnrollments LiveClassEnrollment[]
-  liveClass           LiveClass?           @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-  liveClassId         String?
   course              Course?              @relation(fields: [courseId], references: [id])
   package             CoursePackage?       @relation(fields: [packageId], references: [id])
   kit                 ResearchKit?         @relation(fields: [kitId], references: [id])
@@ -424,7 +417,6 @@ model Payment {
 
   @@index([userId])
   @@index([providerOrderId])
-  @@index([liveClassId])
   @@index([kitId])
   @@index([studyMaterialId])
   @@index([studyMaterialFileId])
@@ -445,75 +437,6 @@ model KitOrderEvent {
   @@index([status])
 }
 
-model LiveClass {
-  id                    String           @id @default(cuid())
-  title                 String
-  description           String?
-  thumbnail             String?
-  courseId              String?
-  teacherId             String
-  roomName              String           @unique
-  scheduledAt           DateTime
-  startTime             String
-  duration              Int
-  maxParticipants       Int              @default(100)
-  price                 Int              @default(0)
-  originalPrice         Int?
-  currency              String           @default("INR")
-  isPaid                Boolean          @default(false)
-  studentCameraEnabled  Boolean          @default(true)
-  studentMicrophoneEnabled Boolean       @default(true)
-  chatEnabled           Boolean          @default(true)
-  recordingEnabled      Boolean          @default(false)
-  status                LiveClassStatus  @default(SCHEDULED)
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  course                Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  teacher               User             @relation("LiveClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  enrollments           LiveClassEnrollment[]
-  attendance            LiveClassAttendance[]
-  payments              Payment[]
-
-  @@index([scheduledAt, status])
-  @@index([teacherId])
-  @@index([courseId])
-}
-
-model LiveClassEnrollment {
-  id          String                    @id @default(cuid())
-  userId      String
-  liveClassId String
-  paymentId   String?
-  status      LiveClassEnrollmentStatus @default(ACTIVE)
-  enrolledAt  DateTime                  @default(now())
-  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  liveClass   LiveClass                 @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-  payment     Payment?                  @relation(fields: [paymentId], references: [id])
-
-  @@unique([userId, liveClassId])
-  @@index([liveClassId])
-}
-
-model LiveClassAttendance {
-  id          String           @id @default(cuid())
-  userId      String
-  liveClassId String
-  joinedAt    DateTime         @default(now())
-  leftAt      DateTime?
-  duration    Int              @default(0)
-  status      AttendanceStatus @default(PRESENT)
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  liveClass   LiveClass        @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-
-  @@index([userId, liveClassId])
-  @@index([liveClassId, joinedAt])
-}
-
-model LiveClassWebhookEvent {
-  id        String   @id
-  event     String
-  createdAt DateTime @default(now())
-}
 
 model ModuleProgress {
   id                    String       @id @default(cuid())
@@ -738,22 +661,6 @@ enum ReminderMode {
   OFF
 }
 
-enum LiveClassStatus {
-  SCHEDULED
-  LIVE
-  COMPLETED
-  CANCELLED
-}
-
-enum LiveClassEnrollmentStatus {
-  ACTIVE
-  CANCELLED
-}
-
-enum AttendanceStatus {
-  PRESENT
-  LEFT
-}
 
 enum OtpPurpose {
   REGISTRATION

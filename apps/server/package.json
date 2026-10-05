@@ -23,7 +23,6 @@
     "dotenv": "^16.4.7",
     "hono": "^4.7.0",
     "jose": "^6.2.9",
-    "livekit-server-sdk": "^2.18.0",
     "nodemailer": "^10.0.13",
     "pdfkit": "^0.20.2",
     "pg": "^8.14.0",

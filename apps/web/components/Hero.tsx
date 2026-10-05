@@ -116,17 +116,10 @@ export default function Hero() {
               Explore Research Kits
               <span>→</span>
             </Link>
-
-            <Link
-              href="#features"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/70 px-6 py-3.5 text-sm font-semibold text-slate-700 backdrop-blur-sm transition-all hover:bg-white"
-            >
-              Discover More
-            </Link>
           </div>
 
         </div>
       </div>
     </section>
   );
-}
+}
