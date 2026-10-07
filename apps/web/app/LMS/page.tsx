@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import AuthGuard from "@/components/AuthGuard";
 import CryoSearchApp from "@/components/LMS/CryoSearchApp";
 import GlobalLoader from "@/components/GlobalLoader";
 
@@ -17,11 +16,9 @@ export default function CyroSearchPage() {
     <main className="cryosearch-theme min-h-screen overflow-x-hidden bg-slate-50 flex flex-col">
       <Navbar />
       <div className="flex-1 pt-24 sm:pt-28">
-        <AuthGuard>
-          <Suspense fallback={<GlobalLoader fullScreen={false} sublabel="Loading CryoSearch..." />}>
-            <CryoSearchApp />
-          </Suspense>
-        </AuthGuard>
+        <Suspense fallback={<GlobalLoader fullScreen={false} sublabel="Loading CryoSearch..." />}>
+          <CryoSearchApp />
+        </Suspense>
       </div>
       <Footer />
     </main>

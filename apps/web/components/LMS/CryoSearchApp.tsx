@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   LabModel,
   ContainerModel,
@@ -47,6 +48,8 @@ import StockActivity from "./stock/StockActivity";
 import StockSettings from "./stock/StockSettings";
 
 export default function CryoSearchApp() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
 
@@ -81,17 +84,23 @@ export default function CryoSearchApp() {
   const [purchaseTargetSection, setPurchaseTargetSection] = useState<string | undefined>(undefined);
 
   const loadUserAccess = useCallback(async () => {
+    if (!user) {
+      setUserAccess({ isAdmin: false, hasFullAccess: false, sections: ["lms_repo", "lms_access"] });
+      return;
+    }
     try {
       const res = await fetchLmsUserAccess();
       setUserAccess(res);
     } catch {
-      setUserAccess({ isAdmin: false, hasFullAccess: false, sections: ["lms_access"] });
+      setUserAccess({ isAdmin: false, hasFullAccess: false, sections: ["lms_repo", "lms_access"] });
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    loadUserAccess();
-  }, [loadUserAccess]);
+    if (!loading) {
+      loadUserAccess();
+    }
+  }, [loadUserAccess, loading]);
 
   const isSectionUnlocked = useCallback(
     (key: string) => {
@@ -109,7 +118,30 @@ export default function CryoSearchApp() {
     return allModules.filter((key) => userAccess.sections.includes(key));
   }, [userAccess]);
 
+  const requireUserAuth = useCallback(
+    (targetTab = "repo") => {
+      if (!user) {
+        router.push(`/login?redirect=${encodeURIComponent(`/LMS?tab=${targetTab}`)}`);
+        return false;
+      }
+      return true;
+    },
+    [user, router]
+  );
+
+  // If user tries to open a protected LMS tab without being logged in, redirect to login
+  useEffect(() => {
+    if (!loading && !user && activeTab !== "repo") {
+      router.replace(`/login?redirect=${encodeURIComponent(`/LMS?tab=${activeTab}`)}`);
+    }
+  }, [user, loading, activeTab, router]);
+
   const handleTabSelect = (tab: "repo" | "access" | "stock" | "budget" | "logbook") => {
+    if (!user && tab !== "repo") {
+      router.push(`/login?redirect=${encodeURIComponent(`/LMS?tab=${tab}`)}`);
+      return;
+    }
+
     const sectionMap: Record<string, string> = {
       repo: "lms_repo",
       stock: "lms_stock",
@@ -235,6 +267,12 @@ export default function CryoSearchApp() {
 
   // Load from storage on mount
   useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      setIsLoaded(true);
+      return;
+    }
+
     fetchCryoSearchState()
       .then((state) => {
         setLabs(state.labs);
@@ -252,7 +290,7 @@ export default function CryoSearchApp() {
     fetchCryoSeats()
       .then((s) => setSeats(s))
       .catch(() => { /* non-critical — seats banner is just informational */ });
-  }, []);
+  }, [user, loading]);
 
   const currentState = (): CryoSearchState => ({
     labs,
@@ -990,7 +1028,9 @@ export default function CryoSearchApp() {
                 {/* Create Lab — only visible in the CryoSearch repo tab */}
                 <button
                   type="button"
-                  onClick={() => setIsCreateLabOpen(true)}
+                  onClick={() => {
+                    if (requireUserAuth("repo")) setIsCreateLabOpen(true);
+                  }}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-pink-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-pink-500"
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
@@ -1075,7 +1115,9 @@ export default function CryoSearchApp() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => setIsCreateLabOpen(true)}
+                        onClick={() => {
+                          if (requireUserAuth("repo")) setIsCreateLabOpen(true);
+                        }}
                         className="mt-4 rounded-xl bg-pink-600 px-4 py-2 text-xs font-bold text-white hover:bg-pink-500"
                       >
                         Create First Lab

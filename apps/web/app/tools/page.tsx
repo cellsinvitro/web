@@ -11,6 +11,13 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+    href: "/tools/document-modification",
+    title: "Document Modification & Editing",
+    description:
+      "Confidential grammar checking, proofreading, page layout formatting & citation standardizing for scientific manuscripts.",
+    tag: "Publication & Writing",
+  },
+  {
     href: "/tools/molarity",
     title: "Molarity calculator",
     description:
