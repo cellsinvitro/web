@@ -143,6 +143,8 @@ paymentsRoutes.post("/create-order", async (c) => {
     customerEmail,
     customerPhone,
     shippingAddress,
+    docServiceTitle,
+    customAmount,
   } = await c.req.json<{
     courseId?: string;
     packageId?: string;
@@ -155,11 +157,13 @@ paymentsRoutes.post("/create-order", async (c) => {
     customerEmail?: string;
     customerPhone?: string;
     shippingAddress?: string;
+    docServiceTitle?: string;
+    customAmount?: number;
   }>();
 
-  const targetCount = [courseId, packageId, kitId, resourceScope].filter(Boolean).length;
+  const targetCount = [courseId, packageId, kitId, resourceScope, docServiceTitle].filter(Boolean).length;
   if (targetCount === 0) {
-    throw new HTTPException(400, { message: "courseId, packageId, kitId, or resourceScope required" });
+    throw new HTTPException(400, { message: "courseId, packageId, kitId, resourceScope, or docServiceTitle required" });
   }
   if (targetCount > 1) {
     throw new HTTPException(400, { message: "Provide only one purchase target" });
@@ -170,7 +174,11 @@ paymentsRoutes.post("/create-order", async (c) => {
   let title = "";
   let kitQuantity = 1;
 
-  if (courseId) {
+  if (docServiceTitle) {
+    amount = customAmount && customAmount > 0 ? customAmount : 100;
+    currency = "INR";
+    title = docServiceTitle;
+  } else if (courseId) {
     const course = await prisma.course.findFirst({
       where: { id: courseId, published: true },
       include: { prerequisites: true },
@@ -352,7 +360,7 @@ paymentsRoutes.post("/create-order", async (c) => {
       customerEmail: customerEmail?.trim().toLowerCase() || null,
       customerPhone: customerPhone?.trim() || null,
       shippingAddress: shippingAddress?.trim() || null,
-      itemTitle: kitId || resourceScope ? title : null,
+      itemTitle: kitId || resourceScope || docServiceTitle ? title : null,
       unitAmount: kitId || resourceScope ? (kitQuantity > 0 ? amount / kitQuantity : amount) : null,
       fulfillmentStatus: kitId ? "PROCESSING" : null,
       amount,

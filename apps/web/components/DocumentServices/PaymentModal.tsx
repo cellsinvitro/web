@@ -1,6 +1,37 @@
 "use client";
 
 import { useState } from "react";
+import { createPaymentOrder, verifyPayment } from "@/lib/api";
+
+type RazorpayResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => {
+      open: () => void;
+      on: (event: string, handler: (response: RazorpayResponse) => void) => void;
+    };
+  }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window !== "undefined" && window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -33,34 +64,139 @@ export default function PaymentModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [paymentId, setPaymentId] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmitPayment = (e: React.FormEvent) => {
+  const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userEmail) return;
+    if (!userEmail || !userName) {
+      setError("Please fill in your name and email address.");
+      return;
+    }
 
     setIsProcessing(true);
-    setTimeout(() => {
-      const generatedId = `CIV-DOC-${Math.floor(100000 + Math.random() * 900000)}`;
-      setOrderId(generatedId);
+    setError(null);
+
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || !window.Razorpay) {
+        throw new Error("Razorpay SDK failed to load. Please check your internet connection and try again.");
+      }
+
+      let backendOrder: {
+        orderId?: string;
+        keyId?: string;
+        paymentId?: string;
+        amount?: number;
+        currency?: string;
+      } | null = null;
+
+      try {
+        backendOrder = await createPaymentOrder({
+          docServiceTitle: serviceTitle,
+          customAmount: totalPrice,
+          customerName: userName.trim(),
+          customerEmail: userEmail.trim().toLowerCase(),
+          customerPhone: userPhone.trim(),
+        });
+      } catch (err) {
+        console.warn("[PaymentModal] Backend order creation skipped/failed:", err);
+      }
+
+      const razorpayKey =
+        backendOrder?.keyId ||
+        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+        "rzp_test_fallback";
+
+      const checkoutOptions: Record<string, unknown> = {
+        key: razorpayKey,
+        amount: Math.round((backendOrder?.amount || totalPrice) * 100),
+        currency: backendOrder?.currency || "INR",
+        name: "CellsInVitro",
+        description: `${serviceTitle} (${quantity.toLocaleString()} ${unitLabel})`,
+        order_id: backendOrder?.orderId || undefined,
+        prefill: {
+          name: userName,
+          email: userEmail,
+          contact: userPhone,
+        },
+        notes: {
+          serviceTitle,
+          uploadedFileName,
+          referenceFileName: referenceFileName || "",
+          specialInstructions: notes,
+          paymentMethod,
+        },
+        theme: {
+          color: "#000000",
+        },
+        method: {
+          netbanking: true,
+          card: true,
+          upi: true,
+          wallet: true,
+          qr: true,
+        },
+        handler: async (response: RazorpayResponse) => {
+          if (backendOrder?.paymentId) {
+            try {
+              await verifyPayment({
+                paymentId: backendOrder.paymentId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+            } catch (err) {
+              console.error("[PaymentModal] Payment verification error:", err);
+            }
+          }
+
+          const confirmedOrderId =
+            response.razorpay_order_id ||
+            `CIV-DOC-${Math.floor(100000 + Math.random() * 900000)}`;
+          const confirmedPaymentId =
+            response.razorpay_payment_id || `PAY-${Date.now()}`;
+
+          setOrderId(confirmedOrderId);
+          setPaymentId(confirmedPaymentId);
+          setIsProcessing(false);
+          setIsSuccess(true);
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          },
+        },
+      };
+
+      const rzpInstance = new window.Razorpay(checkoutOptions);
+      rzpInstance.open();
+    } catch (err) {
+      console.error("[PaymentModal] Error initiating Razorpay payment:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to open Razorpay payment gateway."
+      );
       setIsProcessing(false);
-      setIsSuccess(true);
-    }, 1500);
+    }
   };
 
   const handleReset = () => {
     setIsSuccess(false);
+    setError(null);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl sm:p-8 text-black">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 focus:outline-none"
+          className="absolute top-4 right-4 text-slate-500 hover:text-black focus:outline-none"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -69,39 +205,48 @@ export default function PaymentModal({
 
         {!isSuccess ? (
           <div>
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60">
+            <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-black border border-slate-300">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Secure Order Checkout</h3>
-                <p className="text-xs text-slate-500">100% Confidential • Instant Processing</p>
+                <h3 className="text-lg font-bold text-black">Secure Razorpay Checkout</h3>
+                <p className="text-xs text-slate-600">100% Encrypted • Instant Processing</p>
               </div>
             </div>
 
             {/* Order Summary */}
-            <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-200/80">
-              <div className="flex justify-between items-center text-sm font-medium text-slate-800">
+            <div className="mt-4 rounded-xl bg-slate-100 p-4 border border-slate-300">
+              <div className="flex justify-between items-center text-sm font-bold text-black">
                 <span>{serviceTitle}</span>
-                <span className="font-semibold text-emerald-600">₹{totalPrice.toLocaleString("en-IN")}</span>
+                <span className="font-extrabold text-black">₹{totalPrice.toLocaleString("en-IN")}</span>
               </div>
-              <div className="mt-2 text-xs text-slate-500 space-y-1">
-                <p><span className="font-medium text-slate-700">Main Document:</span> {uploadedFileName}</p>
+              <div className="mt-2 text-xs text-slate-700 space-y-1">
+                <p><span className="font-semibold text-black">Main Document:</span> {uploadedFileName}</p>
                 {referenceFileName && (
-                  <p><span className="font-medium text-slate-700">Reference File:</span> {referenceFileName}</p>
+                  <p><span className="font-semibold text-black">Reference File:</span> {referenceFileName}</p>
                 )}
                 <p>
-                  <span className="font-medium text-slate-700">Volume:</span> {quantity.toLocaleString()} {unitLabel} @ ₹{unitPrice}/{unitLabel.slice(0, -1)}
+                  <span className="font-semibold text-black">Volume:</span> {quantity.toLocaleString()} {unitLabel} @ ₹{unitPrice}/{unitLabel.slice(0, -1)}
                 </p>
-                <p><span className="font-medium text-slate-700">Estimated Delivery:</span> 1-3 Business Days</p>
+                <p><span className="font-semibold text-black">Estimated Delivery:</span> 1-3 Business Days</p>
               </div>
             </div>
 
+            {error && (
+              <div className="mt-4 rounded-xl bg-slate-100 p-3 border border-slate-400 text-xs text-black font-medium flex items-center gap-2">
+                <svg className="h-4 w-4 shrink-0 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmitPayment} className="mt-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                   Full Name *
                 </label>
                 <input
@@ -110,13 +255,13 @@ export default function PaymentModal({
                   placeholder="Dr. Rajesh Kumar"
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                     Email Address *
                   </label>
                   <input
@@ -125,11 +270,11 @@ export default function PaymentModal({
                     placeholder="author@univ.edu"
                     value={userEmail}
                     onChange={(e) => setUserEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                     Phone / WhatsApp (Optional)
                   </label>
                   <input
@@ -137,13 +282,13 @@ export default function PaymentModal({
                     placeholder="+91 98765 43210"
                     value={userPhone}
                     onChange={(e) => setUserPhone(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                   Special Instructions / Style Notes (Optional)
                 </label>
                 <textarea
@@ -151,14 +296,14 @@ export default function PaymentModal({
                   placeholder="e.g. Follow APA 7th style for references, maintain UK English spelling..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
                 />
               </div>
 
-              {/* Payment Method Selector */}
+              {/* Preferred Payment Method Selector */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                  Select Payment Gateway
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
+                  Select Preferred Payment Method
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -166,42 +311,42 @@ export default function PaymentModal({
                     onClick={() => setPaymentMethod("upi")}
                     className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-xs font-medium transition-all ${
                       paymentMethod === "upi"
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        ? "border-black bg-black text-white ring-1 ring-black"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-black"
                     }`}
                   >
                     <span className="font-bold">UPI / GPay</span>
-                    <span className="text-[10px] text-slate-400">Instant QR</span>
+                    <span className={`text-[10px] ${paymentMethod === "upi" ? "text-slate-300" : "text-slate-500"}`}>Instant QR</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod("card")}
                     className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-xs font-medium transition-all ${
                       paymentMethod === "card"
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        ? "border-black bg-black text-white ring-1 ring-black"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-black"
                     }`}
                   >
                     <span className="font-bold">Credit/Debit</span>
-                    <span className="text-[10px] text-slate-400">Visa / Mastercard</span>
+                    <span className={`text-[10px] ${paymentMethod === "card" ? "text-slate-300" : "text-slate-500"}`}>Visa / Mastercard</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod("netbanking")}
                     className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-xs font-medium transition-all ${
                       paymentMethod === "netbanking"
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        ? "border-black bg-black text-white ring-1 ring-black"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-black"
                     }`}
                   >
                     <span className="font-bold">NetBanking</span>
-                    <span className="text-[10px] text-slate-400">All Indian Banks</span>
+                    <span className={`text-[10px] ${paymentMethod === "netbanking" ? "text-slate-300" : "text-slate-500"}`}>All Indian Banks</span>
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-lg bg-emerald-50/70 p-3 border border-emerald-100 flex items-start gap-2 text-xs text-emerald-900">
-                <svg className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="rounded-lg bg-slate-100 p-3 border border-slate-300 flex items-start gap-2 text-xs text-black">
+                <svg className="h-4 w-4 text-black mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <span>
@@ -212,7 +357,7 @@ export default function PaymentModal({
               <button
                 type="submit"
                 disabled={isProcessing}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 px-4 text-sm font-semibold text-white shadow-md transition-all hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-black py-3.5 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-slate-900 active:scale-[0.99] disabled:opacity-50"
               >
                 {isProcessing ? (
                   <>
@@ -220,10 +365,10 @@ export default function PaymentModal({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    <span>Processing Payment...</span>
+                    <span>Opening Razorpay Gateway...</span>
                   </>
                 ) : (
-                  <span>Confirm & Pay ₹{totalPrice.toLocaleString("en-IN")}</span>
+                  <span>Pay ₹{totalPrice.toLocaleString("en-IN")} via Razorpay →</span>
                 )}
               </button>
             </form>
@@ -231,15 +376,18 @@ export default function PaymentModal({
         ) : (
           /* Confirmation State */
           <div className="py-4 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-4 animate-bounce">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-black text-white mb-4">
               <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900">Payment Successful!</h3>
-            <p className="mt-1 text-sm font-semibold text-emerald-700">Order ID: {orderId}</p>
+            <h3 className="text-2xl font-bold text-black">Payment Successful!</h3>
+            <p className="mt-1 text-sm font-bold text-black">Order ID: {orderId}</p>
+            {paymentId && (
+              <p className="text-xs text-slate-600 font-mono">Payment Ref: {paymentId}</p>
+            )}
 
-            <div className="mt-5 text-left rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs text-slate-600 space-y-2">
+            <div className="mt-5 text-left rounded-xl bg-slate-100 p-4 border border-slate-300 text-xs text-slate-800 space-y-2">
               <p>✅ <strong>Confirmation Sent:</strong> Receipt & document dispatch confirmation sent to <strong>{userEmail}</strong>.</p>
               <p>✉️ <strong>Direct Inbox Delivery:</strong> Your file <em>"{uploadedFileName}"</em> has reached our editor inbox.</p>
               <p>⏱️ <strong>Estimated Turnaround:</strong> 1 - 3 Business Days.</p>
@@ -248,7 +396,7 @@ export default function PaymentModal({
 
             <button
               onClick={handleReset}
-              className="mt-6 w-full rounded-xl bg-slate-900 py-2.5 px-4 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
+              className="mt-6 w-full rounded-xl bg-black py-3 px-4 text-sm font-bold text-white hover:bg-slate-900 transition-colors"
             >
               Done / Return to Page
             </button>

@@ -1249,6 +1249,8 @@ export async function createPaymentOrder(input: {
   customerEmail?: string;
   customerPhone?: string;
   shippingAddress?: string;
+  docServiceTitle?: string;
+  customAmount?: number;
 }) {
   return apiFetch<{
     free?: boolean;
