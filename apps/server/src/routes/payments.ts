@@ -11,11 +11,12 @@ import {
 } from "../lib/razorpay.js";
 import { resolveKitImageUrl } from "../lib/kits.js";
 import { notifyKitOrderCreated, notifyCourseEnrollment, notifyResourceAccess } from "../lib/email.js";
+import { getAccessTokenFromRequest, setAuthCookies } from "../lib/cookies.js";
+import { verifyAccessToken } from "../lib/jwt.js";
+import { issueTokenPair } from "../lib/session.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 
 export const paymentsRoutes = new Hono<{ Variables: AuthVariables }>();
-
-paymentsRoutes.use("*", requireAuth);
 
 const kitOrderInclude = {
   kit: { select: { id: true, title: true, imageStorageKey: true } },
@@ -68,9 +69,12 @@ function serializeKitOrder(order: KitOrderPayload, apiBaseUrl: string) {
   };
 }
 
-paymentsRoutes.get("/kits", async (c) => {
+paymentsRoutes.get("/kits", requireAuth, async (c) => {
   const orders = await prisma.payment.findMany({
-    where: { userId: c.get("user").sub, kitId: { not: null } },
+    where: {
+      userId: c.get("user").sub,
+      OR: [{ kitId: { not: null } }, { itemTitle: { not: null } }],
+    },
     orderBy: { createdAt: "desc" },
     include: kitOrderInclude,
   });
@@ -81,9 +85,13 @@ paymentsRoutes.get("/kits", async (c) => {
   return c.json({ orders: orders.map((order) => serializeKitOrder(order, apiBaseUrl)) });
 });
 
-paymentsRoutes.get("/kits/:id", async (c) => {
+paymentsRoutes.get("/kits/:id", requireAuth, async (c) => {
   const order = await prisma.payment.findFirst({
-    where: { id: c.req.param("id"), userId: c.get("user").sub, kitId: { not: null } },
+    where: {
+      id: c.req.param("id"),
+      userId: c.get("user").sub,
+      OR: [{ kitId: { not: null } }, { itemTitle: { not: null } }],
+    },
     include: kitOrderInclude,
   });
   if (!order) throw new HTTPException(404, { message: "Order not found" });
@@ -130,7 +138,17 @@ async function grantResourceAccess(
 }
 
 paymentsRoutes.post("/create-order", async (c) => {
-  const userId = c.get("user").sub;
+  let userId: string | null = null;
+  const token = getAccessTokenFromRequest(c);
+  if (token) {
+    try {
+      const authUser = await verifyAccessToken(token);
+      userId = authUser.sub;
+    } catch {
+      // invalid token
+    }
+  }
+
   const {
     courseId,
     packageId,
@@ -167,6 +185,32 @@ paymentsRoutes.post("/create-order", async (c) => {
   }
   if (targetCount > 1) {
     throw new HTTPException(400, { message: "Provide only one purchase target" });
+  }
+
+  const normalizedEmail = customerEmail?.trim().toLowerCase();
+  if (!userId) {
+    if (!normalizedEmail) {
+      throw new HTTPException(401, { message: "Authentication required or customer email must be provided" });
+    }
+    let user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          name: customerName?.trim() || null,
+          role: "USER",
+        },
+      });
+    }
+    userId = user.id;
+  }
+
+  const userRecord = await prisma.user.findUnique({ where: { id: userId } });
+  let tokenData: { accessToken?: string } = {};
+  if (userRecord) {
+    const pair = await issueTokenPair(userRecord);
+    setAuthCookies(c, pair.accessToken, pair.refreshToken);
+    tokenData.accessToken = pair.accessToken;
   }
 
   let amount = 0;
@@ -295,9 +339,9 @@ paymentsRoutes.post("/create-order", async (c) => {
           customerEmail: customerEmail?.trim().toLowerCase() || null,
           customerPhone: customerPhone?.trim() || null,
           shippingAddress: shippingAddress?.trim() || null,
-          itemTitle: kitId || resourceScope ? title : null,
-          unitAmount: kitId || resourceScope ? amount : null,
-          fulfillmentStatus: kitId ? "PROCESSING" : null,
+          itemTitle: kitId || resourceScope || docServiceTitle ? title : null,
+          unitAmount: kitId || resourceScope || docServiceTitle ? amount : null,
+          fulfillmentStatus: kitId || docServiceTitle ? "PROCESSING" : null,
           amount: 0,
           currency,
           provider: "MANUAL",
@@ -339,7 +383,7 @@ paymentsRoutes.post("/create-order", async (c) => {
         console.error("[payments] Failed to notify kit order creation:", err)
       );
     }
-    return c.json({ free: true, paymentId: payment.id });
+    return c.json({ free: true, paymentId: payment.id, ...tokenData });
   }
 
   if (!isRazorpayConfigured()) {
@@ -361,8 +405,8 @@ paymentsRoutes.post("/create-order", async (c) => {
       customerPhone: customerPhone?.trim() || null,
       shippingAddress: shippingAddress?.trim() || null,
       itemTitle: kitId || resourceScope || docServiceTitle ? title : null,
-      unitAmount: kitId || resourceScope ? (kitQuantity > 0 ? amount / kitQuantity : amount) : null,
-      fulfillmentStatus: kitId ? "PROCESSING" : null,
+      unitAmount: kitId || resourceScope || docServiceTitle ? (kitQuantity > 0 ? amount / kitQuantity : amount) : null,
+      fulfillmentStatus: kitId || docServiceTitle ? "PROCESSING" : null,
       amount,
       currency,
       provider: "RAZORPAY",
@@ -395,11 +439,22 @@ paymentsRoutes.post("/create-order", async (c) => {
     currency: order.currency,
     keyId: getRazorpayKeyId(),
     paymentId: payment.id,
+    ...tokenData,
   });
 });
 
 paymentsRoutes.post("/verify", async (c) => {
-  const userId = c.get("user").sub;
+  let userId: string | null = null;
+  const token = getAccessTokenFromRequest(c);
+  if (token) {
+    try {
+      const authUser = await verifyAccessToken(token);
+      userId = authUser.sub;
+    } catch {
+      // invalid token
+    }
+  }
+
   const {
     razorpay_order_id,
     razorpay_payment_id,
@@ -413,7 +468,7 @@ paymentsRoutes.post("/verify", async (c) => {
   }>();
 
   const payment = await prisma.payment.findFirst({
-    where: { id: paymentId, userId },
+    where: userId ? { id: paymentId, userId } : { id: paymentId },
   });
 
   if (!payment) throw new HTTPException(404, { message: "Payment not found" });
@@ -471,9 +526,9 @@ paymentsRoutes.post("/verify", async (c) => {
   });
 
   if (payment.resourceScope) {
-    await grantResourceAccess(userId, payment.resourceScope, payment.studyMaterialId, payment.studyMaterialFileId, payment.id);
+    await grantResourceAccess(payment.userId, payment.resourceScope, payment.studyMaterialId, payment.studyMaterialFileId, payment.id);
     notifyResourceAccess({
-      userId,
+      userId: payment.userId,
       accessId: payment.id,
       resourceTitle: payment.itemTitle || "Study Material",
       scope: payment.resourceScope,
@@ -481,7 +536,7 @@ paymentsRoutes.post("/verify", async (c) => {
       currency: payment.currency,
     }).catch((err) => console.error("[payments] Failed to send resource access email:", err));
   } else if (!payment.kitId) {
-    await createEnrollments(userId, payment.courseId, payment.packageId, payment.id);
+    await createEnrollments(payment.userId, payment.courseId, payment.packageId, payment.id);
   } else {
     notifyKitOrderCreated(payment.id).catch((err) =>
       console.error("[payments] Failed to notify kit order creation:", err)

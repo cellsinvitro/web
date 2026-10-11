@@ -21,6 +21,9 @@ export async function createRazorpayOrder(input: {
   receipt: string;
   notes?: Record<string, string>;
 }) {
+  // Convert main currency amount (Rupees) to smallest subunit (paise)
+  const amountInPaise = Math.round(input.amount * 100);
+
   const response = await fetch("https://api.razorpay.com/v1/orders", {
     method: "POST",
     headers: {
@@ -28,7 +31,7 @@ export async function createRazorpayOrder(input: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amount: Math.round(input.amount), // already in paise (smallest currency unit)
+      amount: amountInPaise,
       currency: input.currency,
       receipt: input.receipt,
       notes: input.notes,

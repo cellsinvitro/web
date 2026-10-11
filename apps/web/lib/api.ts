@@ -1259,6 +1259,7 @@ export async function createPaymentOrder(input: {
     amount?: number;
     currency?: string;
     keyId?: string;
+    accessToken?: string;
   }>("/payments/create-order", {
     method: "POST",
     body: JSON.stringify(input),

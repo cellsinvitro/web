@@ -204,164 +204,22 @@ export default function DocumentModificationTool() {
 
   return (
     <div className="w-full">
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        {/* LEFT COLUMN: Service Description, Rate Matrix & Confidentiality Assurance */}
-        <div className="lg:col-span-6 space-y-6">
-          {/* Header Overview Card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200/60">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Instant Cost Calculation • Safe & Confidential
-            </span>
-
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Professional Document Editing & Modification
-            </h2>
-
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              Enhance the clarity, academic rigor, typography, and citation precision of your research manuscripts, theses, and technical reports. Submit your document with 100% confidence.
-            </p>
-
-            <div className="mt-5 grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-                  ⚡
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">1 - 3 Days</p>
-                  <p className="text-[11px] text-slate-500">Standard Turnaround</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                  🛡️
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Non-Disclosure</p>
-                  <p className="text-[11px] text-slate-500">Zero Work Misuse</p>
-                </div>
-              </div>
-            </div>
+      <div className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8 lg:p-10">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-5">
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 sm:text-2xl">Order Service & Calculate Cost</h3>
+            <p className="text-xs text-slate-500 sm:text-sm">Upload your file to auto-detect word count or enter details for instant upfront pricing</p>
           </div>
-
-          {/* Pricing Rate Card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-base font-bold text-slate-900 flex items-center justify-between">
-              <span>Transparent Rate Card</span>
-              <span className="text-xs font-normal text-slate-500">No Hidden Charges</span>
-            </h3>
-
-            <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/50">
-              <div className="flex items-center justify-between p-3.5">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Grammar & Syntax</p>
-                  <p className="text-xs text-slate-500">Punctuation, vocabulary, sentence polish</p>
-                </div>
-                <span className="rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">
-                  ₹0.9 / word
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3.5">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Proofreading</p>
-                  <p className="text-xs text-slate-500">Typos, line review, readability fix</p>
-                </div>
-                <span className="rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">
-                  ₹0.5 / word
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3.5">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Document Formatting</p>
-                  <p className="text-xs text-slate-500">1-inch margins, 1.5 spacing, 12pt fonts</p>
-                </div>
-                <span className="rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">
-                  ₹100 / page
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3.5">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Citation Formatting</p>
-                  <p className="text-xs text-slate-500">APA, IEEE, Vancouver, Harvard styles</p>
-                </div>
-                <span className="rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">
-                  ₹20 – ₹50 / cite
-                </span>
-              </div>
-            </div>
-
-            {/* Coming Soon Services */}
-            <div className="mt-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                Coming Soon Services
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {SERVICES.filter((s) => !s.isAvailable).map((service) => (
-                  <div
-                    key={service.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-200/70 bg-slate-50 p-2.5 text-xs opacity-75"
-                  >
-                    <span className="font-medium text-slate-700">{service.name}</span>
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                      Soon
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Confidentiality & Security Guarantee Card */}
-          <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/40 p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">100% Data Security & Anti-Misuse Guarantee</h3>
-                <p className="text-xs text-slate-600">Your research & intellectual property remain strictly your own.</p>
-              </div>
-            </div>
-
-            <ul className="mt-4 space-y-2 text-xs leading-relaxed text-slate-700">
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span><strong>No Work Reuse:</strong> We guarantee your uploaded Word files will NEVER be published, copied, resold, or used as our work anywhere else.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span><strong>Direct Mail Processing:</strong> Documents are transmitted directly into our secure editor inbox and auto-purged from servers after final completion.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span><strong>Non-Disclosure Agreement:</strong> Strict editor NDAs protect un-submitted manuscripts and experimental datasets.</span>
-              </li>
-            </ul>
-          </div>
+          <span className="rounded-full bg-slate-900 px-3.5 py-1 text-xs font-bold text-white shrink-0">
+            Step 1 of 2
+          </span>
         </div>
 
-        {/* RIGHT COLUMN: Interactive Order & File Upload Form */}
-        <div className="lg:col-span-6">
-          <div className="sticky top-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Order Service & Calculate Cost</h3>
-                <p className="text-xs text-slate-500">Upload your file & get instant upfront pricing</p>
-              </div>
-              <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">
-                Step 1 of 2
-              </span>
-            </div>
-
-            <div className="mt-6 space-y-5">
-              {/* Service Selection Dropdown */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
+          {/* INNER LEFT: Service Selection & Document Upload */}
+          <div className="lg:col-span-6 space-y-5">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                   Select Modification Service *
                 </label>
                 <select
@@ -503,7 +361,10 @@ export default function DocumentModificationTool() {
                   </p>
                 </div>
               )}
+            </div>
 
+            {/* INNER RIGHT: Word/Page Count, Reference File & Price Checkout */}
+            <div className="lg:col-span-6 space-y-5">
               {/* Quantity Entry (Auto-detected or Manual override) */}
               <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                 <div className="flex items-center justify-between mb-2">
@@ -608,9 +469,23 @@ export default function DocumentModificationTool() {
                 </div>
               </div>
             </div>
+
+            {/* Full-Width Trust & Non-Disclosure Guarantee */}
+            <div className="lg:col-span-12 mt-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-5 py-3.5 text-xs text-slate-700">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs">
+                  🛡️
+                </span>
+                <span className="font-semibold text-slate-900">100% Data Security & Anti-Misuse Guarantee</span>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] text-slate-500">
+                <span>✓ Strict Editor NDA</span>
+                <span>✓ Direct Mail Processing</span>
+                <span>✓ Auto-Purged After Delivery</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Payment Modal */}
       <PaymentModal
