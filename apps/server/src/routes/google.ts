@@ -225,3 +225,112 @@ googleAuthRoutes.get("/callback", async (c) => {
     return c.redirect(redirectToLogin("google"));
   }
 });
+
+
+type GoogleNativeAuthBody = {
+  idToken?: string;
+  user?: {
+    email?: string;
+    name?: string;
+    avatarUrl?: string;
+  };
+};
+
+async function handleGoogleNativeAuth(c: any) {
+  const body = (await c.req.json().catch(() => ({}))) as GoogleNativeAuthBody;
+  const { idToken } = body;
+
+  if (!idToken) {
+    throw new HTTPException(400, { message: "Google idToken is required" });
+  }
+
+  // Verify the ID token via Google's tokeninfo API
+  const tokenInfoRes = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+  );
+
+  if (!tokenInfoRes.ok) {
+    throw new HTTPException(401, { message: "Invalid or expired Google token" });
+  }
+
+  const tokenInfo = (await tokenInfoRes.json()) as {
+    sub?: string;
+    email?: string;
+    email_verified?: string | boolean;
+    name?: string;
+    picture?: string;
+  };
+
+  if (!tokenInfo.sub || !tokenInfo.email) {
+    throw new HTTPException(400, { message: "Invalid Google token payload" });
+  }
+
+  const isVerified =
+    tokenInfo.email_verified === true || tokenInfo.email_verified === "true";
+  if (!isVerified) {
+    throw new HTTPException(400, { message: "Google email is not verified" });
+  }
+
+  const email = tokenInfo.email.trim().toLowerCase();
+  const name =
+    tokenInfo.name?.trim() || body.user?.name?.trim() || email.split("@")[0];
+  const avatarUrl =
+    tokenInfo.picture?.trim() || body.user?.avatarUrl?.trim() || null;
+
+  let user = await prisma.user.findUnique({
+    where: { googleId: tokenInfo.sub },
+  });
+
+  if (user) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        name: name || user.name,
+        avatarUrl: avatarUrl || user.avatarUrl,
+      },
+    });
+  } else {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      user = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          googleId: tokenInfo.sub,
+          name: existing.name || name,
+          avatarUrl: avatarUrl || existing.avatarUrl,
+        },
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          email,
+          name,
+          googleId: tokenInfo.sub,
+          avatarUrl,
+        },
+      });
+
+      notifyNewUserRegistered({
+        userId: user.id,
+        userName: user.name || user.email?.split("@")[0] || user.email || "",
+        userEmail: user.email || "",
+        signupMethod: "google",
+      }).catch((err) =>
+        console.error("[auth] Failed to send welcome email (Google Native):", err)
+      );
+    }
+  }
+
+  const tokens = await issueTokenPair(user);
+  setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
+  return c.json({
+    user: tokens.user,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    expiresIn: tokens.expiresIn,
+  });
+}
+
+// POST /auth/google (Mobile Native Google Sign-In)
+googleAuthRoutes.post("/", handleGoogleNativeAuth);
+googleAuthRoutes.post("/token", handleGoogleNativeAuth);
