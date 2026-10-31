@@ -19,6 +19,9 @@ RUN npm ci
 # Copy the full source code
 COPY . .
 
+# Provide a placeholder DATABASE_URL during build so Prisma Client generation succeeds without DB connection
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/placeholder"
+
 # Generate Prisma Client and build the server (tsc)
 RUN npm run build --workspace=server
 
