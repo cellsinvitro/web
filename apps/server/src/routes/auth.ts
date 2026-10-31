@@ -206,16 +206,21 @@ authRoutes.get("/me", requireAuth, async (c) => {
 type UpdateProfileBody = {
   name?: string;
   designation?: string | null;
+  avatarUrl?: string | null;
 };
 
 authRoutes.patch("/me", requireAuth, async (c) => {
   const authUser = c.get("user");
   const body = (await c.req.json().catch(() => ({}))) as UpdateProfileBody;
 
-  const data: { name?: string | null; designation?: Designation | null } = {};
+  const data: { name?: string | null; designation?: Designation | null; avatarUrl?: string | null } = {};
 
   if (body.name !== undefined) {
     data.name = body.name?.trim() || null;
+  }
+
+  if (body.avatarUrl !== undefined) {
+    data.avatarUrl = body.avatarUrl?.trim() || null;
   }
 
   if (body.designation !== undefined) {

@@ -26,6 +26,7 @@ import { logbookRoutes } from "./routes/logbook.js";
 import { stockRoutes } from "./routes/stock.js";
 import { lmsRoutes } from "./routes/lms.js";
 import { adminLmsRoutes } from "./routes/admin-lms.js";
+import { mediaRoutes } from "./routes/media.js";
 
 const app = new Hono();
 const port = Number(process.env.PORT) || 3000;
@@ -80,6 +81,7 @@ app.route("/budgets", budgetRoutes);
 app.route("/logbook", logbookRoutes);
 app.route("/stock", stockRoutes);
 app.route("/lms", lmsRoutes);
+app.route("/media", mediaRoutes);
 
 
 

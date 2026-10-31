@@ -47,13 +47,17 @@ function configureCloudinary() {
   });
 }
 
-export async function uploadImageToCloudinary(data: Buffer) {
+export async function uploadImageToCloudinary(
+  data: Buffer,
+  options?: { folder?: string; publicId?: string }
+) {
   configureCloudinary();
 
   return new Promise<UploadApiResponse>((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: UPLOAD_FOLDER,
+        folder: options?.folder || UPLOAD_FOLDER,
+        public_id: options?.publicId,
         resource_type: "image",
       },
       (error, result) => {

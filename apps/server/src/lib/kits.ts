@@ -61,15 +61,29 @@ export function resolveKitImageUrl(
   }
 
   if (
-    imageStorageKey.startsWith("/") ||
     imageStorageKey.startsWith("http://") ||
     imageStorageKey.startsWith("https://")
   ) {
     return imageStorageKey;
   }
 
+  // Map legacy local relative paths to Cloudinary CDN
+  if (imageStorageKey.includes("anti-cancer")) {
+    return "https://res.cloudinary.com/l4h0gysg/image/upload/cellsinvitro/kits/anti-cancer.png";
+  }
+  if (imageStorageKey.includes("anti-oxidant")) {
+    return "https://res.cloudinary.com/l4h0gysg/image/upload/cellsinvitro/kits/anti-oxidant.png";
+  }
+  if (imageStorageKey.includes("anti-diabetic")) {
+    return "https://res.cloudinary.com/l4h0gysg/image/upload/cellsinvitro/kits/anti-diabetic.png";
+  }
+
   if (isCloudinaryStorageKey(imageStorageKey)) {
     return getCloudinaryImageUrl(getCloudinaryPublicId(imageStorageKey));
+  }
+
+  if (imageStorageKey.startsWith("/")) {
+    return imageStorageKey;
   }
 
   const base = apiBaseUrl.replace(/\/$/, "");

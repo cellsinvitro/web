@@ -12,7 +12,7 @@ const studentNavItems = [
   { label: "Tools", href: "/tools" },
   { label: "Doc Services", href: "/tools/document-modification" },
   { label: "Resource Library", href: "/resources" },
-  { label: "Research Kits", href: "/kits" },
+  { label: "Research Kits", href: "/kits" }, 
   { label: "Contact", href: "/contact" },
 ];
 
