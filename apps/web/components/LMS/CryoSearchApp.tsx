@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -47,20 +48,55 @@ import StockIssue from "./stock/StockIssue";
 import StockActivity from "./stock/StockActivity";
 import StockSettings from "./stock/StockSettings";
 
-export default function CryoSearchApp() {
+export type CryoWorkspaceTab = "repo" | "access" | "stock" | "budget" | "logbook";
+
+export default function CryoSearchApp({
+  showMasterBreadcrumb = false,
+  embeddedTab,
+  onEmbeddedTabChange,
+  hideTabBar = false,
+}: {
+  showMasterBreadcrumb?: boolean;
+  embeddedTab?: CryoWorkspaceTab;
+  onEmbeddedTabChange?: (tab: CryoWorkspaceTab) => void;
+  hideTabBar?: boolean;
+}) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
 
-  const [activeTab, setActiveTab] = useState<
-    "repo" | "access" | "stock" | "budget" | "logbook"
-  >(() => {
+  const [activeTab, setActiveTab] = useState<CryoWorkspaceTab>(() => {
+    if (embeddedTab) return embeddedTab;
     if (tabParam === "stock" || tabParam === "budget" || tabParam === "access" || tabParam === "logbook") {
       return tabParam;
     }
     return "repo";
   });
+
+  useEffect(() => {
+    if (embeddedTab) {
+      setActiveTab(embeddedTab);
+      return;
+    }
+    if (
+      tabParam === "repo" ||
+      tabParam === "stock" ||
+      tabParam === "budget" ||
+      tabParam === "access" ||
+      tabParam === "logbook"
+    ) {
+      setActiveTab(tabParam);
+    }
+  }, [embeddedTab, tabParam]);
+
+  const updateActiveTab = useCallback(
+    (nextTab: CryoWorkspaceTab) => {
+      setActiveTab(nextTab);
+      onEmbeddedTabChange?.(nextTab);
+    },
+    [onEmbeddedTabChange]
+  );
 
   // State
   const [labs, setLabs] = useState<LabModel[]>([]);
@@ -118,27 +154,40 @@ export default function CryoSearchApp() {
     return allModules.filter((key) => userAccess.sections.includes(key));
   }, [userAccess]);
 
+  const buildAuthRedirectUrl = useCallback(
+    (targetTab: string) => {
+      if (hideTabBar || embeddedTab !== undefined) {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("lmsPendingTab", targetTab);
+        }
+        return `/login?redirect=${encodeURIComponent("/LMS")}`;
+      }
+      return `/login?redirect=${encodeURIComponent(`/cyrosearch?tab=${targetTab}`)}`;
+    },
+    [hideTabBar, embeddedTab]
+  );
+
   const requireUserAuth = useCallback(
     (targetTab = "repo") => {
       if (!user) {
-        router.push(`/login?redirect=${encodeURIComponent(`/LMS?tab=${targetTab}`)}`);
+        router.push(buildAuthRedirectUrl(targetTab));
         return false;
       }
       return true;
     },
-    [user, router]
+    [user, router, buildAuthRedirectUrl]
   );
 
   // If user tries to open a protected LMS tab without being logged in, redirect to login
   useEffect(() => {
     if (!loading && !user && activeTab !== "repo") {
-      router.replace(`/login?redirect=${encodeURIComponent(`/LMS?tab=${activeTab}`)}`);
+      router.replace(buildAuthRedirectUrl(activeTab));
     }
-  }, [user, loading, activeTab, router]);
+  }, [user, loading, activeTab, router, buildAuthRedirectUrl]);
 
-  const handleTabSelect = (tab: "repo" | "access" | "stock" | "budget" | "logbook") => {
+  const handleTabSelect = (tab: CryoWorkspaceTab) => {
     if (!user && tab !== "repo") {
-      router.push(`/login?redirect=${encodeURIComponent(`/LMS?tab=${tab}`)}`);
+      router.push(buildAuthRedirectUrl(tab));
       return;
     }
 
@@ -151,7 +200,7 @@ export default function CryoSearchApp() {
     };
 
     const targetKey = sectionMap[tab];
-    setActiveTab(tab);
+    updateActiveTab(tab);
     if (targetKey && targetKey !== "lms_access" && userAccess && !isSectionUnlocked(targetKey)) {
       setPurchaseTargetSection(targetKey);
       setIsPurchaseModalOpen(true);
@@ -220,7 +269,7 @@ export default function CryoSearchApp() {
 
     setInviteToken(token);
     setInviteState("loading");
-    setActiveTab("access");
+    updateActiveTab("access");
 
     getCryoInvitePreview(token)
       .then((preview) => {
@@ -863,7 +912,20 @@ export default function CryoSearchApp() {
           </div>
         )}
 
+        {showMasterBreadcrumb && !hideTabBar && (
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <Link
+              href="/LMS"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition-colors hover:bg-slate-100 hover:text-slate-950"
+            >
+              <span aria-hidden="true">←</span>
+              <span>Back to LMS Suite Overview</span>
+            </Link>
+          </div>
+        )}
+
         {/* Navigation Tabs matching the 5 mobile icons */}
+        {!hideTabBar && (
         <div className="mb-6 flex overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm scrollbar-none items-center">
           <button
             type="button"
@@ -946,6 +1008,7 @@ export default function CryoSearchApp() {
             {!isSectionUnlocked("lms_budget") && <span className="text-[11px] opacity-75">🔒</span>}
           </button>
         </div>
+        )}
 
 
         {/* ======================================================= */}
@@ -1910,10 +1973,10 @@ export default function CryoSearchApp() {
         targetSection={purchaseTargetSection}
         onSuccess={(unlockedSections) => {
           loadUserAccess();
-          if (unlockedSections.includes("lms_repo")) setActiveTab("repo");
-          else if (unlockedSections.includes("lms_stock")) setActiveTab("stock");
-          else if (unlockedSections.includes("lms_budget")) setActiveTab("budget");
-          else if (unlockedSections.includes("lms_logbook")) setActiveTab("logbook");
+          if (unlockedSections.includes("lms_repo")) updateActiveTab("repo");
+          else if (unlockedSections.includes("lms_stock")) updateActiveTab("stock");
+          else if (unlockedSections.includes("lms_budget")) updateActiveTab("budget");
+          else if (unlockedSections.includes("lms_logbook")) updateActiveTab("logbook");
         }}
       />
 

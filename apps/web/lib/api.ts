@@ -3090,6 +3090,16 @@ export async function acceptStockInvite(token: string) {
 
 // ─── LMS Paid Sections & Access API ─────────────────────────────────────────
 
+export type LmsMasterTab = {
+  id: string;
+  label: string;
+  headline: string;
+  description: string;
+  highlights: string[];
+  ctaLabel?: string;
+  ctaHref?: string;
+};
+
 export type LmsSettings = {
   repoPrice: number;
   stockPrice: number;
@@ -3099,6 +3109,15 @@ export type LmsSettings = {
   threeSectionDiscountPct: number;
   fullAccessPrice: number;
   currency: string;
+  bannerImageUrl?: string | null;
+  bannerTitle?: string;
+  bannerSubtitle?: string;
+  bannerBadge?: string;
+  bannerCtaLabel?: string;
+  bannerCtaHref?: string;
+  bannerSecondaryLabel?: string;
+  bannerSecondaryHref?: string;
+  masterTabs?: LmsMasterTab[];
   razorpayKeyId?: string | null;
   isRazorpayConfigured: boolean;
 };
@@ -3170,6 +3189,41 @@ export async function updateAdminLmsSettings(input: Partial<LmsSettings>) {
   return apiFetch<{ settings: LmsSettings; message: string }>("/admin/lms/settings", {
     method: "PUT",
     body: JSON.stringify(input),
+  });
+}
+
+export async function uploadAdminLmsBannerImage(
+  file: File,
+  retry = true
+): Promise<{ url: string; settings: LmsSettings; message: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const accessToken = getAccessToken();
+  const response = await fetch(`${API_URL}/admin/lms/banner-image`, {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    credentials: "include",
+    body: formData,
+  });
+
+  if (response.status === 401 && retry) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return uploadAdminLmsBannerImage(file, false);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  return response.json() as Promise<{ url: string; settings: LmsSettings; message: string }>;
+}
+
+export async function deleteAdminLmsBannerImage() {
+  return apiFetch<{ settings: LmsSettings; message: string }>("/admin/lms/banner-image", {
+    method: "DELETE",
   });
 }
 

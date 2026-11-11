@@ -131,16 +131,25 @@ model ResourceLibrarySetting {
 }
 
 model LmsSetting {
-  id                    String   @id @default("default")
-  repoPrice             Int      @default(149900)
-  stockPrice            Int      @default(149900)
-  budgetPrice           Int      @default(149900)
-  logbookPrice          Int      @default(199900)
-  twoSectionDiscountPct  Int      @default(15)
+  id                      String   @id @default("default")
+  repoPrice               Int      @default(149900)
+  stockPrice              Int      @default(149900)
+  budgetPrice             Int      @default(149900)
+  logbookPrice            Int      @default(199900)
+  twoSectionDiscountPct   Int      @default(15)
   threeSectionDiscountPct Int      @default(25)
-  fullAccessPrice       Int      @default(399900)
-  currency              String   @default("INR")
-  updatedAt             DateTime @updatedAt
+  fullAccessPrice         Int      @default(399900)
+  currency                String   @default("INR")
+  bannerImageUrl          String?
+  bannerTitle             String   @default("Lab Management Suite (LMS)")
+  bannerSubtitle          String   @default("Integrated software solutions to manage cryostorage, lab inventory, electronic logbooks, and research budgets.")
+  bannerBadge             String   @default("Lab Management Suite")
+  bannerCtaLabel          String   @default("Contact us")
+  bannerCtaHref           String   @default("/contact")
+  bannerSecondaryLabel    String   @default("Speak to an expert")
+  bannerSecondaryHref     String   @default("/contact")
+  masterTabs              Json?
+  updatedAt               DateTime @updatedAt
 }
 
 model LmsAccess {

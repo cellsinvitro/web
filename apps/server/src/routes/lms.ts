@@ -9,52 +9,44 @@ import {
 } from "../lib/razorpay.js";
 import { notifyLmsPaymentCompleted } from "../lib/email.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
+import {
+  buildLmsSettingsUpdate,
+  DEFAULT_LMS_MASTER_TABS,
+  getOrCreateLmsSettings,
+  readLocalLmsBannerImage,
+  serializeLmsSettings,
+  type UpdateLmsSettingsInput,
+} from "../lib/lms-master.js";
 
 export const lmsRoutes = new Hono<{ Variables: AuthVariables }>();
 
-// Helper to ensure default LmsSetting exists
-async function getOrCreateLmsSettings() {
-  let settings = await prisma.lmsSetting.findUnique({ where: { id: "default" } });
-  if (!settings) {
-    settings = await prisma.lmsSetting.create({
-      data: {
-        id: "default",
-        repoPrice: 149900,
-        stockPrice: 149900,
-        budgetPrice: 149900,
-        logbookPrice: 199900,
-        twoSectionDiscountPct: 15,
-        threeSectionDiscountPct: 25,
-        fullAccessPrice: 399900,
-        currency: "INR",
-      },
-    });
-  }
-  return settings;
-}
-
 // ─── Public / Auth User Endpoints ──────────────────────────────────────────
 
-// GET /api/lms/settings - Fetch current LMS pricing & bundle discounts
+// GET /api/lms/settings - Fetch current LMS pricing, bundle discounts & master page config
 lmsRoutes.get("/settings", async (c) => {
   const settings = await getOrCreateLmsSettings();
   return c.json({
-    settings: {
-      repoPrice: settings.repoPrice,
-      stockPrice: settings.stockPrice,
-      budgetPrice: settings.budgetPrice,
-      logbookPrice: settings.logbookPrice,
-      twoSectionDiscountPct: settings.twoSectionDiscountPct,
-      threeSectionDiscountPct: settings.threeSectionDiscountPct,
-      fullAccessPrice: settings.fullAccessPrice,
-      currency: settings.currency,
-      razorpayKeyId: getRazorpayKeyId(),
-      isRazorpayConfigured: isRazorpayConfigured(),
-    },
+    settings: serializeLmsSettings(settings, true),
   });
 });
 
-// PUT /api/lms/settings - Admin endpoint to update LMS module prices & discounts
+// GET /api/lms/banner-image/:filename - Serve locally stored LMS banner image fallback
+lmsRoutes.get("/banner-image/:filename", async (c) => {
+  const filename = c.req.param("filename");
+  try {
+    const { data, contentType } = await readLocalLmsBannerImage(filename);
+    return new Response(data, {
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=3600",
+      },
+    });
+  } catch {
+    throw new HTTPException(404, { message: "Banner image not found" });
+  }
+});
+
+// PUT /api/lms/settings - Admin endpoint to update LMS prices, discounts, banner & tabs
 lmsRoutes.put("/settings", requireAuth, async (c) => {
   const userId = c.get("user").sub;
   const user = await prisma.user.findUnique({
@@ -63,23 +55,17 @@ lmsRoutes.put("/settings", requireAuth, async (c) => {
   });
 
   if (user?.role !== "ADMIN") {
-    throw new HTTPException(403, { message: "Admin privileges required to update LMS pricing" });
+    throw new HTTPException(403, { message: "Admin privileges required to update LMS settings" });
   }
 
-  const body = await c.req.json<{
-    repoPrice?: number;
-    stockPrice?: number;
-    budgetPrice?: number;
-    logbookPrice?: number;
-    twoSectionDiscountPct?: number;
-    threeSectionDiscountPct?: number;
-    fullAccessPrice?: number;
-    currency?: string;
-  }>();
+  const body = await c.req.json<UpdateLmsSettingsInput>();
 
   if (!body) {
     throw new HTTPException(400, { message: "Invalid request payload" });
   }
+
+  await getOrCreateLmsSettings();
+  const updateData = buildLmsSettingsUpdate(body);
 
   const updated = await prisma.lmsSetting.upsert({
     where: { id: "default" },
@@ -93,33 +79,15 @@ lmsRoutes.put("/settings", requireAuth, async (c) => {
       threeSectionDiscountPct: body.threeSectionDiscountPct ?? 25,
       fullAccessPrice: body.fullAccessPrice ?? 399900,
       currency: body.currency ?? "INR",
+      masterTabs: DEFAULT_LMS_MASTER_TABS,
+      ...updateData,
     },
-    update: {
-      ...(body.repoPrice !== undefined && { repoPrice: Math.max(0, Math.round(body.repoPrice)) }),
-      ...(body.stockPrice !== undefined && { stockPrice: Math.max(0, Math.round(body.stockPrice)) }),
-      ...(body.budgetPrice !== undefined && { budgetPrice: Math.max(0, Math.round(body.budgetPrice)) }),
-      ...(body.logbookPrice !== undefined && { logbookPrice: Math.max(0, Math.round(body.logbookPrice)) }),
-      ...(body.twoSectionDiscountPct !== undefined && { twoSectionDiscountPct: Math.max(0, Math.min(100, Math.round(body.twoSectionDiscountPct))) }),
-      ...(body.threeSectionDiscountPct !== undefined && { threeSectionDiscountPct: Math.max(0, Math.min(100, Math.round(body.threeSectionDiscountPct))) }),
-      ...(body.fullAccessPrice !== undefined && { fullAccessPrice: Math.max(0, Math.round(body.fullAccessPrice)) }),
-      ...(body.currency && { currency: body.currency.trim().toUpperCase() }),
-    },
+    update: updateData,
   });
 
   return c.json({
     success: true,
-    settings: {
-      repoPrice: updated.repoPrice,
-      stockPrice: updated.stockPrice,
-      budgetPrice: updated.budgetPrice,
-      logbookPrice: updated.logbookPrice,
-      twoSectionDiscountPct: updated.twoSectionDiscountPct,
-      threeSectionDiscountPct: updated.threeSectionDiscountPct,
-      fullAccessPrice: updated.fullAccessPrice,
-      currency: updated.currency,
-      razorpayKeyId: getRazorpayKeyId(),
-      isRazorpayConfigured: isRazorpayConfigured(),
-    },
+    settings: serializeLmsSettings(updated, true),
   });
 });
 

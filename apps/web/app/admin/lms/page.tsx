@@ -13,10 +13,10 @@ export default function AdminLmsPage() {
           <span className="text-amber-600 font-bold">LMS & CryoSearch</span>
         </div>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-          LMS Section Pricing & Access Control
+          LMS Master Page, Pricing &amp; Access Control
         </h1>
         <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-          Configure module subscription prices, bundle discount rules, manage manual user access grants, and inspect payment transactions.
+          Edit the LMS Suite banner image and tabs, configure module subscription prices and bundle discounts, manage user access grants, and inspect payments.
         </p>
       </div>
 

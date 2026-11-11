@@ -3,74 +3,111 @@ import { HTTPException } from "hono/http-exception";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
+import {
+  ALLOWED_BANNER_IMAGE_TYPES,
+  buildLmsSettingsUpdate,
+  deleteLocalBannerIfNeeded,
+  getOrCreateLmsSettings,
+  serializeLmsSettings,
+  storeLmsBannerImage,
+  type UpdateLmsSettingsInput,
+} from "../lib/lms-master.js";
 
 export const adminLmsRoutes = new Hono<{ Variables: AuthVariables }>();
 
 adminLmsRoutes.use("*", requireAuth, requireAdmin);
 
-// Helper to ensure default LmsSetting exists
-async function getOrCreateLmsSettings() {
-  let settings = await prisma.lmsSetting.findUnique({ where: { id: "default" } });
-  if (!settings) {
-    settings = await prisma.lmsSetting.create({
-      data: {
-        id: "default",
-        repoPrice: 149900,
-        stockPrice: 149900,
-        budgetPrice: 149900,
-        logbookPrice: 199900,
-        twoSectionDiscountPct: 15,
-        threeSectionDiscountPct: 25,
-        fullAccessPrice: 399900,
-        currency: "INR",
-      },
-    });
-  }
-  return settings;
-}
+const MAX_BANNER_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // GET /api/admin/lms/settings
 adminLmsRoutes.get("/settings", async (c) => {
   const settings = await getOrCreateLmsSettings();
-  return c.json({ settings });
+  return c.json({ settings: serializeLmsSettings(settings, true) });
 });
 
 // PUT /api/admin/lms/settings
 adminLmsRoutes.put("/settings", async (c) => {
-  const body = await c.req.json<{
-    repoPrice?: number;
-    stockPrice?: number;
-    budgetPrice?: number;
-    logbookPrice?: number;
-    twoSectionDiscountPct?: number;
-    threeSectionDiscountPct?: number;
-    fullAccessPrice?: number;
-    currency?: string;
-  }>();
+  const body = await c.req.json<UpdateLmsSettingsInput>();
+  const existing = await getOrCreateLmsSettings();
+  const updateData = buildLmsSettingsUpdate(body);
 
-  await getOrCreateLmsSettings();
+  if (body.bannerImageUrl === null && existing.bannerImageUrl) {
+    await deleteLocalBannerIfNeeded(existing.bannerImageUrl);
+  }
 
   const updated = await prisma.lmsSetting.update({
     where: { id: "default" },
-    data: {
-      ...(typeof body.repoPrice === "number" ? { repoPrice: body.repoPrice } : {}),
-      ...(typeof body.stockPrice === "number" ? { stockPrice: body.stockPrice } : {}),
-      ...(typeof body.budgetPrice === "number" ? { budgetPrice: body.budgetPrice } : {}),
-      ...(typeof body.logbookPrice === "number" ? { logbookPrice: body.logbookPrice } : {}),
-      ...(typeof body.twoSectionDiscountPct === "number"
-        ? { twoSectionDiscountPct: body.twoSectionDiscountPct }
-        : {}),
-      ...(typeof body.threeSectionDiscountPct === "number"
-        ? { threeSectionDiscountPct: body.threeSectionDiscountPct }
-        : {}),
-      ...(typeof body.fullAccessPrice === "number"
-        ? { fullAccessPrice: body.fullAccessPrice }
-        : {}),
-      ...(body.currency ? { currency: body.currency } : {}),
-    },
+    data: updateData,
   });
 
-  return c.json({ settings: updated, message: "LMS settings updated successfully." });
+  return c.json({
+    settings: serializeLmsSettings(updated, true),
+    message: "LMS settings updated successfully.",
+  });
+});
+
+// POST /api/admin/lms/banner-image - Upload & persist LMS master page banner image
+adminLmsRoutes.post("/banner-image", async (c) => {
+  const formData = await c.req.formData().catch(() => null);
+  if (!formData) {
+    throw new HTTPException(400, { message: "Multipart form data is required" });
+  }
+
+  const file = formData.get("file") || formData.get("image");
+  if (!file || !(file instanceof File)) {
+    throw new HTTPException(400, {
+      message: "An image file ('file' or 'image') is required",
+    });
+  }
+
+  if (file.size > MAX_BANNER_IMAGE_SIZE) {
+    throw new HTTPException(413, {
+      message: "Banner image must be under 10 MB",
+    });
+  }
+
+  if (!ALLOWED_BANNER_IMAGE_TYPES.has(file.type)) {
+    throw new HTTPException(415, {
+      message: "Only JPEG, PNG, WEBP, GIF, and SVG images are allowed",
+    });
+  }
+
+  const existing = await getOrCreateLmsSettings();
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const url = await storeLmsBannerImage(file.name || "banner.png", file.type, buffer);
+
+  if (existing.bannerImageUrl && existing.bannerImageUrl !== url) {
+    await deleteLocalBannerIfNeeded(existing.bannerImageUrl);
+  }
+
+  const updated = await prisma.lmsSetting.update({
+    where: { id: "default" },
+    data: { bannerImageUrl: url },
+  });
+
+  return c.json({
+    url,
+    settings: serializeLmsSettings(updated, true),
+    message: "Banner image uploaded and saved.",
+  });
+});
+
+// DELETE /api/admin/lms/banner-image - Remove custom LMS banner image
+adminLmsRoutes.delete("/banner-image", async (c) => {
+  const existing = await getOrCreateLmsSettings();
+  if (existing.bannerImageUrl) {
+    await deleteLocalBannerIfNeeded(existing.bannerImageUrl);
+  }
+
+  const updated = await prisma.lmsSetting.update({
+    where: { id: "default" },
+    data: { bannerImageUrl: null },
+  });
+
+  return c.json({
+    settings: serializeLmsSettings(updated, true),
+    message: "Banner image removed.",
+  });
 });
 
 // GET /api/admin/lms/users - List users with LMS accesses

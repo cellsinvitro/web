@@ -2,24 +2,22 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import CryoSearchApp from "@/components/LMS/CryoSearchApp";
+import LmsPageShell from "@/components/LMS/LmsPageShell";
 import GlobalLoader from "@/components/GlobalLoader";
 
 export const metadata: Metadata = {
-  title: "CryoSearch | CellsInVitro Cell Banking Repository",
+  title: "Lab Management Suite (LMS) | CellsInVitro",
   description:
-    "Smart cryopreservation inventory and 2D grid repository for cell lines, cryovials, dewars, and bench solution calculations.",
+    "CellsInVitro Lab Management Suite: CryoSearch 2D cell banking repository, stock inventory management, electronic lab logbook, and research budget tracking.",
 };
 
-export default function CyroSearchPage() {
+export default function LmsPage() {
   return (
-    <main className="cryosearch-theme min-h-screen overflow-x-hidden bg-slate-50 flex flex-col">
+    <main className="min-h-screen overflow-x-hidden bg-slate-50 flex flex-col">
       <Navbar />
-      <div className="flex-1 pt-24 sm:pt-28">
-        <Suspense fallback={<GlobalLoader fullScreen={false} sublabel="Loading CryoSearch..." />}>
-          <CryoSearchApp />
-        </Suspense>
-      </div>
+      <Suspense fallback={<GlobalLoader fullScreen={false} sublabel="Loading Lab Management Suite..." />}>
+        <LmsPageShell />
+      </Suspense>
       <Footer />
     </main>
   );
