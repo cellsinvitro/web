@@ -434,8 +434,8 @@ export default function AdminDashboardPage() {
 
         <MetricCard
           title="LMS & CryoSearch"
-          value="Pricing & Access"
-          subtitle="Module prices, discounts & permissions"
+          value="Banner & Pricing"
+          subtitle="Banner, prices & payment logs"
           badgeText="LMS Admin"
           badgeColor="amber"
           href="/admin/lms"

@@ -493,13 +493,22 @@ export default function LmsMasterPage() {
                   {bannerCtaLabel}
                 </Link>
 
-                <a
-                  href="#lms-modules"
+                <button
+                  type="button"
+                  onClick={() => {
+                    const overviewTab = tabs.find((t) => toWorkspaceTab(t.id) === null) || tabs[0];
+                    if (overviewTab) setActiveTabId(overviewTab.id);
+                    setTimeout(() => {
+                      document
+                        .getElementById("lms-modules")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 50);
+                  }}
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-900/70 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-xs transition-all hover:border-slate-400 hover:bg-slate-800 sm:text-sm"
                 >
                   Explore Modules
                   <span aria-hidden="true">↓</span>
-                </a>
+                </button>
               </div>
             </div>
 

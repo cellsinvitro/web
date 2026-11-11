@@ -6,23 +6,9 @@ import {
   updateAdminLmsSettings,
   uploadAdminLmsBannerImage,
   deleteAdminLmsBannerImage,
-  fetchAdminLmsUsers,
-  grantAdminLmsAccess,
   fetchAdminLmsPayments,
   type LmsSettings,
-  type LmsMasterTab,
-  type AdminLmsUser,
 } from "@/lib/api";
-
-const DEFAULT_TAB_DRAFT: LmsMasterTab = {
-  id: "",
-  label: "New Tab",
-  headline: "",
-  description: "",
-  highlights: [],
-  ctaLabel: "",
-  ctaHref: "",
-};
 
 export default function AdminLmsTab() {
   const [settings, setSettings] = useState<LmsSettings | null>(null);
@@ -30,13 +16,6 @@ export default function AdminLmsTab() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingMaster, setSavingMaster] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
-  const [expandedTabIdx, setExpandedTabIdx] = useState<number | null>(0);
-
-  // Users state
-  const [users, setUsers] = useState<AdminLmsUser[]>([]);
-  const [userSearch, setUserSearch] = useState("");
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [grantingUser, setGrantingUser] = useState<string | null>(null);
 
   // Payments state
   const [payments, setPayments] = useState<any[]>([]);
@@ -56,18 +35,6 @@ export default function AdminLmsTab() {
     }
   };
 
-  const loadUsersData = async (query?: string) => {
-    try {
-      setLoadingUsers(true);
-      const res = await fetchAdminLmsUsers(query);
-      setUsers(res.users);
-    } catch (err: any) {
-      console.error("Failed to load LMS users", err);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
   const loadPaymentsData = async () => {
     try {
       setLoadingPayments(true);
@@ -82,7 +49,6 @@ export default function AdminLmsTab() {
 
   useEffect(() => {
     loadSettingsData();
-    loadUsersData();
     loadPaymentsData();
   }, []);
 
@@ -117,12 +83,11 @@ export default function AdminLmsTab() {
         bannerCtaHref: settings.bannerCtaHref,
         bannerSecondaryLabel: settings.bannerSecondaryLabel,
         bannerSecondaryHref: settings.bannerSecondaryHref,
-        masterTabs: settings.masterTabs,
       });
       setSettings(res.settings);
-      setMessage({ text: "LMS Master Page banner and tabs saved successfully!" });
+      setMessage({ text: "LMS Banner settings saved successfully!" });
     } catch (err: unknown) {
-      setMessage({ text: err instanceof Error ? err.message : "Failed to save Master Page settings", isError: true });
+      setMessage({ text: err instanceof Error ? err.message : "Failed to save banner settings", isError: true });
     } finally {
       setSavingMaster(false);
     }
@@ -159,68 +124,6 @@ export default function AdminLmsTab() {
     }
   };
 
-  const masterTabs = settings?.masterTabs ?? [];
-
-  const updateTabAt = (idx: number, patch: Partial<LmsMasterTab>) => {
-    if (!settings) return;
-    const next = [...masterTabs];
-    const current = next[idx];
-    if (!current) return;
-    next[idx] = { ...current, ...patch };
-    setSettings({ ...settings, masterTabs: next });
-  };
-
-  const moveTab = (idx: number, direction: -1 | 1) => {
-    if (!settings) return;
-    const target = idx + direction;
-    if (target < 0 || target >= masterTabs.length) return;
-    const next = [...masterTabs];
-    const temp = next[idx]!;
-    next[idx] = next[target]!;
-    next[target] = temp;
-    setSettings({ ...settings, masterTabs: next });
-    setExpandedTabIdx(target);
-  };
-
-  const addTab = () => {
-    if (!settings) return;
-    const newIdx = masterTabs.length + 1;
-    const next = [
-      ...masterTabs,
-      {
-        ...DEFAULT_TAB_DRAFT,
-        id: `tab-${Date.now()}`,
-        label: `Section ${newIdx}`,
-        headline: "Custom LMS section headline",
-        description: "Describe the workflow, capability, or guidance shown under this tab.",
-        highlights: ["Key highlight point"],
-      },
-    ];
-    setSettings({ ...settings, masterTabs: next });
-    setExpandedTabIdx(next.length - 1);
-  };
-
-  const removeTab = (idx: number) => {
-    if (!settings || masterTabs.length <= 1) return;
-    const next = masterTabs.filter((_, i) => i !== idx);
-    setSettings({ ...settings, masterTabs: next });
-    setExpandedTabIdx(null);
-  };
-
-  const handleGrant = async (userId: string, section: string, action: "GRANT" | "REVOKE") => {
-    setGrantingUser(`${userId}-${section}-${action}`);
-    setMessage(null);
-    try {
-      const res = await grantAdminLmsAccess({ userId, section, action });
-      setMessage({ text: res.message });
-      await loadUsersData(userSearch);
-    } catch (err: any) {
-      setMessage({ text: err.message || "Grant operation failed", isError: true });
-    } finally {
-      setGrantingUser(null);
-    }
-  };
-
   return (
     <div className="space-y-8">
       {message && (
@@ -236,15 +139,15 @@ export default function AdminLmsTab() {
         </div>
       )}
 
-      {/* 0. LMS Master Page Banner & Tabs Editor */}
+      {/* 0. LMS Banner Editor */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">
-              LMS Master Page Banner &amp; Tabs
+              LMS Page Banner
             </h3>
             <p className="text-xs text-slate-500">
-              Customize the hero banner image, heading, CTA links, and editable tabs displayed on the LMS Suite Master Page (<code className="font-mono text-slate-700">/LMS</code>).
+              Customize the hero banner image, heading, and CTA links displayed on the LMS page (<code className="font-mono text-slate-700">/LMS</code>).
             </p>
           </div>
           <a
@@ -253,12 +156,12 @@ export default function AdminLmsTab() {
             rel="noreferrer"
             className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100"
           >
-            Preview Master Page ↗
+            Preview LMS Page ↗
           </a>
         </div>
 
         {loadingSettings ? (
-          <div className="py-8 text-center text-slate-400 text-sm">Loading banner &amp; tab configuration...</div>
+          <div className="py-8 text-center text-slate-400 text-sm">Loading banner configuration...</div>
         ) : settings ? (
           <form onSubmit={handleSaveMasterPage} className="space-y-8">
             {/* Banner Preview & Image Upload */}
@@ -426,192 +329,13 @@ export default function AdminLmsTab() {
               </div>
             </div>
 
-            {/* Editable Tabs Section */}
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">
-                    Master Page Tabs ({masterTabs.length})
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    Add, reorder, rename, or update the content of each horizontal tab shown beneath the LMS banner.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={addTab}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50"
-                >
-                  + Add Tab
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {masterTabs.map((tab, idx) => {
-                  const isExpanded = expandedTabIdx === idx;
-                  return (
-                    <div
-                      key={tab.id || idx}
-                      className="rounded-xl border border-slate-200 bg-white overflow-hidden"
-                    >
-                      <div
-                        onClick={() => setExpandedTabIdx(isExpanded ? null : idx)}
-                        className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-50/80 cursor-pointer hover:bg-slate-100/70"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
-                            {idx + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-slate-900">
-                              {tab.label || "Untitled Tab"}
-                            </span>
-                            {tab.headline && (
-                              <p className="truncate text-[11px] text-slate-500 max-w-md">
-                                {tab.headline}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div
-                          className="flex items-center gap-1.5 shrink-0"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => moveTab(idx, -1)}
-                            disabled={idx === 0}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-40"
-                            title="Move Up"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveTab(idx, 1)}
-                            disabled={idx === masterTabs.length - 1}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-40"
-                            title="Move Down"
-                          >
-                            ↓
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeTab(idx)}
-                            disabled={masterTabs.length <= 1}
-                            className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-100 disabled:opacity-40"
-                          >
-                            Delete
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setExpandedTabIdx(isExpanded ? null : idx)}
-                            className="rounded-lg px-2 py-1 text-xs font-bold text-slate-600"
-                          >
-                            {isExpanded ? "▲" : "▼"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="p-4 border-t border-slate-200 space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold text-slate-700 mb-1">
-                                Tab Label (shown in tab bar)
-                              </label>
-                              <input
-                                type="text"
-                                value={tab.label}
-                                onChange={(e) => updateTabAt(idx, { label: e.target.value })}
-                                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-blue-500 focus:outline-none"
-                                required
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-slate-700 mb-1">
-                                Tab Headline
-                              </label>
-                              <input
-                                type="text"
-                                value={tab.headline}
-                                onChange={(e) => updateTabAt(idx, { headline: e.target.value })}
-                                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-blue-500 focus:outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-slate-700 mb-1">
-                              Tab Description
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={tab.description}
-                              onChange={(e) => updateTabAt(idx, { description: e.target.value })}
-                              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-slate-700 mb-1">
-                              Key Highlights (one per line)
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={(tab.highlights || []).join("\n")}
-                              onChange={(e) =>
-                                updateTabAt(idx, {
-                                  highlights: e.target.value.split("\n"),
-                                })
-                              }
-                              placeholder="Enter bullet highlights, one per line..."
-                              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold text-slate-700 mb-1">
-                                Tab CTA Label (optional)
-                              </label>
-                              <input
-                                type="text"
-                                value={tab.ctaLabel || ""}
-                                onChange={(e) => updateTabAt(idx, { ctaLabel: e.target.value })}
-                                placeholder="e.g. Explore Modules"
-                                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-slate-700 mb-1">
-                                Tab CTA Link (optional)
-                              </label>
-                              <input
-                                type="text"
-                                value={tab.ctaHref || ""}
-                                onChange={(e) => updateTabAt(idx, { ctaHref: e.target.value })}
-                                placeholder="e.g. #lms-modules or /contact"
-                                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button
                 type="submit"
                 disabled={savingMaster}
                 className="px-6 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-50 transition"
               >
-                {savingMaster ? "Saving Master Page..." : "Save Banner & Tabs"}
+                {savingMaster ? "Saving Banner..." : "Save Banner"}
               </button>
             </div>
           </form>
@@ -755,137 +479,7 @@ export default function AdminLmsTab() {
         ) : null}
       </div>
 
-      {/* 2. User Access Manager */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">User Access Control</h3>
-            <p className="text-xs text-slate-500">
-              Grant or revoke user access for specific LMS sections or full LMS access.
-            </p>
-          </div>
-          <div className="relative w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Search user email or name..."
-              value={userSearch}
-              onChange={(e) => {
-                setUserSearch(e.target.value);
-                loadUsersData(e.target.value);
-              }}
-              className="w-full rounded-xl border border-slate-300 pl-3 pr-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {loadingUsers ? (
-          <div className="py-8 text-center text-slate-400 text-sm">Loading users list...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-bold uppercase tracking-wider">
-                  <th className="p-3">User</th>
-                  <th className="p-3">Role</th>
-                  <th className="p-3">Active Section Accesses</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {users.map((u) => {
-                  const unlockedList = u.lmsAccesses.map((a) => a.section);
-                  const isFull = unlockedList.includes("lms_full") || u.role === "ADMIN";
-
-                  return (
-                    <tr key={u.id} className="hover:bg-slate-50/50">
-                      <td className="p-3">
-                        <div className="font-bold text-slate-900">{u.name || "N/A"}</div>
-                        <div className="text-slate-500 text-[11px]">{u.email}</div>
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            u.role === "ADMIN" ? "bg-purple-100 text-purple-700" : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex flex-wrap gap-1">
-                          {u.role === "ADMIN" ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
-                              Full Access (Admin)
-                            </span>
-                          ) : isFull ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                              Full LMS Pass
-                            </span>
-                          ) : unlockedList.length === 0 ? (
-                            <span className="text-slate-400 text-[11px]">Free Section Only</span>
-                          ) : (
-                            unlockedList.map((sec) => (
-                              <span
-                                key={sec}
-                                className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200"
-                              >
-                                {sec.replace("lms_", "")}
-                              </span>
-                            ))
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end space-x-1.5">
-                          {isFull ? (
-                            <button
-                              onClick={() => handleGrant(u.id, "lms_full", "REVOKE")}
-                              disabled={Boolean(grantingUser)}
-                              className="px-2.5 py-1 rounded bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-100 disabled:opacity-50"
-                            >
-                              Revoke All
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleGrant(u.id, "lms_full", "GRANT")}
-                                disabled={Boolean(grantingUser)}
-                                className="px-2.5 py-1 rounded bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 disabled:opacity-50"
-                              >
-                                Grant Full Pass
-                              </button>
-
-                              {["lms_repo", "lms_stock", "lms_budget", "lms_logbook"].map((secKey) => {
-                                const hasSec = unlockedList.includes(secKey);
-                                return (
-                                  <button
-                                    key={secKey}
-                                    onClick={() => handleGrant(u.id, secKey, hasSec ? "REVOKE" : "GRANT")}
-                                    disabled={Boolean(grantingUser)}
-                                    className={`px-2 py-1 rounded text-[10px] font-semibold ${
-                                      hasSec
-                                        ? "bg-slate-200 text-slate-700 hover:bg-red-100 hover:text-red-700"
-                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                    }`}
-                                  >
-                                    {hasSec ? `Revoke ${secKey.replace("lms_", "")}` : `+ ${secKey.replace("lms_", "")}`}
-                                  </button>
-                                );
-                              })}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* 3. LMS Payment Audit Log */}
+      {/* 2. LMS Payment Audit Log */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
         <h3 className="text-lg font-bold text-slate-900 mb-1">LMS Payment History</h3>
         <p className="text-xs text-slate-500 mb-6">Recent LMS purchases and section unlocks.</p>

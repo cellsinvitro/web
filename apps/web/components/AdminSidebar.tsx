@@ -86,7 +86,7 @@ function LogoutIcon({ className }: IconProps) {
 
 const navItems = [
   { label: "Overview", href: "/admin", icon: OverviewIcon },
-  { label: "LMS Pricing", href: "/admin/lms", icon: LogbookIcon },
+  { label: "LMS & Banner", href: "/admin/lms", icon: LogbookIcon },
   { label: "Users", href: "/admin/users", icon: UsersIcon },
   { label: "Logbook", href: "/admin/logbook", icon: LogbookIcon },
   { label: "Courses", href: "/admin/courses", icon: CoursesIcon },
