@@ -294,7 +294,7 @@ lmsRoutes.post("/create-order", requireAuth, async (c) => {
     : `LMS Sections (${pricing.selectedSections.length})`;
 
   const razorpayOrder = await createRazorpayOrder({
-    amount: pricing.finalAmount,
+    amount: pricing.finalAmount / 100,
     currency: settings.currency,
     receipt: `lms_${Date.now().toString().slice(-8)}`,
     notes: {
@@ -322,7 +322,7 @@ lmsRoutes.post("/create-order", requireAuth, async (c) => {
 
   return c.json({
     orderId: razorpayOrder.id,
-    amount: pricing.finalAmount,
+    amount: razorpayOrder.amount,
     currency: settings.currency,
     keyId: getRazorpayKeyId(),
     paymentId: payment.id,
