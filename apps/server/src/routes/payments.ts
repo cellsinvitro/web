@@ -15,6 +15,7 @@ import { getAccessTokenFromRequest, setAuthCookies } from "../lib/cookies.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { issueTokenPair } from "../lib/session.js";
 import { requireAuth, type AuthVariables } from "../middleware/auth.js";
+import { fulfillToolSubscription } from "../lib/tools.js";
 
 export const paymentsRoutes = new Hono<{ Variables: AuthVariables }>();
 
@@ -163,6 +164,7 @@ paymentsRoutes.post("/create-order", async (c) => {
     shippingAddress,
     docServiceTitle,
     customAmount,
+    toolPlanId,
   } = await c.req.json<{
     courseId?: string;
     packageId?: string;
@@ -177,17 +179,23 @@ paymentsRoutes.post("/create-order", async (c) => {
     shippingAddress?: string;
     docServiceTitle?: string;
     customAmount?: number;
+    toolPlanId?: string;
   }>();
 
-  const targetCount = [courseId, packageId, kitId, resourceScope, docServiceTitle].filter(Boolean).length;
+  const targetCount = [courseId, packageId, kitId, resourceScope, docServiceTitle, toolPlanId].filter(Boolean).length;
   if (targetCount === 0) {
-    throw new HTTPException(400, { message: "courseId, packageId, kitId, resourceScope, or docServiceTitle required" });
+    throw new HTTPException(400, { message: "courseId, packageId, kitId, resourceScope, docServiceTitle, or toolPlanId required" });
   }
   if (targetCount > 1) {
     throw new HTTPException(400, { message: "Provide only one purchase target" });
   }
 
+  if (toolPlanId && !userId) {
+    throw new HTTPException(401, { message: "Please login to subscribe to Tools" });
+  }
+
   const normalizedEmail = customerEmail?.trim().toLowerCase();
+  let isNewGuestUser = false;
   if (!userId) {
     if (!normalizedEmail) {
       throw new HTTPException(401, { message: "Authentication required or customer email must be provided" });
@@ -201,16 +209,19 @@ paymentsRoutes.post("/create-order", async (c) => {
           role: "USER",
         },
       });
+      isNewGuestUser = true;
     }
     userId = user.id;
   }
 
-  const userRecord = await prisma.user.findUnique({ where: { id: userId } });
   let tokenData: { accessToken?: string } = {};
-  if (userRecord) {
-    const pair = await issueTokenPair(userRecord);
-    setAuthCookies(c, pair.accessToken, pair.refreshToken);
-    tokenData.accessToken = pair.accessToken;
+  if (isNewGuestUser) {
+    const userRecord = await prisma.user.findUnique({ where: { id: userId } });
+    if (userRecord) {
+      const pair = await issueTokenPair(userRecord);
+      setAuthCookies(c, pair.accessToken, pair.refreshToken);
+      tokenData.accessToken = pair.accessToken;
+    }
   }
 
   let amount = 0;
@@ -218,7 +229,23 @@ paymentsRoutes.post("/create-order", async (c) => {
   let title = "";
   let kitQuantity = 1;
 
-  if (docServiceTitle) {
+  if (toolPlanId) {
+    const plan = await prisma.toolSubscriptionPlan.findFirst({
+      where: { id: toolPlanId, published: true },
+    });
+    if (!plan) throw new HTTPException(404, { message: "Subscription plan not found" });
+
+    const now = new Date();
+    const isOfferActive =
+      plan.offerEnabled &&
+      plan.offerPrice !== null &&
+      (!plan.offerStartsAt || plan.offerStartsAt <= now) &&
+      (!plan.offerEndsAt || plan.offerEndsAt >= now);
+
+    amount = isOfferActive && plan.offerPrice !== null ? plan.offerPrice : plan.regularPrice;
+    currency = plan.currency || "INR";
+    title = `Tools Unlimited - ${plan.name}`;
+  } else if (docServiceTitle) {
     amount = customAmount && customAmount > 0 ? customAmount : 100;
     currency = "INR";
     title = docServiceTitle;
@@ -333,14 +360,15 @@ paymentsRoutes.post("/create-order", async (c) => {
           kitId: kitId || null,
           studyMaterialId: studyMaterialId || null,
           studyMaterialFileId: studyMaterialFileId || null,
+          toolPlanId: toolPlanId || null,
           resourceScope: resourceScope || null,
           quantity: kitQuantity,
           customerName: customerName?.trim() || null,
           customerEmail: customerEmail?.trim().toLowerCase() || null,
           customerPhone: customerPhone?.trim() || null,
           shippingAddress: shippingAddress?.trim() || null,
-          itemTitle: kitId || resourceScope || docServiceTitle ? title : null,
-          unitAmount: kitId || resourceScope || docServiceTitle ? amount : null,
+          itemTitle: kitId || resourceScope || docServiceTitle || toolPlanId ? title : null,
+          unitAmount: kitId || resourceScope || docServiceTitle || toolPlanId ? amount : null,
           fulfillmentStatus: kitId || docServiceTitle ? "PROCESSING" : null,
           amount: 0,
           currency,
@@ -366,7 +394,9 @@ paymentsRoutes.post("/create-order", async (c) => {
       return createdPayment;
     });
 
-    if (resourceScope) {
+    if (toolPlanId) {
+      await fulfillToolSubscription(userId, toolPlanId, payment.id);
+    } else if (resourceScope) {
       await grantResourceAccess(userId, resourceScope, studyMaterialId, studyMaterialFileId, payment.id);
       notifyResourceAccess({
         userId,
@@ -398,14 +428,15 @@ paymentsRoutes.post("/create-order", async (c) => {
       kitId: kitId || null,
       studyMaterialId: studyMaterialId || null,
       studyMaterialFileId: studyMaterialFileId || null,
+      toolPlanId: toolPlanId || null,
       resourceScope: resourceScope || null,
       quantity: kitQuantity,
       customerName: customerName?.trim() || null,
       customerEmail: customerEmail?.trim().toLowerCase() || null,
       customerPhone: customerPhone?.trim() || null,
       shippingAddress: shippingAddress?.trim() || null,
-      itemTitle: kitId || resourceScope || docServiceTitle ? title : null,
-      unitAmount: kitId || resourceScope || docServiceTitle ? (kitQuantity > 0 ? amount / kitQuantity : amount) : null,
+      itemTitle: kitId || resourceScope || docServiceTitle || toolPlanId ? title : null,
+      unitAmount: kitId || resourceScope || docServiceTitle || toolPlanId ? (kitQuantity > 0 ? amount / kitQuantity : amount) : null,
       fulfillmentStatus: kitId || docServiceTitle ? "PROCESSING" : null,
       amount,
       currency,
@@ -424,6 +455,7 @@ paymentsRoutes.post("/create-order", async (c) => {
       packageId: packageId || "",
       kitId: kitId || "",
       resourceScope: resourceScope || "",
+      toolPlanId: toolPlanId || "",
       title,
     },
   });
@@ -476,6 +508,13 @@ paymentsRoutes.post("/verify", async (c) => {
     return c.json({ success: true, alreadyCompleted: true });
   }
 
+  if (payment.providerOrderId && payment.providerOrderId !== razorpay_order_id) {
+    throw new HTTPException(400, { message: "Order ID mismatch" });
+  }
+  if (userId && payment.userId !== userId) {
+    throw new HTTPException(403, { message: "Payment does not belong to this user" });
+  }
+
   const valid = verifyRazorpaySignature(
     razorpay_order_id,
     razorpay_payment_id,
@@ -525,7 +564,9 @@ paymentsRoutes.post("/verify", async (c) => {
     }
   });
 
-  if (payment.resourceScope) {
+  if (payment.toolPlanId) {
+    await fulfillToolSubscription(payment.userId, payment.toolPlanId, payment.id);
+  } else if (payment.resourceScope) {
     await grantResourceAccess(payment.userId, payment.resourceScope, payment.studyMaterialId, payment.studyMaterialFileId, payment.id);
     notifyResourceAccess({
       userId: payment.userId,

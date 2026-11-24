@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { consumeToolUse } from "@/lib/api";
+import { useState } from "react";
+import { useToolAccess } from "@/lib/useToolAccess";
+import ToolUsageBar from "@/components/tools/ToolUsageBar";
+import LoginRequiredModal from "@/components/tools/LoginRequiredModal";
 
-type Mode = "molarity" | "mass" | "dilution";
+type Mode = "mass" | "molarity";
 
 type VolumeUnit = "uL" | "mL" | "L";
-type MassUnit = "mg" | "g";
+type MassUnit = "ug" | "mg" | "g";
+type MolarityUnit = "uM" | "mM" | "M";
 
 const inputClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
@@ -15,25 +18,46 @@ const selectClassName =
   "rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
 
 function parsePositive(value: string) {
-  const parsed = Number.parseFloat(value);
+  const parsed = Number.parseFloat(value.trim());
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function toLiters(value: number, unit: VolumeUnit) {
+function toLiters(value: number, unit: VolumeUnit): number {
   if (unit === "uL") return value / 1_000_000;
   if (unit === "mL") return value / 1_000;
   return value;
 }
 
-function toGrams(value: number, unit: MassUnit) {
-  return unit === "mg" ? value / 1_000 : value;
+function toMolar(value: number, unit: MolarityUnit): number {
+  if (unit === "uM") return value / 1_000_000;
+  if (unit === "mM") return value / 1_000;
+  return value;
 }
 
-function formatNumber(value: number, decimals = 4) {
+function toGrams(value: number, unit: MassUnit): number {
+  if (unit === "ug") return value / 1_000_000;
+  if (unit === "mg") return value / 1_000;
+  return value;
+}
+
+function fromGrams(grams: number, targetUnit: MassUnit): number {
+  if (targetUnit === "ug") return grams * 1_000_000;
+  if (targetUnit === "mg") return grams * 1_000;
+  return grams;
+}
+
+function fromMolar(molesPerLiter: number, targetUnit: MolarityUnit): number {
+  if (targetUnit === "uM") return molesPerLiter * 1_000_000;
+  if (targetUnit === "mM") return molesPerLiter * 1_000;
+  return molesPerLiter;
+}
+
+function formatScientific(value: number, decimals = 4): string {
   if (!Number.isFinite(value)) return "—";
   const abs = Math.abs(value);
-  if (abs >= 1_000) return value.toExponential(3);
-  if (abs < 0.0001 && abs > 0) return value.toExponential(3);
+  if (abs >= 100_000 || (abs < 0.0001 && abs > 0)) {
+    return value.toExponential(3);
+  }
   return value.toLocaleString(undefined, {
     maximumFractionDigits: decimals,
     minimumFractionDigits: 0,
@@ -100,355 +124,508 @@ function Field({
   );
 }
 
-const modes: { id: Mode; label: string; description: string }[] = [
-  {
-    id: "molarity",
-    label: "Find molarity",
-    description: "Calculate concentration from mass, molecular weight, and volume.",
-  },
-  {
-    id: "mass",
-    label: "Find mass",
-    description: "Calculate how much solute to weigh for a target concentration.",
-  },
-  {
-    id: "dilution",
-    label: "Dilution",
-    description: "",
-  },
-];
-
 export default function MolarityCalculator() {
-  const [mode, setMode] = useState<Mode>("molarity");
+  // Phase 2.1: Default active tab is "mass" (Find Mass)
+  const [mode, setMode] = useState<Mode>("mass");
 
-  const [mass, setMass] = useState("");
-  const [massUnit, setMassUnit] = useState<MassUnit>("g");
-  const [molecularWeight, setMolecularWeight] = useState("");
-  const [volume, setVolume] = useState("");
-  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>("mL");
+  // Shared access hook
+  const {
+    user,
+    status,
+    statusLoading,
+    calculating,
+    loginRequired,
+    quotaExceeded,
+    accessError,
+    verifyAndConsume,
+    calculateAndConsume,
+    clearAccessErrors,
+  } = useToolAccess("molarity");
+
+  // State for Find Mass tab
   const [targetMolarity, setTargetMolarity] = useState("");
-  const [calculatedResult, setCalculatedResult] = useState<typeof result>(null);
-  const [calculationError, setCalculationError] = useState<string | null>(null);
+  const [targetMolarityUnit, setTargetMolarityUnit] = useState<MolarityUnit>("mM");
+  const [massVolume, setMassVolume] = useState("");
+  const [massVolumeUnit, setMassVolumeUnit] = useState<VolumeUnit>("mL");
+  const [massMolecularWeight, setMassMolecularWeight] = useState("");
 
-  const [c1, setC1] = useState("");
-  const [v1, setV1] = useState("");
-  const [v1Unit, setV1Unit] = useState<VolumeUnit>("mL");
-  const [c2, setC2] = useState("");
-  const [v2, setV2] = useState("");
-  const [v2Unit, setV2Unit] = useState<VolumeUnit>("mL");
+  // Result state for Find Mass (stored in base grams)
+  const [calculatedMassGrams, setCalculatedMassGrams] = useState<number | null>(null);
+  const [displayMassUnit, setDisplayMassUnit] = useState<MassUnit>("mg");
 
-  const result = useMemo(() => {
-    if (mode === "molarity") {
-      const massValue = parsePositive(mass);
-      const mw = parsePositive(molecularWeight);
-      const volumeValue = parsePositive(volume);
-      if (!massValue || !mw || !volumeValue) return null;
+  // State for Find Molarity tab
+  const [soluteMass, setSoluteMass] = useState("");
+  const [soluteMassUnit, setSoluteMassUnit] = useState<MassUnit>("mg");
+  const [molarityMolecularWeight, setMolarityMolecularWeight] = useState("");
+  const [molarityVolume, setMolarityVolume] = useState("");
+  const [molarityVolumeUnit, setMolarityVolumeUnit] = useState<VolumeUnit>("mL");
 
-      const moles = toGrams(massValue, massUnit) / mw;
-      const liters = toLiters(volumeValue, volumeUnit);
-      return {
-        label: "Molarity",
-        value: moles / liters,
-        unit: "M",
-        formula: "M = (mass / MW) / volume",
-      };
-    }
+  // Result state for Find Molarity (stored in base Molar)
+  const [calculatedMolarityBase, setCalculatedMolarityBase] = useState<number | null>(null);
+  const [displayMolarityUnit, setDisplayMolarityUnit] = useState<MolarityUnit>("mM");
 
-    if (mode === "mass") {
-      const molarity = parsePositive(targetMolarity);
-      const mw = parsePositive(molecularWeight);
-      const volumeValue = parsePositive(volume);
-      if (!molarity || !mw || !volumeValue) return null;
+  // Validation error
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
-      const liters = toLiters(volumeValue, volumeUnit);
-      const grams = molarity * mw * liters;
-      return {
-        label: "Mass required",
-        value: grams,
-        unit: "g",
-        alt:
-          grams < 1
-            ? { label: "Mass required", value: grams * 1_000, unit: "mg" }
-            : null,
-        formula: "mass = M × MW × volume",
-      };
-    }
+  // Phase 2.7: Reset on tab switching
+  const handleTabSwitch = (newMode: Mode) => {
+    if (newMode === mode) return;
+    setMode(newMode);
+    setValidationError(null);
+    clearAccessErrors();
 
-    const c1Value = c1.trim() ? parsePositive(c1) : null;
-    const v1Value = v1.trim() ? parsePositive(v1) : null;
-    const c2Value = c2.trim() ? parsePositive(c2) : null;
-    const v2Value = v2.trim() ? parsePositive(v2) : null;
+    // Clear stale calculation results
+    setCalculatedMassGrams(null);
+    setCalculatedMolarityBase(null);
 
-    const known = [c1Value, v1Value, c2Value, v2Value].filter(
-      (value) => value !== null
-    ).length;
-    if (known !== 3) return null;
-
-    if (!c1Value) {
-      if (!v1Value || !c2Value || !v2Value) return null;
-      const value =
-        (c2Value * toLiters(v2Value, v2Unit)) / toLiters(v1Value, v1Unit);
-      return {
-        label: "Stock concentration (C₁)",
-        value,
-        unit: "M",
-        formula: "C₁ = (C₂ × V₂) / V₁",
-      };
-    }
-
-    if (!v1Value) {
-      if (!c2Value || !v2Value) return null;
-      const liters =
-        (c2Value * toLiters(v2Value, v2Unit)) / c1Value;
-      return {
-        label: "Stock volume (V₁)",
-        value: liters * 1_000,
-        unit: "mL",
-        formula: "V₁ = (C₂ × V₂) / C₁",
-      };
-    }
-
-    if (!c2Value) {
-      if (!v2Value) return null;
-      const value =
-        (c1Value * toLiters(v1Value, v1Unit)) / toLiters(v2Value, v2Unit);
-      return {
-        label: "Final concentration (C₂)",
-        value,
-        unit: "M",
-        formula: "C₂ = (C₁ × V₁) / V₂",
-      };
-    }
-
-    if (!v2Value) {
-      const liters =
-        (c1Value * toLiters(v1Value, v1Unit)) / c2Value;
-      return {
-        label: "Final volume (V₂)",
-        value: liters * 1_000,
-        unit: "mL",
-        formula: "V₂ = (C₁ × V₁) / C₂",
-      };
-    }
-
-    return null;
-  }, [
-    mode,
-    mass,
-    massUnit,
-    molecularWeight,
-    volume,
-    volumeUnit,
-    targetMolarity,
-    c1,
-    v1,
-    v1Unit,
-    c2,
-    v2,
-    v2Unit,
-  ]);
-
-  const activeMode = modes.find((item) => item.id === mode)!;
-
-  const handleCalculate = async () => {
-    if (!result) return;
-    setCalculationError(null);
-    try {
-      await consumeToolUse("molarity");
-      setCalculatedResult(result);
-    } catch (error) {
-      setCalculatedResult(null);
-      setCalculationError(error instanceof Error ? error.message : "Tool usage limit reached");
+    // Reset inputs of previous tab
+    if (newMode === "mass") {
+      setSoluteMass("");
+      setSoluteMassUnit("mg");
+      setMolarityMolecularWeight("");
+      setMolarityVolume("");
+      setMolarityVolumeUnit("mL");
+      setDisplayMassUnit("mg");
+    } else {
+      setTargetMolarity("");
+      setTargetMolarityUnit("mM");
+      setMassVolume("");
+      setMassVolumeUnit("mL");
+      setMassMolecularWeight("");
+      setDisplayMolarityUnit("mM");
     }
   };
 
-  const dilutionFilledCount = [c1, v1, c2, v2].filter((v) => v.trim() !== "").length;
-  const dilutionLocked =
-    dilutionFilledCount === 3
-      ? {
-          c1: !c1.trim(),
-          v1: !v1.trim(),
-          c2: !c2.trim(),
-          v2: !v2.trim(),
-        }
-      : { c1: false, v1: false, c2: false, v2: false };
+  // Phase 2.6: Clear / Reset button
+  const handleReset = () => {
+    setValidationError(null);
+    clearAccessErrors();
+
+    if (mode === "mass") {
+      setTargetMolarity("");
+      setTargetMolarityUnit("mM");
+      setMassVolume("");
+      setMassVolumeUnit("mL");
+      setMassMolecularWeight("");
+      setCalculatedMassGrams(null);
+      setDisplayMassUnit("mg");
+    } else {
+      setSoluteMass("");
+      setSoluteMassUnit("mg");
+      setMolarityMolecularWeight("");
+      setMolarityVolume("");
+      setMolarityVolumeUnit("mL");
+      setCalculatedMolarityBase(null);
+      setDisplayMolarityUnit("mM");
+    }
+  };
+
+  // Calculate execution
+  const handleCalculate = async () => {
+    setValidationError(null);
+    clearAccessErrors();
+
+    // Phase 2.8: Validation
+    if (mode === "mass") {
+      const conc = parsePositive(targetMolarity);
+      const vol = parsePositive(massVolume);
+      const mw = parsePositive(massMolecularWeight);
+
+      if (!targetMolarity.trim()) {
+        setValidationError("Please enter the target concentration.");
+        return;
+      }
+      if (!conc) {
+        setValidationError("Target concentration must be a positive number.");
+        return;
+      }
+      if (!massVolume.trim()) {
+        setValidationError("Please enter the final solution volume.");
+        return;
+      }
+      if (!vol) {
+        setValidationError("Volume must be a positive number.");
+        return;
+      }
+      if (!massMolecularWeight.trim()) {
+        setValidationError("Please enter the molecular weight.");
+        return;
+      }
+      if (!mw) {
+        setValidationError("Molecular weight must be a positive number.");
+        return;
+      }
+
+      // Authoritative calculation & quota consumption
+      const res = await calculateAndConsume<{ calculatedMassGrams: number }>({
+        mode: "mass",
+        targetMolarity: conc,
+        targetMolarityUnit,
+        volume: vol,
+        volumeUnit: massVolumeUnit,
+        molecularWeight: mw,
+      });
+
+      if (!res) {
+        if (!user) setShowLoginModal(true);
+        return;
+      }
+
+      // Mass (g) = Molarity (mol/L) × Volume (L) × Molecular Weight (g/mol)
+      const grams = res.result?.calculatedMassGrams ?? (toMolar(conc, targetMolarityUnit) * toLiters(vol, massVolumeUnit) * mw);
+      setCalculatedMassGrams(grams);
+
+      // Pick an initial sensible display unit
+      if (grams < 0.001) setDisplayMassUnit("ug");
+      else if (grams < 1) setDisplayMassUnit("mg");
+      else setDisplayMassUnit("g");
+    } else {
+      const massVal = parsePositive(soluteMass);
+      const mw = parsePositive(molarityMolecularWeight);
+      const vol = parsePositive(molarityVolume);
+
+      if (!soluteMass.trim()) {
+        setValidationError("Please enter the solute mass.");
+        return;
+      }
+      if (!massVal) {
+        setValidationError("Solute mass must be a positive number.");
+        return;
+      }
+      if (!molarityMolecularWeight.trim()) {
+        setValidationError("Please enter the molecular weight.");
+        return;
+      }
+      if (!mw) {
+        setValidationError("Molecular weight must be a positive number.");
+        return;
+      }
+      if (!molarityVolume.trim()) {
+        setValidationError("Please enter the final solution volume.");
+        return;
+      }
+      if (!vol) {
+        setValidationError("Volume must be a positive number.");
+        return;
+      }
+
+      // Authoritative calculation & quota consumption
+      const res = await calculateAndConsume<{ calculatedMolarityBase: number }>({
+        mode: "molarity",
+        soluteMass: massVal,
+        soluteMassUnit,
+        volume: vol,
+        volumeUnit: molarityVolumeUnit,
+        molecularWeight: mw,
+      });
+
+      if (!res) {
+        if (!user) setShowLoginModal(true);
+        return;
+      }
+
+      // Molarity (M) = Mass (g) / [Molecular Weight (g/mol) × Volume (L)]
+      const molarityM = res.result?.calculatedMolarityBase ?? (toGrams(massVal, soluteMassUnit) / (mw * toLiters(vol, molarityVolumeUnit)));
+      setCalculatedMolarityBase(molarityM);
+
+      // Pick an initial sensible display unit
+      if (molarityM < 0.001) setDisplayMolarityUnit("uM");
+      else if (molarityM < 1) setDisplayMolarityUnit("mM");
+      else setDisplayMolarityUnit("M");
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        {modes.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setMode(item.id)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              mode === item.id
-                ? "bg-slate-950 text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+      <LoginRequiredModal
+        isOpen={showLoginModal || loginRequired}
+        onClose={() => {
+          setShowLoginModal(false);
+          clearAccessErrors();
+        }}
+        message="Please login to calculate"
+      />
+
+      {/* Usage quota bar */}
+      <ToolUsageBar
+        status={status}
+        loading={statusLoading}
+        authenticated={Boolean(user)}
+      />
+
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+        <button
+          type="button"
+          onClick={() => handleTabSwitch("mass")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            mode === "mass"
+              ? "bg-slate-950 text-white shadow-xs"
+              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Find Mass (Required)
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabSwitch("molarity")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            mode === "molarity"
+              ? "bg-slate-950 text-white shadow-xs"
+              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Find Molarity (Concentration)
+        </button>
       </div>
 
-      <p className="text-sm leading-6 text-slate-500">{activeMode.description}</p>
+      <p className="text-xs text-slate-500 leading-relaxed">
+        {mode === "mass"
+          ? "Calculate the solute mass to weigh out for a target concentration and desired solution volume."
+          : "Calculate resulting solution molarity based on solute mass, formula weight, and final volume."}
+      </p>
 
-      {mode === "molarity" && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Mass"
-            value={mass}
-            onChange={setMass}
-            placeholder="e.g. 5.85"
-            unit={massUnit}
-            onUnitChange={(value) => setMassUnit(value as MassUnit)}
-            unitOptions={[
-              { value: "g", label: "g" },
-              { value: "mg", label: "mg" },
-            ]}
-          />
-          <Field
-            label="Molecular weight"
-            value={molecularWeight}
-            onChange={setMolecularWeight}
-            placeholder="e.g. 58.44"
-            unit="g/mol"
-          />
-          <Field
-            label="Volume"
-            value={volume}
-            onChange={setVolume}
-            placeholder="e.g. 500"
-            unit={volumeUnit}
-            onUnitChange={(value) => setVolumeUnit(value as VolumeUnit)}
-            unitOptions={[
-              { value: "uL", label: "µL" },
-              { value: "mL", label: "mL" },
-              { value: "L", label: "L" },
-            ]}
-          />
-        </div>
-      )}
-
+      {/* Inputs for Find Mass */}
       {mode === "mass" && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
-            label="Target molarity"
+            label="Target Concentration"
             value={targetMolarity}
             onChange={setTargetMolarity}
-            placeholder="e.g. 0.1"
-            unit="M"
+            placeholder="e.g. 50"
+            unit={targetMolarityUnit}
+            onUnitChange={(u) => setTargetMolarityUnit(u as MolarityUnit)}
+            unitOptions={[
+              { value: "uM", label: "µM (micromolar)" },
+              { value: "mM", label: "mM (millimolar)" },
+              { value: "M", label: "M (molar)" },
+            ]}
           />
           <Field
-            label="Molecular weight"
-            value={molecularWeight}
-            onChange={setMolecularWeight}
-            placeholder="e.g. 58.44"
-            unit="g/mol"
-          />
-          <Field
-            label="Volume"
-            value={volume}
-            onChange={setVolume}
-            placeholder="e.g. 500"
-            unit={volumeUnit}
-            onUnitChange={(value) => setVolumeUnit(value as VolumeUnit)}
+            label="Final Solution Volume"
+            value={massVolume}
+            onChange={setMassVolume}
+            placeholder="e.g. 250"
+            unit={massVolumeUnit}
+            onUnitChange={(u) => setMassVolumeUnit(u as VolumeUnit)}
             unitOptions={[
               { value: "uL", label: "µL" },
               { value: "mL", label: "mL" },
               { value: "L", label: "L" },
             ]}
           />
-        </div>
-      )}
-
-      {mode === "dilution" && (
-        <div className="space-y-5">
-          {/* <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-            Leave one field blank to solve for it
-          </p> */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
             <Field
-              label="Stock concentration (C₁)"
-              value={c1}
-              onChange={setC1}
-              placeholder="e.g. 1"
-              unit="M"
-              disabled={dilutionLocked.c1}
-            />
-            <Field
-              label="Stock volume (V₁)"
-              value={v1}
-              onChange={setV1}
-              placeholder="e.g. 10"
-              unit={v1Unit}
-              onUnitChange={(value) => setV1Unit(value as VolumeUnit)}
-              unitOptions={[
-                { value: "uL", label: "µL" },
-                { value: "mL", label: "mL" },
-                { value: "L", label: "L" },
-              ]}
-              disabled={dilutionLocked.v1}
-            />
-            <Field
-              label="Final concentration (C₂)"
-              value={c2}
-              onChange={setC2}
-              placeholder="e.g. 0.1"
-              unit="M"
-              disabled={dilutionLocked.c2}
-            />
-            <Field
-              label="Final volume (V₂)"
-              value={v2}
-              onChange={setV2}
-              placeholder="e.g. 100"
-              unit={v2Unit}
-              onUnitChange={(value) => setV2Unit(value as VolumeUnit)}
-              unitOptions={[
-                { value: "uL", label: "µL" },
-                { value: "mL", label: "mL" },
-                { value: "L", label: "L" },
-              ]}
-              disabled={dilutionLocked.v2}
+              label="Molecular Weight (Formula Weight)"
+              value={massMolecularWeight}
+              onChange={setMassMolecularWeight}
+              placeholder="e.g. 180.16 (Glucose)"
+              unit="g/mol"
             />
           </div>
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-        <button type="button" onClick={handleCalculate} disabled={!result} className="mb-4 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
-          Calculate
+      {/* Inputs for Find Molarity */}
+      {mode === "molarity" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Solute Mass"
+            value={soluteMass}
+            onChange={setSoluteMass}
+            placeholder="e.g. 5.85"
+            unit={soluteMassUnit}
+            onUnitChange={(u) => setSoluteMassUnit(u as MassUnit)}
+            unitOptions={[
+              { value: "ug", label: "µg (micrograms)" },
+              { value: "mg", label: "mg (milligrams)" },
+              { value: "g", label: "g (grams)" },
+            ]}
+          />
+          <Field
+            label="Molecular Weight"
+            value={molarityMolecularWeight}
+            onChange={setMolarityMolecularWeight}
+            placeholder="e.g. 58.44 (NaCl)"
+            unit="g/mol"
+          />
+          <div className="sm:col-span-2">
+            <Field
+              label="Final Solution Volume"
+              value={molarityVolume}
+              onChange={setMolarityVolume}
+              placeholder="e.g. 500"
+              unit={molarityVolumeUnit}
+              onUnitChange={(u) => setMolarityVolumeUnit(u as VolumeUnit)}
+              unitOptions={[
+                { value: "uL", label: "µL" },
+                { value: "mL", label: "mL" },
+                { value: "L", label: "L" },
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Validation or access error */}
+      {validationError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700 font-medium">
+          {validationError}
+        </div>
+      )}
+
+      {accessError && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900 font-medium flex items-center justify-between">
+          <span>{accessError}</span>
+          {quotaExceeded && (
+            <a
+              href="/tools#subscription-plans"
+              className="ml-3 underline font-semibold text-amber-950"
+            >
+              View Plans
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          type="button"
+          onClick={handleCalculate}
+          disabled={calculating}
+          className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
+        >
+          {calculating ? (
+            <>
+              <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span>Calculating result...</span>
+            </>
+          ) : (
+            "Calculate"
+          )}
         </button>
-        {calculationError ? <p className="mb-3 text-sm text-red-600">{calculationError}</p> : null}
-        {calculatedResult ? (
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-              Result
-            </p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              {formatNumber(calculatedResult.value)}{" "}
-              <span className="text-lg text-slate-500">{calculatedResult.unit}</span>
-            </p>
-            {calculatedResult.alt && (
-              <p className="mt-1 text-sm text-slate-500">
-                {calculatedResult.alt.label}: {formatNumber(calculatedResult.alt.value)}{" "}
-                {calculatedResult.alt.unit}
+
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={calculating}
+          className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          Reset
+        </button>
+      </div>
+
+      {/* Result Card */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 sm:p-6 transition-all">
+        <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+            Calculation Output
+          </p>
+
+          {/* Unit Switcher */}
+          {mode === "mass" && calculatedMassGrams !== null && (
+            <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 text-xs">
+              {(["ug", "mg", "g"] as MassUnit[]).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setDisplayMassUnit(u)}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                    displayMassUnit === u
+                      ? "bg-slate-950 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {u === "ug" ? "µg" : u}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mode === "molarity" && calculatedMolarityBase !== null && (
+            <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 text-xs">
+              {(["uM", "mM", "M"] as MolarityUnit[]).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setDisplayMolarityUnit(u)}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                    displayMolarityUnit === u
+                      ? "bg-slate-950 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {u === "uM" ? "µM" : u}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4">
+          {mode === "mass" && calculatedMassGrams !== null ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Solute Mass Required
               </p>
-            )}
-            <p className="mt-3 text-sm text-slate-500">{calculatedResult.formula}</p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-              Result
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-4xl font-extrabold tracking-tight text-slate-950">
+                  {formatScientific(fromGrams(calculatedMassGrams, displayMassUnit))}
+                </span>
+                <span className="text-xl font-bold text-slate-600">
+                  {displayMassUnit === "ug" ? "µg" : displayMassUnit}
+                </span>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 space-y-1">
+                <p className="font-mono text-[11px] text-slate-500">
+                  Formula: Mass (g) = Molarity (mol/L) × Volume (L) × MW (g/mol)
+                </p>
+                <p>
+                  Equivalent values: {formatScientific(fromGrams(calculatedMassGrams, "ug"))} µg ={" "}
+                  {formatScientific(fromGrams(calculatedMassGrams, "mg"))} mg ={" "}
+                  {formatScientific(fromGrams(calculatedMassGrams, "g"))} g
+                </p>
+              </div>
+            </div>
+          ) : mode === "molarity" && calculatedMolarityBase !== null ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Resulting Concentration
+              </p>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-4xl font-extrabold tracking-tight text-slate-950">
+                  {formatScientific(fromMolar(calculatedMolarityBase, displayMolarityUnit))}
+                </span>
+                <span className="text-xl font-bold text-slate-600">
+                  {displayMolarityUnit === "uM" ? "µM" : displayMolarityUnit}
+                </span>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 space-y-1">
+                <p className="font-mono text-[11px] text-slate-500">
+                  Formula: Molarity (M) = Mass (g) / [MW (g/mol) × Volume (L)]
+                </p>
+                <p>
+                  Equivalent concentrations:{" "}
+                  {formatScientific(fromMolar(calculatedMolarityBase, "uM"))} µM ={" "}
+                  {formatScientific(fromMolar(calculatedMolarityBase, "mM"))} mM ={" "}
+                  {formatScientific(fromMolar(calculatedMolarityBase, "M"))} M
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs sm:text-sm text-slate-500">
+              Enter the scientific parameters above and click{" "}
+              <strong className="text-slate-800">Calculate</strong> to view verified results.
             </p>
-            <p className="mt-2 text-sm text-slate-500">
-              Enter valid positive values to see the calculated result.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

@@ -46,6 +46,10 @@ model User {
   lmsAccesses            LmsAccess[]
   labAttendances         LabAttendance[]  @relation("LabAttendanceUser")
   labAttendancesMarked   LabAttendance[]  @relation("LabAttendanceMarkedBy")
+  toolSubscriptions      UserToolSubscription[]
+  toolDailyUsages        ToolDailyUsage[]
+  toolQuotaOverride      UserToolQuotaOverride?
+  toolSubscriptionAudits ToolSubscriptionAudit[] @relation("ToolAuditActor")
 }
 
 model MaintenanceRule {
@@ -423,12 +427,16 @@ model Payment {
   lmsAccesses         LmsAccess[]
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   kitOrderEvents      KitOrderEvent[]
+  toolPlanId          String?
+  toolPlan            ToolSubscriptionPlan? @relation(fields: [toolPlanId], references: [id])
+  toolSubscriptions   UserToolSubscription[]
 
   @@index([userId])
   @@index([providerOrderId])
   @@index([kitId])
   @@index([studyMaterialId])
   @@index([studyMaterialFileId])
+  @@index([toolPlanId])
 }
 
 model KitOrderEvent {
@@ -1307,4 +1315,119 @@ model LabAttendance {
   @@index([labId, date])
   @@index([userId])
 }
+
+model ToolGeneralSetting {
+  id                         String   @id @default("default")
+  dailyFreeLimit             Int      @default(1)
+  publicBrowseEnabled        Boolean  @default(true)
+  toolsSectionEnabled        Boolean  @default(true)
+  loginRequiredMessage       String   @default("Please login to calculate")
+  quotaExceededMessage       String   @default("You've reached your daily calculation limit.")
+  subscriptionCtaTitle       String   @default("Tools Unlimited Access")
+  subscriptionCtaDescription String   @default("Unlock unlimited calculations across all scientific tools, including future additions.")
+  updatedAt                  DateTime @updatedAt
+}
+
+model ToolDefinition {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String
+  route       String
+  sortOrder   Int      @default(0)
+  enabled     Boolean  @default(true)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model ToolSubscriptionPlan {
+  id            String   @id @default(cuid())
+  name          String
+  durationUnit  String
+  durationValue Int
+  regularPrice  Int
+  offerPrice    Int?
+  offerEnabled  Boolean  @default(true)
+  offerStartsAt DateTime?
+  offerEndsAt   DateTime?
+  currency      String   @default("INR")
+  published     Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  features      String[] @default([])
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions UserToolSubscription[]
+  payments      Payment[]
+
+  @@index([sortOrder])
+  @@index([published])
+}
+
+model UserToolSubscription {
+  id          String                @id @default(cuid())
+  userId      String
+  planId      String?
+  status      String                @default("ACTIVE")
+  startsAt    DateTime              @default(now())
+  expiresAt   DateTime
+  paymentId   String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        ToolSubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  payment     Payment?              @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  audits      ToolSubscriptionAudit[]
+
+  @@index([userId, status])
+  @@index([expiresAt])
+}
+
+model ToolSubscriptionAudit {
+  id             String                @id @default(cuid())
+  subscriptionId String?
+  userId         String
+  actorId        String?
+  action         String
+  metadata       Json?
+  createdAt      DateTime              @default(now())
+
+  subscription   UserToolSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  actor          User?                 @relation("ToolAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([createdAt])
+}
+
+model ToolDailyUsage {
+  id         String   @id @default(cuid())
+  userId     String
+  toolKey    String
+  usageDate  String
+  count      Int      @default(0)
+  lastUsedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, toolKey, usageDate])
+  @@index([userId, usageDate])
+  @@index([usageDate])
+}
+
+model UserToolQuotaOverride {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  dailyLimit Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 

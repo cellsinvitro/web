@@ -84,6 +84,14 @@ function LogoutIcon({ className }: IconProps) {
   );
 }
 
+function ToolsIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18a2.25 2.25 0 0 1-2.25 2.25h-3A2.25 2.25 0 0 1 8.25 18v-2.25m7.5 0v-3a2.25 2.25 0 0 0-2.25-2.25h-3A2.25 2.25 0 0 0 8.25 12.75v3m7.5 0h-7.5M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+    </svg>
+  );
+}
+
 const navItems = [
   { label: "Overview", href: "/admin", icon: OverviewIcon },
   { label: "LMS & Banner", href: "/admin/lms", icon: LogbookIcon },
@@ -95,7 +103,7 @@ const navItems = [
   { label: "Kits", href: "/admin/kits", icon: KitsIcon },
   { label: "Orders", href: "/admin/orders", icon: OrdersIcon },
   { label: "Maintenance", href: "/admin/maintenance", icon: MaintenanceIcon },
-  { label: "Tool Limits", href: "/admin/tools", icon: MaintenanceIcon },
+  { label: "Tools Management", href: "/admin/tools", icon: ToolsIcon },
 ];
 
 function NavLink({

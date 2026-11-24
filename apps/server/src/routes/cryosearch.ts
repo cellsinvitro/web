@@ -100,14 +100,23 @@ const emptyState: CryoState = {
   allowedUsers: [],
 };
 
+const WORKSPACE_ITEM_ID = "workspace";
+const WORKSPACE_RESOLVED = {
+  itemType: "Workspace",
+  itemPath: ["LMS Workspace"],
+};
+
 /**
- * Resolve item metadata from the owner's labs JSON.
+ * Resolve item metadata from the owner's labs JSON (or workspace-level invite).
  * Returns null if the itemId isn't found.
  */
 function resolveItem(
   labs: LabModel[],
   itemId: string
 ): { itemType: string; itemPath: string[] } | null {
+  if (!itemId || itemId === WORKSPACE_ITEM_ID) {
+    return WORKSPACE_RESOLVED;
+  }
   for (const lab of labs) {
     if (lab.id === itemId) {
       return { itemType: "Lab", itemPath: [lab.name] };
@@ -217,14 +226,14 @@ cryoSearchRoutes.post("/invite", async (c) => {
   if (!body) throw new HTTPException(400, { message: "Request body is required" });
 
   const email = body.email?.trim().toLowerCase();
-  const itemId = body.itemId?.trim().toLowerCase();
+  const itemId = body.itemId?.trim().toLowerCase() || WORKSPACE_ITEM_ID;
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new HTTPException(400, { message: "A valid email address is required" });
   }
-  if (!itemId || !itemId.startsWith("lab")) {
+  if (itemId !== WORKSPACE_ITEM_ID && !itemId.startsWith("lab")) {
     throw new HTTPException(400, {
-      message: "A valid item ID is required (e.g. lab-xxx or lab-xxx-con-xxx)",
+      message: "A valid item ID is required (e.g. lab-xxx, lab-xxx-con-xxx, or workspace)",
     });
   }
 

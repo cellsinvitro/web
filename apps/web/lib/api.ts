@@ -108,12 +108,91 @@ export async function loginUser(input: { email: string; password: string }) {
   return data;
 }
 
-export type ToolKey = "chatbot" | "molarity" | "ic50";
+export type ToolKey = "chatbot" | "molarity" | "ic50" | "dilution" | "cell-counting" | string;
+
+export type ToolItem = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  route: string;
+  sortOrder: number;
+  enabled: boolean;
+  published: boolean;
+};
+
+export type ToolSubscriptionPlan = {
+  id: string;
+  name: string;
+  durationUnit: string;
+  durationValue: number;
+  regularPrice: number;
+  offerPrice: number | null;
+  isOfferActive: boolean;
+  effectivePrice: number;
+  currency: string;
+  features: string[];
+  description: string | null;
+  sortOrder: number;
+};
+
+export type ToolGeneralSetting = {
+  id: string;
+  dailyFreeLimit: number;
+  publicBrowseEnabled: boolean;
+  toolsSectionEnabled: boolean;
+  loginRequiredMessage: string;
+  quotaExceededMessage: string;
+  subscriptionCtaTitle: string;
+  subscriptionCtaDescription: string;
+};
+
+export type ToolsStatusResponse = {
+  authenticated: boolean;
+  isSubscriber: boolean;
+  unlimited: boolean;
+  subscription: {
+    id: string;
+    planName: string;
+    expiresAt: string;
+  } | null;
+  dailyLimit: number | null;
+  usedToday: number;
+  remainingToday: number | null;
+  generalSetting: ToolGeneralSetting;
+  plans: ToolSubscriptionPlan[];
+  tools: ToolItem[];
+};
+
+export type ConsumeToolResult = {
+  allowed: boolean;
+  isSubscriber?: boolean;
+  unlimited?: boolean;
+  subscriptionExpiresAt?: string;
+  limit?: number | null;
+  used?: number | null;
+  remaining?: number | null;
+  message?: string;
+};
+
+export async function fetchToolsStatus() {
+  return apiFetch<ToolsStatusResponse>("/tools/status");
+}
 
 export async function consumeToolUse(toolKey: ToolKey) {
-  return apiFetch<{ allowed: true; limit: number | null; used: number }>(
+  return apiFetch<ConsumeToolResult>(
     `/tools/usage/${toolKey}/consume`,
     { method: "POST", body: JSON.stringify({}) }
+  );
+}
+
+export async function executeToolCalculation<T = any>(toolKey: ToolKey, payload: any) {
+  return apiFetch<{ success: boolean; result: T; access: ConsumeToolResult }>(
+    `/tools/calculate/${toolKey}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
   );
 }
 
@@ -130,6 +209,157 @@ export async function updateAdminToolSetting(toolKey: ToolKey, usageLimit: numbe
     body: JSON.stringify({ usageLimit }),
   });
   return data.setting;
+}
+
+export async function fetchAdminToolsGeneralSettings() {
+  return apiFetch<{ generalSetting: ToolGeneralSetting; tools: ToolItem[] }>("/tools/admin/settings");
+}
+
+export async function updateAdminToolsGeneralSettings(input: Partial<ToolGeneralSetting>) {
+  return apiFetch<{ generalSetting: ToolGeneralSetting }>("/tools/admin/settings", {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateAdminToolItem(key: string, input: Partial<ToolItem>) {
+  return apiFetch<{ tool: ToolItem }>(`/tools/admin/tools/${key}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchAdminToolPlans() {
+  const data = await apiFetch<{ plans: (ToolSubscriptionPlan & { published: boolean; offerEnabled: boolean; offerStartsAt: string | null; offerEndsAt: string | null })[] }>("/tools/admin/plans");
+  return data.plans;
+}
+
+export async function createAdminToolPlan(input: {
+  name: string;
+  durationUnit: string;
+  durationValue: number;
+  regularPrice: number;
+  offerPrice?: number | null;
+  offerEnabled?: boolean;
+  offerStartsAt?: string | null;
+  offerEndsAt?: string | null;
+  features?: string[];
+  description?: string;
+  sortOrder?: number;
+  published?: boolean;
+}) {
+  return apiFetch<{ plan: ToolSubscriptionPlan }>("/tools/admin/plans", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateAdminToolPlan(id: string, input: Partial<ToolSubscriptionPlan & { published: boolean; offerEnabled: boolean; offerStartsAt: string | null; offerEndsAt: string | null }>) {
+  return apiFetch<{ plan: ToolSubscriptionPlan }>(`/tools/admin/plans/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteAdminToolPlan(id: string) {
+  return apiFetch<{ success: boolean }>(`/tools/admin/plans/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export type ToolSubscriberItem = {
+  id: string;
+  userId: string;
+  planId: string | null;
+  status: string;
+  startsAt: string;
+  expiresAt: string;
+  createdAt: string;
+  user: { id: string; name: string | null; email: string };
+  plan: { id: string; name: string; durationUnit: string; durationValue: number } | null;
+  payment: { id: string; amount: number; provider: string; providerPaymentId: string | null; status: string } | null;
+};
+
+export async function fetchAdminToolSubscribers(params?: { search?: string; status?: string }) {
+  const query = new URLSearchParams();
+  if (params?.search) query.set("search", params.search);
+  if (params?.status) query.set("status", params.status);
+  const data = await apiFetch<{ subscriptions: ToolSubscriberItem[] }>(`/tools/admin/subscribers?${query.toString()}`);
+  return data.subscriptions;
+}
+
+export async function grantAdminToolSubscription(input: {
+  userEmail?: string;
+  userId?: string;
+  planId?: string;
+  durationDays?: number;
+}) {
+  return apiFetch<{ subscription: ToolSubscriberItem }>("/tools/admin/subscribers/grant", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function extendAdminToolSubscription(id: string, input: { days?: number; newExpiresAt?: string }) {
+  return apiFetch<{ subscription: ToolSubscriberItem }>(`/tools/admin/subscribers/${id}/extend`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function revokeAdminToolSubscription(id: string) {
+  return apiFetch<{ subscription: ToolSubscriberItem }>(`/tools/admin/subscribers/${id}/revoke`, {
+    method: "POST",
+  });
+}
+
+export type ToolUsageStats = {
+  date: string;
+  totalCalculationsToday: number;
+  uniqueUsersToday: number;
+  freeCalculations: number;
+  subscriberCalculations: number;
+  activeSubscribers: number;
+  usersAtQuota: number;
+  toolBreakdown: Record<string, number>;
+  usersList: { user: { id: string; name: string | null; email: string }; count: number; isSubscriber: boolean }[];
+  defaultLimit: number;
+};
+
+export async function fetchAdminToolUsage() {
+  return apiFetch<ToolUsageStats>("/tools/admin/usage");
+}
+
+export async function overrideAdminUserQuota(userId: string, dailyLimit: number) {
+  return apiFetch<{ override: { id: string; userId: string; dailyLimit: number } }>("/tools/admin/usage/override", {
+    method: "POST",
+    body: JSON.stringify({ userId, dailyLimit }),
+  });
+}
+
+export async function resetAdminUserUsage(userId: string) {
+  return apiFetch<{ success: boolean; message: string }>("/tools/admin/usage/reset", {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export type ToolAnalyticsData = {
+  activeSubscribers: number;
+  totalRevenue: number;
+  revenueByPlan: { name: string; revenue: number; count: number }[];
+  mostUsedCalculator: string;
+  usageByTool: Record<string, number>;
+  conversionRate: string;
+  totalSubscribedUsers: number;
+  totalRegisteredUsers: number;
+  totalRenewals?: number;
+  totalExpirations?: number;
+  dailyVolume?: { date: string; count: number }[];
+};
+
+export async function fetchAdminToolAnalytics() {
+  return apiFetch<ToolAnalyticsData>("/tools/admin/analytics");
 }
 
 export async function sendOtpApi(input: {
@@ -263,7 +493,7 @@ export type CryoInvitePreview = {
  * Lab owner: send an email invite to a collaborator.
  * POST /cryosearch/invite
  */
-export async function sendCryoInvite(email: string, itemId: string, allowedModules?: string[]) {
+export async function sendCryoInvite(email: string, itemId?: string, allowedModules?: string[]) {
   return apiFetch<{ success: boolean; emailSent: boolean; acceptUrl: string }>("/cryosearch/invite", {
     method: "POST",
     body: JSON.stringify({ email, itemId, allowedModules }),
@@ -1251,6 +1481,7 @@ export async function createPaymentOrder(input: {
   shippingAddress?: string;
   docServiceTitle?: string;
   customAmount?: number;
+  toolPlanId?: string;
 }) {
   return apiFetch<{
     free?: boolean;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { consumeToolUse } from "@/lib/api";
 
 export interface Message {
@@ -41,143 +42,6 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
-
-  // Draggable FAB state with magnetic corner docking
-  const [dockSide, setDockSide] = useState<"left" | "right">("right");
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const fabRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
-  const startPosRef = useRef({ mouseX: 0, mouseY: 0, fabX: 0, fabY: 0 });
-  const latestPosRef = useRef<{ x: number; y: number } | null>(null);
-  const hasMovedRef = useRef(false);
-
-  // Load saved dock side on mount
-  useEffect(() => {
-    if (embedded) return;
-    try {
-      const savedSide = localStorage.getItem("chatbot_fab_dock_side") as "left" | "right" | null;
-      if (savedSide === "left" || savedSide === "right") {
-        setDockSide(savedSide);
-      }
-    } catch (e) {
-      // Ignore
-    }
-  }, [embedded]);
-
-  // Handle window resize and initial snap calculation
-  useEffect(() => {
-    if (embedded) return;
-
-    const snapToDock = () => {
-      if (isDraggingRef.current) return;
-      const margin = 24;
-      const fabWidth = fabRef.current?.offsetWidth || 52;
-      const fabHeight = fabRef.current?.offsetHeight || 52;
-      const targetY = Math.max(margin, window.innerHeight - fabHeight - margin);
-      const targetX = dockSide === "left" ? margin : Math.max(margin, window.innerWidth - fabWidth - margin);
-      setPosition({ x: targetX, y: targetY });
-    };
-
-    snapToDock();
-
-    window.addEventListener("resize", snapToDock);
-    return () => window.removeEventListener("resize", snapToDock);
-  }, [dockSide, embedded]);
-
-  const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
-    if (embedded) return;
-
-    if ("button" in e && e.button !== 0) return;
-
-    const touch = "touches" in e ? e.touches[0] : undefined;
-    const clientX = touch ? touch.clientX : (e as React.MouseEvent).clientX;
-    const clientY = touch ? touch.clientY : (e as React.MouseEvent).clientY;
-
-    let fabX = position?.x;
-    let fabY = position?.y;
-
-    if (fabX === undefined || fabY === undefined) {
-      if (fabRef.current) {
-        const rect = fabRef.current.getBoundingClientRect();
-        fabX = rect.left;
-        fabY = rect.top;
-      } else {
-        fabX = dockSide === "left" ? 24 : window.innerWidth - 80;
-        fabY = window.innerHeight - 80;
-      }
-    }
-
-    startPosRef.current = {
-      mouseX: clientX,
-      mouseY: clientY,
-      fabX,
-      fabY,
-    };
-    hasMovedRef.current = false;
-    isDraggingRef.current = true;
-
-    const handlePointerMove = (moveEvent: MouseEvent | TouchEvent) => {
-      if (!isDraggingRef.current) return;
-      const moveTouch = "touches" in moveEvent ? moveEvent.touches[0] : undefined;
-      const moveX = moveTouch ? moveTouch.clientX : (moveEvent as MouseEvent).clientX;
-      const moveY = moveTouch ? moveTouch.clientY : (moveEvent as MouseEvent).clientY;
-
-      const dx = moveX - startPosRef.current.mouseX;
-      const dy = moveY - startPosRef.current.mouseY;
-
-      if (!hasMovedRef.current && Math.hypot(dx, dy) > 4) {
-        hasMovedRef.current = true;
-        setIsDragging(true);
-      }
-
-      if (hasMovedRef.current) {
-        const fabWidth = fabRef.current?.offsetWidth || 52;
-        const fabHeight = fabRef.current?.offsetHeight || 52;
-        const maxX = Math.max(10, window.innerWidth - fabWidth - 10);
-        const maxY = Math.max(10, window.innerHeight - fabHeight - 10);
-
-        const newX = Math.min(Math.max(10, startPosRef.current.fabX + dx), maxX);
-        const newY = Math.min(Math.max(10, startPosRef.current.fabY + dy), maxY);
-
-        latestPosRef.current = { x: newX, y: newY };
-        setPosition({ x: newX, y: newY });
-      }
-    };
-
-    const handlePointerUp = () => {
-      if (isDraggingRef.current) {
-        isDraggingRef.current = false;
-        setIsDragging(false);
-
-        if (hasMovedRef.current && latestPosRef.current) {
-          const dropX = latestPosRef.current.x;
-          const fabWidth = fabRef.current?.offsetWidth || 52;
-
-          const centerX = dropX + fabWidth / 2;
-          const side: "left" | "right" = centerX < window.innerWidth / 2 ? "left" : "right";
-
-          setDockSide(side);
-          setPosition(null);
-
-          try {
-            localStorage.setItem("chatbot_fab_dock_side", side);
-          } catch (e) {
-            // Ignore
-          }
-        }
-      }
-      window.removeEventListener("mousemove", handlePointerMove);
-      window.removeEventListener("mouseup", handlePointerUp);
-      window.removeEventListener("touchmove", handlePointerMove);
-      window.removeEventListener("touchend", handlePointerUp);
-    };
-
-    window.addEventListener("mousemove", handlePointerMove);
-    window.addEventListener("mouseup", handlePointerUp);
-    window.addEventListener("touchmove", handlePointerMove, { passive: false });
-    window.addEventListener("touchend", handlePointerUp);
-  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -385,26 +249,22 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
       className={`flex flex-col bg-white border border-slate-200 shadow-2xl overflow-hidden transition-all duration-300 ${
         embedded
           ? "w-full h-[650px] rounded-[2rem]"
-          : "w-[92vw] sm:w-[420px] h-[580px] max-h-[82vh] rounded-[1.75rem]"
+          : "w-[calc(100vw-3rem)] sm:w-[420px] h-[580px] max-h-[calc(100vh-7rem)] rounded-[1.75rem]"
       }`}
     >
       {/* Header matching CellsInVitro Dark Palette */}
       <div className="bg-slate-950 text-white p-4 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-white">
-            <svg
-              className="w-5 h-5 text-slate-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.8}
-                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.18.106l-1.5 1.5a2 2 0 000 2.828l1.5 1.5a2 2 0 002.828 0l1.5-1.5a2 2 0 00.106-1.18l-.477-2.387a6 6 0 01.517-3.86l.158-.318a6 6 0 00.517-3.86L8.88 5.6a2 2 0 00-.106-1.18l-1.5-1.5a2 2 0 00-2.828 0l-1.5 1.5a2 2 0 000 2.828l1.5 1.5"
-              />
-            </svg>
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 p-1.5 shrink-0">
+            <Image
+              src="/chatbot-logo.png"
+              alt="CellsInVitro AI"
+              width={32}
+              height={32}
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              className="w-7 h-7 object-contain drop-shadow-sm pointer-events-none select-none"
+            />
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-slate-950" />
           </div>
           <div>
@@ -504,20 +364,28 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
             >
               {/* Avatar */}
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5 ${
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5 overflow-hidden ${
                   msg.role === "user"
                     ? "bg-slate-950 text-white"
                     : msg.isError
                     ? "bg-rose-100 text-rose-700 border border-rose-200"
-                    : "bg-slate-200 text-slate-800 border border-slate-300/60"
+                    : "bg-slate-900 border border-slate-800 p-1"
                 }`}
               >
                 {msg.role === "user" ? (
                   "You"
+                ) : msg.isError ? (
+                  <span className="text-rose-600 font-bold">!</span>
                 ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.18.106l-1.5 1.5a2 2 0 000 2.828l1.5 1.5a2 2 0 002.828 0l1.5-1.5a2 2 0 00.106-1.18l-.477-2.387a6 6 0 01.517-3.86l.158-.318a6 6 0 00.517-3.86L8.88 5.6a2 2 0 00-.106-1.18l-1.5-1.5a2 2 0 00-2.828 0l-1.5 1.5a2 2 0 000 2.828l1.5 1.5" />
-                  </svg>
+                  <Image
+                    src="/chatbot-logo.png"
+                    alt="CellsInVitro AI"
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
+                    className="w-5 h-5 object-contain pointer-events-none select-none"
+                  />
                 )}
               </div>
 
@@ -615,23 +483,8 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
     return chatContent;
   }
 
-  const isLeft = dockSide === "left";
-
   return (
-    <div
-      ref={fabRef}
-      className={`fixed z-50 flex flex-col ${isLeft ? "items-start" : "items-end"}`}
-      style={{
-        left: position ? `${position.x}px` : isLeft ? "1.5rem" : "auto",
-        right: position ? "auto" : isLeft ? "auto" : "1.5rem",
-        top: position ? `${position.y}px` : "auto",
-        bottom: position ? "auto" : "1.5rem",
-        transition: isDragging
-          ? "none"
-          : "left 350ms cubic-bezier(0.2, 0.8, 0.2, 1), top 350ms cubic-bezier(0.2, 0.8, 0.2, 1), right 350ms cubic-bezier(0.2, 0.8, 0.2, 1), bottom 350ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-        touchAction: "none",
-      }}
-    >
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {/* Expanded Chat Window */}
       {isOpen && (
         <div className="mb-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
@@ -641,61 +494,43 @@ export default function BioChemChatbot({ embedded = false }: BioChemChatbotProps
 
       {/* Floating Action Button */}
       <button
-        onMouseDown={handlePointerDown}
-        onTouchStart={handlePointerDown}
-        onClick={(e) => {
-          if (hasMovedRef.current) {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-          }
-          setIsOpen(!isOpen);
-        }}
-        className={`group relative flex ${
-          isLeft ? "flex-row" : "flex-row-reverse"
-        } items-center gap-0 overflow-hidden bg-slate-950 hover:bg-slate-900 text-white pl-3.5 pr-3.5 ${
-          isLeft ? "hover:pl-4 hover:pr-5" : "hover:pl-5 hover:pr-4"
-        } py-3.5 rounded-full shadow-2xl transition-all duration-300 ${
-          isDragging ? "cursor-grabbing scale-105" : "cursor-grab hover:scale-105 active:scale-95"
-        } border border-slate-800 select-none`}
-        style={{
-          width: "3.25rem",
-          transition: isDragging
-            ? "none"
-            : "width 300ms ease, padding 300ms ease, transform 150ms ease",
-        }}
-        onMouseEnter={(e) => {
-          if (!isDragging) (e.currentTarget as HTMLButtonElement).style.width = "auto";
-        }}
-        onMouseLeave={(e) => {
-          if (!isOpen && !isDragging) (e.currentTarget as HTMLButtonElement).style.width = "3.25rem";
-        }}
+        onClick={() => setIsOpen(!isOpen)}
+        onDragStart={(e) => e.preventDefault()}
+        className="group relative flex items-center justify-center w-14 h-14 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 bg-slate-950 hover:bg-slate-900 border border-slate-800 select-none cursor-pointer"
         aria-label="Open CellsInVitro AI Chatbot"
-        title="Click to toggle chat, drag to reposition"
+        title={isOpen ? "Close Chat" : "CellsInVitro AI Assistant"}
       >
-        <svg className="w-5 h-5 shrink-0 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.8}
-            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.18.106l-1.5 1.5a2 2 0 000 2.828l1.5 1.5a2 2 0 002.828 0l1.5-1.5a2 2 0 00.106-1.18l-.477-2.387a6 6 0 01.517-3.86l.158-.318a6 6 0 00.517-3.86L8.88 5.6a2 2 0 00-.106-1.18l-1.5-1.5a2 2 0 00-2.828 0l-1.5 1.5a2 2 0 000 2.828l1.5 1.5"
-          />
-        </svg>
-        <span
-          className={`max-w-0 overflow-hidden whitespace-nowrap opacity-0 group-hover:max-w-xs group-hover:opacity-100 ${
-            isLeft ? "group-hover:ml-2.5" : "group-hover:mr-2.5"
-          } font-semibold text-sm tracking-tight transition-all duration-300`}
-        >
-          {isOpen ? "Close Chat" : "CellsInVitro AI"}
-        </span>
-        <span
-          className={`max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 ${
-            isLeft ? "group-hover:ml-2" : "group-hover:mr-2"
-          } flex h-2 w-2 relative shrink-0 transition-all duration-300`}
-        >
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
+        <div className="relative w-full h-full flex items-center justify-center pointer-events-none select-none">
+          {isOpen ? (
+            <svg
+              className="w-6 h-6 text-slate-300 transition-transform duration-200 group-hover:scale-110 pointer-events-none select-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <Image
+              src="/chatbot-logo.png"
+              alt="CellsInVitro AI"
+              width={44}
+              height={44}
+              priority
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              className="w-10 h-10 object-contain drop-shadow-md transition-transform duration-200 group-hover:scale-110 pointer-events-none select-none"
+            />
+          )}
+
+          {/* Active online status indicator */}
+          {!isOpen && (
+            <span className="absolute top-1 right-1 flex h-2.5 w-2.5 pointer-events-none select-none">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-slate-950"></span>
+            </span>
+          )}
+        </div>
       </button>
     </div>
   );

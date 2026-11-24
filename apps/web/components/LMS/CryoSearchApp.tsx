@@ -691,13 +691,10 @@ export default function CryoSearchApp({
     alert(`Access request sent for ID: ${itemId}`);
   };
 
-  const handleSendEmailInvite = async (email: string, _itemId: string, allowedModules?: string[]): Promise<{ emailSent: boolean; acceptUrl: string }> => {
-    // Use the owner's first lab ID — the invite grants access to that lab
-    const firstLabId = labs[0]?.id;
-    if (!firstLabId) {
-      throw new Error("Create a lab first before inviting collaborators.");
-    }
-    const result = await sendCryoInvite(email, firstLabId, allowedModules);
+  const handleSendEmailInvite = async (email: string, itemId: string, allowedModules?: string[]): Promise<{ emailSent: boolean; acceptUrl: string }> => {
+    // Use the provided itemId or owner's first lab ID if available; otherwise fall back to a workspace-level invite
+    const targetItemId = itemId.trim() || labs[0]?.id || "workspace";
+    const result = await sendCryoInvite(email, targetItemId, allowedModules);
     return { emailSent: result.emailSent, acceptUrl: result.acceptUrl };
   };
 
@@ -936,7 +933,7 @@ export default function CryoSearchApp({
               }`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-              <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+              <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1 0.9 2 2 2Z" />
             </svg>
             <span>CryoSearch</span>
             {!isSectionUnlocked("lms_repo") && <span className="text-[11px] opacity-75">🔒</span>}
@@ -2006,7 +2003,7 @@ function LockedSectionCard({
       price: "₹1,499",
       icon: (
         <svg className="h-8 w-8 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1 0.9 2 2 2Z" />
         </svg>
       ),
     },

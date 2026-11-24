@@ -10,7 +10,9 @@ import {
   generateCurvePoints,
   parseDataInput,
 } from "@/lib/ic50";
-import { consumeToolUse } from "@/lib/api";
+import { useToolAccess } from "@/lib/useToolAccess";
+import ToolUsageBar from "@/components/tools/ToolUsageBar";
+import LoginRequiredModal from "@/components/tools/LoginRequiredModal";
 
 const inputClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
@@ -392,11 +394,28 @@ function DoseResponseChart({
 function IC50MethodCitationCards() {
   const [copied, setCopied] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
+  const [accessDate, setAccessDate] = useState("");
+
+  useEffect(() => {
+    const now = new Date();
+    const formatted = now.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    setAccessDate(formatted);
+  }, []);
+
+  const dateStr = accessDate || new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   const citationText =
-    "CellsInVitro IC50 Calculator. CellsInVitro Lifesciences Pvt. Ltd. Version 1.0. Available at: https://cellsinvitro.com/tools/ic50";
+    `CellsInVitro IC50 Calculator. CellsInVitro Lifesciences Pvt. Ltd. Version 1.0. Available at: https://cellsinvitro.com/tools/ic50. Accessed on: ${dateStr}.`;
   const templateText =
-    "Dose-response curve fitting and IC₅₀ values were determined using the CellsInVitro IC50 Calculator (https://cellsinvitro.com/tools/ic50) using four-parameter logistic (4PL) non-linear regression.";
+    `Dose-response curve fitting and IC₅₀ values were determined using the CellsInVitro IC50 Calculator (https://cellsinvitro.com/tools/ic50; accessed on: ${dateStr}) using four-parameter logistic (4PL) non-linear regression.`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(citationText);
@@ -607,6 +626,19 @@ function ChartLightbox({
 }
 
 export default function IC50Calculator() {
+  const {
+    user,
+    status,
+    statusLoading,
+    calculating: hookCalculating,
+    loginRequired,
+    quotaExceeded,
+    accessError,
+    verifyAndConsume,
+    clearAccessErrors,
+  } = useToolAccess("ic50");
+
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [rawInput, setRawInput] = useState("");
   const [processedPoints, setProcessedPoints] = useState<DataPoint[] | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
@@ -631,14 +663,22 @@ export default function IC50Calculator() {
 
   async function handleCalculate() {
     if (!processedPoints || isCalculating) return;
+    setParseErrors([]);
+    clearAccessErrors();
+
+    const allowed = await verifyAndConsume();
+    if (!allowed) {
+      if (!user) setShowLoginModal(true);
+      return;
+    }
+
     setIsCalculating(true);
     try {
-      await consumeToolUse("ic50");
       const result = fitFourPL(processedPoints);
       setFitResult(result);
     } catch (error) {
       setParseErrors([
-        error instanceof Error ? error.message : "Tool usage limit reached",
+        error instanceof Error ? error.message : "Error fitting IC50 curve",
       ]);
     } finally {
       setIsCalculating(false);
@@ -651,6 +691,31 @@ export default function IC50Calculator() {
 
   return (
     <div className="space-y-8">
+      <LoginRequiredModal
+        isOpen={showLoginModal || loginRequired}
+        onClose={() => {
+          setShowLoginModal(false);
+          clearAccessErrors();
+        }}
+        message="Please login to calculate"
+      />
+
+      <ToolUsageBar
+        status={status}
+        loading={statusLoading}
+        authenticated={Boolean(user)}
+      />
+
+      {accessError && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 font-medium flex items-center justify-between">
+          <span>{accessError}</span>
+          {quotaExceeded && (
+            <a href="/tools#subscription-plans" className="ml-3 underline font-semibold text-amber-950">
+              View Plans
+            </a>
+          )}
+        </div>
+      )}
       <div
         className={
           processedPoints

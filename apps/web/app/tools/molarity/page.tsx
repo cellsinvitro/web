@@ -44,35 +44,34 @@ export default function MolarityPage() {
                 </p>
                 <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
                   Molarity
-                  <span className="text-slate-500"> calculator.</span>
+                  <span className="text-slate-500"> Calculator</span>
                 </h1>
                 <p className="mt-5 text-base leading-7 text-slate-500">
-                  Quickly calculate solution concentration, solute mass, or
-                  dilution volumes for your bench work — no sign-up required.
+                  Calculate required solute mass or resulting solution molarity with comprehensive unit conversion for laboratory reagents.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <h2 className="text-sm font-semibold text-slate-950">
-                  Quick reference
+                  Scientific Reference
                 </h2>
                 <dl className="mt-3 space-y-3 text-sm text-slate-600">
                   <div>
-                    <dt className="font-medium text-slate-800">Molarity</dt>
+                    <dt className="font-medium text-slate-800">Find Mass (Solute)</dt>
                     <dd className="mt-0.5 font-mono text-slate-500">
-                      M = (mass / MW) / volume
+                      Mass (g) = Molarity (mol/L) × Volume (L) × MW (g/mol)
                     </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-slate-800">Mass</dt>
+                    <dt className="font-medium text-slate-800">Find Molarity (Concentration)</dt>
                     <dd className="mt-0.5 font-mono text-slate-500">
-                      mass = M × MW × volume
+                      Molarity (M) = Mass (g) / [MW (g/mol) × Volume (L)]
                     </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-slate-800">Dilution</dt>
-                    <dd className="mt-0.5 font-mono text-slate-500">
-                      C₁V₁ = C₂V₂
+                    <dt className="font-medium text-slate-800">Unit Conversions</dt>
+                    <dd className="mt-0.5 text-xs text-slate-500">
+                      1 M = 1,000 mM = 1,000,000 µM &bull; 1 g = 1,000 mg = 1,000,000 µg
                     </dd>
                   </div>
                 </dl>
@@ -83,8 +82,8 @@ export default function MolarityPage() {
               <h2 className="text-xl font-semibold tracking-tight text-slate-950">
                 Calculator
               </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Results update as you type.
+              <p className="mt-1 text-xs text-slate-500">
+                Enter your experimental solution parameters below.
               </p>
               <div className="mt-6">
                 <MolarityCalculator />

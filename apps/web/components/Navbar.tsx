@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { isAdmin } from "@/lib/admin";
 
@@ -41,7 +42,7 @@ const facultyNavItems = [
     href: "/LMS",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
-        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 2-2 2v13c0 1.1.9 2 2 2Z" strokeLinejoin="round" />
+        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1 0.9 2 2 2Z" strokeLinejoin="round" />
       </svg>
     ),
     color: "bg-slate-800 text-white",
@@ -226,6 +227,7 @@ function UserAvatar({
 }
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [lmsTopMenuOpen, setLmsTopMenuOpen] = useState(false);
@@ -373,7 +375,7 @@ export default function Navbar() {
           {/* Brand Logo & Student Title */}
           <Link
             href="/"
-            className="flex items-center gap-3"
+            className="flex items-center gap-2.5 shrink-0"
             onClick={closeMenus}
           >
             <Image
@@ -381,7 +383,7 @@ export default function Navbar() {
               alt="CellsInVitro"
               width={40}
               height={40}
-              className="h-9 w-9 object-contain"
+              className="h-9 w-9 object-contain shrink-0"
               priority
             />
             <div className="leading-none">
@@ -390,27 +392,43 @@ export default function Navbar() {
                   CellsInVitro
                 </span>
               </div>
-              <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-widest text-slate-500">
+              <span className="mt-0.5 hidden xl:block text-[10px] font-medium uppercase tracking-widest text-slate-500">
                 Cell Biology Learning & Research
               </span>
             </div>
           </Link>
 
           {/* Desktop Student Navigation Links */}
-          <div className="hidden items-center gap-7 md:flex">
-            {studentNavItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="text-sm font-semibold text-slate-700 transition-colors hover:text-black"
-              >
-                {item.label}
-              </Link>
-            ))}
+          <div className="hidden items-center gap-1.5 md:flex md:gap-2 lg:gap-4 xl:gap-6 min-w-0">
+            {studentNavItems.map((item) => {
+              const isTools = item.href === "/tools";
+              const isDocServices = item.href === "/tools/document-modification";
+              const isActive = isTools
+                ? pathname === "/tools" || (pathname.startsWith("/tools/") && !pathname.startsWith("/tools/document-modification"))
+                : isDocServices
+                  ? pathname.startsWith("/tools/document-modification")
+                  : item.href === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(item.href);
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`whitespace-nowrap px-1.5 py-1 text-xs xl:text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "text-slate-950 font-bold"
+                      : "text-slate-600 hover:text-slate-950"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
 
           {/* User Actions / Auth */}
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="hidden items-center gap-3 md:flex shrink-0">
             {!loading && user ? (
               <div
                 className="relative"

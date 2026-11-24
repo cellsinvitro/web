@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BioChemChatbot from "@/components/BioChemChatbot";
@@ -56,9 +57,16 @@ export default function ChatbotPage() {
       <section className="pt-28 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full flex-1">
         {/* Eyebrow & Hero Title matching CellsInVitro */}
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 mb-5">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-700 animate-pulse" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 mb-5 shadow-xs select-none">
+            <Image
+              src="/chatbot-logo.png"
+              alt="CellsInVitro AI Logo"
+              width={20}
+              height={20}
+              draggable={false}
+              className="w-5 h-5 object-contain pointer-events-none select-none"
+            />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
               AI Science Assistant
             </span>
           </div>
@@ -104,9 +112,18 @@ export default function ChatbotPage() {
             </div>
 
             <div className="bg-slate-950 text-white p-6 rounded-[2rem] shadow-sm border border-slate-800">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-emerald-400 text-sm">⚡</span>
-                <h3 className="font-semibold text-sm text-white">LLM</h3>
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center p-1 shrink-0 select-none">
+                  <Image
+                    src="/chatbot-logo.png"
+                    alt="CellsInVitro AI"
+                    width={24}
+                    height={24}
+                    draggable={false}
+                    className="w-6 h-6 object-contain pointer-events-none select-none"
+                  />
+                </div>
+                <h3 className="font-semibold text-sm text-white">CellsInVitro AI Engine</h3>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Leverages ultra-fast models for instant, high-speed scientific answers and lab calculations.

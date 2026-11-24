@@ -445,6 +445,20 @@ export default function AdminDashboardPage() {
             </svg>
           }
         />
+
+        <MetricCard
+          title="Scientific Tools"
+          value="Tools Management"
+          subtitle="Plans, limits, subscriptions & analytics"
+          badgeText="Active"
+          badgeColor="emerald"
+          href="/admin/tools"
+          icon={
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 15.75V18a2.25 2.25 0 0 1-2.25 2.25h-3A2.25 2.25 0 0 1 8.25 18v-2.25m7.5 0v-3a2.25 2.25 0 0 0-2.25-2.25h-3A2.25 2.25 0 0 0 8.25 12.75v3m7.5 0h-7.5M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+            </svg>
+          }
+        />
       </div>
 
       {/* Command Navigation & Search Bar */}
